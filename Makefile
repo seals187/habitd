@@ -15,7 +15,7 @@ build:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/habitd ./cmd/habitd
 
 docker:
-	docker build -t habitd:latest .
+	docker build -t ghcr.io/seals187/habitd:latest .
 
 seed:
 	HABITD_DB=./data/habitd.db go run ./cmd/habitd seed

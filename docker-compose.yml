@@ -1,6 +1,6 @@
 services:
   habitd:
-    image: habitd:latest
+    image: ghcr.io/seals187/habitd:latest
     build: .
     ports: ["${HABITD_PORT:-8080}:${HABITD_PORT:-8080}"]
     volumes: ["./data:/data"]

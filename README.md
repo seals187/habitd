@@ -35,8 +35,11 @@ It ships as a 28 MB image and uses about 5 MB of RAM when idle.
 git clone https://github.com/seals187/habitd.git
 cd habitd
 cp .env.example .env    # set your user, password and port
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
+
+The image comes from `ghcr.io/seals187/habitd`. To build it from source instead, run `docker compose up -d --build`.
 
 Open <http://localhost:8080> (or your `HABITD_PORT`).
 

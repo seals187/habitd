@@ -100,6 +100,9 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Mehr Tabellen als vorgesehen:** `sessions`, `celebrations` und `push_subscriptions`. `areas`
   hat zusätzlich `key`, damit Abzeichen ein Umbenennen überleben, `habits` hat
   `weekly_target` (Check-ins pro Woche oder Monat).
+- **Docker-Image:** `docker-compose.yml` nutzt `ghcr.io/seals187/habitd:latest`. Ein Workflow baut
+  das Image bei jedem Tag `v*` und veröffentlicht es als `latest` und mit der Versionsnummer.
+  `build: .` bleibt drin, damit `docker compose up --build` weiter aus dem Quellcode baut.
 - **Version:** Das erste Release heißt `0.0.1`, die Bilder zeigen beispielhaft „v1.0“.
 - **Migrationen** laufen mit deaktivierten Foreign Keys auf einer eigenen Verbindung, weil
   SQLite für eine neue CHECK-Regel die Tabelle neu aufbauen muss. Danach prüft
