@@ -43,6 +43,10 @@ type Facts struct {
 	AreaSpan        map[string]int // days between first and last check-in
 	TagCount        map[string]int
 	TagStreak       map[string]int
+	TagDays         map[string]int // check-ins plus finished clean days
+	AreaDays        map[string]int // check-ins plus finished clean days
+	AvoidAreaStreak map[string]int // best clean streak of the area's avoid habits
+	DigitalClean    int            // digital avoid habits with at least one clean day in a row
 	Redeemed        int
 	MaxRedeemPrice  int
 	Coins           int
@@ -59,8 +63,9 @@ type Facts struct {
 func BuildFacts(w *World) *Facts {
 	f := &Facts{
 		AreaCount: map[string]int{}, AreaStreak: map[string]int{}, AreaSpan: map[string]int{},
-		TagCount: map[string]int{}, TagStreak: map[string]int{},
-		Jokers: w.Balances.Jokers, Coins: w.Balances.Coins, CoinsEarned: w.Balances.CoinsEarned,
+		TagCount: map[string]int{}, TagStreak: map[string]int{}, TagDays: map[string]int{}, AreaDays: map[string]int{},
+		AvoidAreaStreak: map[string]int{},
+		Jokers:          w.Balances.Jokers, Coins: w.Balances.Coins, CoinsEarned: w.Balances.CoinsEarned,
 		Level: w.Level, Redeemed: len(w.Redemptions), DaysInstalled: int(w.Today - w.Installed),
 	}
 	for _, r := range w.Redemptions {
@@ -71,6 +76,7 @@ func BuildFacts(w *World) *Facts {
 	months := map[int]bool{}
 	for _, h := range w.Habits {
 		f.addCheckins(h, months, w)
+		f.addCleanDays(h, w.Today)
 		if h.Archived {
 			continue
 		}
@@ -88,8 +94,10 @@ func (f *Facts) addCheckins(h *HabitData, months map[int]bool, w *World) {
 	for d, at := range h.Done {
 		f.Checkins++
 		f.AreaCount[h.AreaKey]++
+		f.AreaDays[h.AreaKey]++
 		if h.Tag != "" {
 			f.TagCount[h.Tag]++
+			f.TagDays[h.Tag]++
 		}
 		months[d.Year()*12+int(d.Month())] = true
 		if first == 0 || d < first {
@@ -122,6 +130,20 @@ func (f *Facts) addCheckins(h *HabitData, months map[int]bool, w *World) {
 	}
 }
 
+func (f *Facts) addCleanDays(h *HabitData, today model.Day) {
+	if h.Kind != model.KindAvoid {
+		return
+	}
+	clean := 0
+	for _, r := range h.StreakAt(today).Runs {
+		clean += r.Length
+	}
+	f.AreaDays[h.AreaKey] += clean
+	if h.Tag != "" {
+		f.TagDays[h.Tag] += clean
+	}
+}
+
 func (f *Facts) addStreak(h *HabitData, today model.Day) {
 	s := h.StreakAt(today)
 	f.AreaStreak[h.AreaKey] = max(f.AreaStreak[h.AreaKey], s.Days)
@@ -139,6 +161,10 @@ func (f *Facts) addStreak(h *HabitData, today model.Day) {
 		return
 	}
 	f.AvoidBest = max(f.AvoidBest, s.Days)
+	f.AvoidAreaStreak[h.AreaKey] = max(f.AvoidAreaStreak[h.AreaKey], s.Days)
+	if h.AreaKey == "digital" && s.Days > 0 {
+		f.DigitalClean++
+	}
 	if s.Days >= 30 {
 		f.AvoidsAt30++
 	}
@@ -196,6 +222,9 @@ func evalDay(w *World, d model.Day) dayState {
 			if slices.Contains(h.Relapses, d) {
 				s.complete = false
 			}
+			continue
+		}
+		if h.Frequency == model.FreqMonthly {
 			continue
 		}
 		if h.Frequency == model.FreqWeekly {

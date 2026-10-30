@@ -13,6 +13,7 @@ import (
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
+	"github.com/seals187/habitd/internal/templates"
 	"github.com/seals187/habitd/internal/view"
 )
 
@@ -162,8 +163,11 @@ func planned(h *game.HabitData, from, to model.Day) (done, plan int) {
 			done++
 		}
 	}
-	if h.Frequency == model.FreqWeekly {
+	switch h.Frequency {
+	case model.FreqWeekly:
 		plan = (days*h.WeekTarget() + 6) / 7
+	case model.FreqMonthly:
+		plan = (days*h.WeekTarget() + 29) / 30
 	}
 	return done, plan
 }
@@ -400,9 +404,11 @@ type iconChoice struct {
 }
 
 var habitIcons = []iconChoice{
-	{"droplet", "wasser"}, {"book", "lesen"}, {"dumbbell", "sport"}, {"lotus", ""}, {"hand-heart", ""}, {"lightbulb", ""},
-	{"footprints", "sport"}, {"bike", "sport"}, {"heart", ""}, {"phone", ""}, {"users", ""}, {"briefcase", ""},
-	{"utensils", ""}, {"moon", ""}, {"sun", ""}, {"leaf", ""}, {"coffee", ""}, {"ban", ""},
+	{"drop", "wasser"}, {"book", "lesen"}, {"dumb", "sport"}, {"lotus", "meditation"}, {"handheart", ""}, {"bulb", "idee"},
+	{"run", "sport"}, {"bike", "velo"}, {"heart", ""}, {"phone", "anrufen"}, {"users", ""}, {"brief", ""},
+	{"meal", ""}, {"moon", "schlaf"}, {"sun", "frueh"}, {"leaf", ""}, {"cup", ""}, {"ban", ""},
+	{"eye", ""}, {"phoneoff", "handy"}, {"cartx", "impulskauf"}, {"wallet", ""}, {"recycle", ""}, {"target", ""},
+	{"flame", ""}, {"handshake", ""}, {"cake", "geburtstag"}, {"home", ""}, {"teach", ""},
 }
 
 type dayOption struct {
@@ -412,14 +418,17 @@ type dayOption struct {
 }
 
 type habitFormData struct {
-	Habit  model.Habit
-	New    bool
-	Areas  []model.Area
-	Icons  []iconChoice
-	Days   []dayOption
-	Freq   string // daily, 3x, 5x or custom
-	Error  string
-	Config string // JSON read by the Alpine preview
+	Habit    model.Habit
+	New      bool
+	Areas    []model.Area
+	Icons    []iconChoice
+	Days     []dayOption
+	Freqs    []freqOption
+	Expanded bool // all fields visible; a new habit starts with name and suggestions only
+	Popular  []popularChip
+	Total    int
+	Error    string
+	Config   string // JSON read by the Alpine preview
 }
 
 func (s *Server) habitForm(w http.ResponseWriter, r *http.Request, h model.Habit, status int, message string) error {
@@ -427,17 +436,10 @@ func (s *Server) habitForm(w http.ResponseWriter, r *http.Request, h model.Habit
 	if err != nil {
 		return err
 	}
-	d := habitFormData{Habit: h, New: h.ID == 0, Areas: areas, Icons: habitIcons, Error: message, Freq: "custom"}
+	d := habitFormData{Habit: h, New: h.ID == 0, Areas: areas, Icons: habitIcons, Error: message, Freqs: freqOptions(h), Popular: popularRows(areas), Total: len(templates.All())}
+	d.Expanded = !d.New || status != http.StatusOK || h.Name != ""
 	for i, l := range []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"} {
 		d.Days = append(d.Days, dayOption{Bit: i, Label: l, Checked: h.DaysMask&(1<<i) != 0})
-	}
-	switch {
-	case h.Frequency == model.FreqDaily:
-		d.Freq = "daily"
-	case h.Frequency == model.FreqWeekly && h.WeeklyTarget == 3:
-		d.Freq = "3x"
-	case h.Frequency == model.FreqWeekly && h.WeeklyTarget == 5:
-		d.Freq = "5x"
 	}
 	config, err := json.Marshal(map[string]string{"kind": h.Kind, "difficulty": h.Difficulty})
 	if err != nil {
@@ -459,6 +461,14 @@ func (s *Server) habitNew(w http.ResponseWriter, r *http.Request) error {
 	h := model.Habit{Kind: model.KindBuild, Frequency: model.FreqDaily, Difficulty: model.Easy, Icon: habitIcons[0].Name}
 	if len(areas) > 0 {
 		h.AreaID = areas[0].ID
+	}
+	if t, ok := templates.Find(r.FormValue("template")); ok {
+		if area, ok := areasByKey(areas)[t.Area]; ok {
+			h = t.Habit(area.ID, s.svc.Now())
+		}
+	}
+	if name := strings.TrimSpace(r.FormValue("name")); name != "" && h.TemplateID == "" {
+		h.Name = name
 	}
 	return s.habitForm(w, r, h, http.StatusOK, "")
 }
@@ -492,10 +502,10 @@ func parseHabitForm(r *http.Request, h *model.Habit) string {
 	h.AreaID, _ = strconv.ParseInt(r.FormValue("area"), 10, 64)
 	h.Frequency, h.WeeklyTarget, h.DaysMask = model.FreqDaily, 0, 0
 	switch r.FormValue("freq") {
-	case "3x":
-		h.Frequency, h.WeeklyTarget = model.FreqWeekly, 3
-	case "5x":
-		h.Frequency, h.WeeklyTarget = model.FreqWeekly, 5
+	case "w1", "w2", "w3", "w4", "w5", "w6":
+		h.Frequency, h.WeeklyTarget = model.FreqWeekly, int(r.FormValue("freq")[1]-'0')
+	case "m1", "m2", "m3", "m4":
+		h.Frequency, h.WeeklyTarget = model.FreqMonthly, int(r.FormValue("freq")[1]-'0')
 	case "custom":
 		h.Frequency = model.FreqCustom
 		for _, v := range r.Form["days"] {
@@ -518,6 +528,14 @@ func parseHabitForm(r *http.Request, h *model.Habit) string {
 		tag = habitIcons[0].Tag
 	}
 	h.Tag = tag
+	if h.ID == 0 {
+		h.TemplateID = r.FormValue("template")
+	}
+	if t, ok := templates.Find(h.TemplateID); ok {
+		h.Tag = t.Tag // keeps area-specific badges working
+	} else {
+		h.TemplateID = ""
+	}
 	switch {
 	case h.Name == "":
 		return "Bitte gib einen Namen ein"

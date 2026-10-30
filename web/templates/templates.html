@@ -1,0 +1,23 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+<h1 class="page-title">Vorlagen</h1>
+<form class="search" action="/templates" method="get">
+{{if $d.Kind}}<input type="hidden" name="kind" value="{{$d.Kind}}">{{end}}
+{{if $d.Area}}<input type="hidden" name="area" value="{{$d.Area}}">{{end}}
+<label class="search-box">{{icon "search" 20}}<input type="search" name="q" value="{{$d.Query}}" placeholder="{{$d.Total}} Vorlagen durchsuchen" aria-label="Vorlagen durchsuchen" autocomplete="off" hx-get="/templates" hx-include="closest form" hx-trigger="keyup changed delay:150ms, search" hx-target="#tpl-list"></label>
+</form>
+<nav class="filters tight" aria-label="Art">
+<a href="/templates?q={{$d.Query}}&area={{$d.Area}}" {{if not $d.Kind}}class="on"{{end}}>Alle</a>
+<a href="/templates?q={{$d.Query}}&area={{$d.Area}}&kind=build" {{if eq $d.Kind "build"}}class="on"{{end}}>Aufbauen · {{$d.Builds}}</a>
+<a href="/templates?q={{$d.Query}}&area={{$d.Area}}&kind=avoid" {{if eq $d.Kind "avoid"}}class="on"{{end}}>Vermeiden · {{$d.Avoids}}</a>
+</nav>
+<nav class="filters tight" aria-label="Bereiche">{{range $d.Areas}}<a class="area-chip{{if .On}} picked{{end}}" style="--c:{{.Color}}" href="/templates?q={{$d.Query}}&kind={{$d.Kind}}{{if not .On}}&area={{.Key}}{{end}}"><span class="tint">{{icon .Icon 16}}</span>{{.Name}}</a>{{end}}</nav>
+<div id="tpl-list">{{template "templates-list" .}}</div>
+</main>{{end}}
+
+{{define "templates-list"}}{{$d := .Data}}{{range $d.Groups}}<h2 class="section">{{.Title}}</h2>
+{{range .Rows}}<div class="tpl-row" style="--c:{{.Area.Color}}">
+<span class="tile big">{{icon .Icon 24}}</span>
+<span class="tpl-text"><strong>{{.Name}}</strong><small>{{.Meta}}</small></span>
+{{if .Active}}<span class="tpl-active">{{icon "check" 18}}Aktiv</span>
+{{else}}<a class="round light" href="/habits/new?template={{.ID}}" hx-post="/templates/{{.ID}}/add?q={{$d.Query}}&kind={{$d.Kind}}&area={{$d.Area}}" hx-target="#tpl-list" hx-push-url="false" aria-label="{{.Name}} hinzufügen">{{icon "plus" 20}}</a>{{end}}
+</div>{{end}}{{else}}<section class="empty"><p class="muted">Keine passende Vorlage. Leg einfach ein eigenes Habit an.</p><a class="add-link" href="/habits/new?custom=1&name={{$d.Query}}">{{icon "plus" 18}}Eigenes Habit</a></section>{{end}}{{end}}

@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -81,8 +82,20 @@ func (s *Store) Tx(ctx context.Context, fn func(q *Q) error) error {
 	return nil
 }
 
+// migrate applies new migrations. Foreign keys stay off meanwhile, because
+// rebuilding a table would otherwise cascade into its child tables. The pragma
+// is per connection and has no effect inside a transaction.
 func (s *Store) migrate(ctx context.Context) error {
-	if _, err := s.sql.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)`); err != nil {
+	conn, err := s.sql.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("migration connection: %w", err)
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+		return fmt.Errorf("disable foreign keys: %w", err)
+	}
+	defer func() { _, _ = conn.ExecContext(context.WithoutCancel(ctx), `PRAGMA foreign_keys = ON`) }()
+	if _, err := conn.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)`); err != nil {
 		return fmt.Errorf("create migrations table: %w", err)
 	}
 	entries, err := fs.ReadDir(migrations.FS, ".")
@@ -102,7 +115,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			return fmt.Errorf("migration %s: bad number: %w", name, err)
 		}
 		var done int
-		if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM schema_migrations WHERE version = ?`, version).Scan(&done); err != nil {
+		if err := conn.QueryRowContext(ctx, `SELECT count(*) FROM schema_migrations WHERE version = ?`, version).Scan(&done); err != nil {
 			return fmt.Errorf("check migration %s: %w", name, err)
 		}
 		if done > 0 {
@@ -112,17 +125,37 @@ func (s *Store) migrate(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
-		err = s.Tx(ctx, func(q *Q) error {
-			if err := q.exec(string(body)); err != nil {
-				return err
-			}
-			return q.exec(`INSERT INTO schema_migrations (version) VALUES (?)`, version)
-		})
-		if err != nil {
+		if err := applyMigration(ctx, conn, string(body), version); err != nil {
 			return fmt.Errorf("apply migration %s: %w", name, err)
 		}
 	}
 	return nil
+}
+
+func applyMigration(ctx context.Context, conn *sql.Conn, body string, version int) error {
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, body); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, version); err != nil {
+		return err
+	}
+	rows, err := tx.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("foreign key violation")
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (q *Q) exec(query string, args ...any) error {

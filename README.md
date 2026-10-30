@@ -3,22 +3,23 @@
 A lightweight, self-hosted habit tracker with rewards. Build good habits, break bad ones, and treat yourself when you stick with it. Runs as a single Docker container.
 
 <p>
-  <img src="docs/screenshots/01-Heute.png" width="220" alt="Today screen">
-  <img src="docs/screenshots/03-Habit-Jahr.png" width="220" alt="Habit year view">
-  <img src="docs/screenshots/05-Abzeichen.png" width="220" alt="Badges">
+  <img src="docs/screenshots/01-Onboarding-Bereiche.png" width="220" alt="Onboarding">
+  <img src="docs/screenshots/03-Heute.png" width="220" alt="Today screen">
+  <img src="docs/screenshots/05-Habit-Jahr.png" width="220" alt="Habit year view">
 </p>
 <p>
-  <img src="docs/screenshots/06-Goenn-dir.png" width="220" alt="Reward shop">
-  <img src="docs/screenshots/08-Level-Up.png" width="220" alt="Level up">
-  <img src="docs/screenshots/09-Profil.png" width="220" alt="Profile">
+  <img src="docs/screenshots/07-Vorlagen.png" width="220" alt="Template library">
+  <img src="docs/screenshots/08-Abzeichen.png" width="220" alt="Badges">
+  <img src="docs/screenshots/09-Goenn-dir.png" width="220" alt="Reward shop">
 </p>
 
 The screenshots are the design mockups. The UI language is German.
 
 ## Features
 
-- **Habits to build or avoid:** daily, n times per week or on chosen weekdays, with 7 days of backfill
-- **Gamification:** XP, levels, titles, streak bonuses, a daily quest, and 80 badges in 13 categories
+- **Guided start:** a short onboarding and 200 ready-made habit templates with search
+- **Habits to build or avoid:** daily, n times per week or month, or on chosen weekdays, with 7 days of backfill
+- **Gamification:** XP, levels, titles, streak bonuses, a daily quest, and 95 badges in 16 categories
 - **Jokers** that bridge a missed day, used automatically or by hand
 - **Rewards** paid with coins ("Taler") or unlocked by a streak
 - **Statistics:** week, month and year views with heatmap

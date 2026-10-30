@@ -1,0 +1,2680 @@
+{
+ "version": 1,
+ "areas": [
+  {
+   "id": "gesundheit",
+   "name": "Gesundheit",
+   "color": "#5FD3C6",
+   "icon": "heart"
+  },
+  {
+   "id": "lernen",
+   "name": "Lernen",
+   "color": "#F28BB0",
+   "icon": "book"
+  },
+  {
+   "id": "achtsamkeit",
+   "name": "Achtsamkeit",
+   "color": "#7FB8F0",
+   "icon": "lotus"
+  },
+  {
+   "id": "gute-taten",
+   "name": "Gute Taten",
+   "color": "#E8A0E8",
+   "icon": "handheart"
+  },
+  {
+   "id": "familie",
+   "name": "Familie",
+   "color": "#F2B880",
+   "icon": "home"
+  },
+  {
+   "id": "freunde",
+   "name": "Freunde",
+   "color": "#F5A3A3",
+   "icon": "users"
+  },
+  {
+   "id": "arbeit",
+   "name": "Arbeit",
+   "color": "#9FB4C8",
+   "icon": "brief"
+  },
+  {
+   "id": "digital",
+   "name": "Digital",
+   "color": "#8C8CF5",
+   "icon": "phoneoff"
+  },
+  {
+   "id": "geld",
+   "name": "Geld",
+   "color": "#D9B26B",
+   "icon": "wallet"
+  },
+  {
+   "id": "umwelt",
+   "name": "Umwelt",
+   "color": "#8ACB7A",
+   "icon": "leaf"
+  }
+ ],
+ "templates": [
+  {
+   "id": "8-glaser-wasser-trinken",
+   "name": "8 Gläser Wasser trinken",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "drop",
+   "tag": "wasser",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "10-000-schritte",
+   "name": "10.000 Schritte",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "run",
+   "tag": "schritte",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "30-min-sport",
+   "name": "30 Min. Sport",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "dumb",
+   "tag": "sport",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "joggen",
+   "name": "Joggen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "run",
+   "tag": "sport",
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "krafttraining",
+   "name": "Krafttraining",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "dumb",
+   "tag": "sport",
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "yoga",
+   "name": "Yoga",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "lotus",
+   "tag": "sport",
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "dehnen",
+   "name": "Dehnen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "lotus",
+   "tag": "sport",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "treppe-statt-lift",
+   "name": "Treppe statt Lift",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "obst-essen",
+   "name": "Obst essen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "gemuse-zu-jeder-mahlzeit",
+   "name": "Gemüse zu jeder Mahlzeit",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "gesundes-fruhstuck",
+   "name": "Gesundes Frühstück",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "vor-23-uhr-ins-bett",
+   "name": "Vor 23 Uhr ins Bett",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "moon",
+   "tag": "schlaf",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "8-stunden-schlaf",
+   "name": "8 Stunden Schlaf",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "moon",
+   "tag": "schlaf",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "zahnseide-benutzen",
+   "name": "Zahnseide benutzen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "vitamine-nehmen",
+   "name": "Vitamine nehmen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "spaziergang-an-der-frischen-luft",
+   "name": "Spaziergang an der frischen Luft",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "mit-dem-velo-zur-arbeit",
+   "name": "Mit dem Velo zur Arbeit",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "bike",
+   "tag": "velo",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "kalt-duschen",
+   "name": "Kalt duschen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "ruckenubungen",
+   "name": "Rückenübungen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "selbst-kochen",
+   "name": "Selbst kochen",
+   "kind": "build",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "20-min-lesen",
+   "name": "20 Min. lesen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": "lesen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "sprache-lernen",
+   "name": "Sprache lernen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "fachartikel-lesen",
+   "name": "Fachartikel lesen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": "lesen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "podcast-oder-horbuch",
+   "name": "Podcast oder Hörbuch",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": "lesen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "online-kurs-lektion",
+   "name": "Online-Kurs-Lektion",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "ein-neues-wort-lernen",
+   "name": "Ein neues Wort lernen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "gelerntes-notieren",
+   "name": "Gelerntes notieren",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "programmieren-uben",
+   "name": "Programmieren üben",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "instrument-uben",
+   "name": "Instrument üben",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "nachrichten-bewusst-lesen",
+   "name": "Nachrichten bewusst lesen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": "lesen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "ein-sachbuch-kapitel",
+   "name": "Ein Sachbuch-Kapitel",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": "lesen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "karteikarten-wiederholen",
+   "name": "Karteikarten wiederholen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "500-worter-schreiben",
+   "name": "500 Wörter schreiben",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "eine-doku-schauen",
+   "name": "Eine Doku schauen",
+   "kind": "build",
+   "area": "lernen",
+   "icon": "book",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "10-min-meditieren",
+   "name": "10 Min. meditieren",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": "meditation",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "3-dinge-fur-die-ich-dankbar-bin",
+   "name": "3 Dinge, für die ich dankbar bin",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "atemubung",
+   "name": "Atemübung",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": "meditation",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "eine-stunde-offline",
+   "name": "Eine Stunde offline",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "kein-bildschirm-vor-dem-schlafen",
+   "name": "Kein Bildschirm vor dem Schlafen",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "moon",
+   "tag": "schlaf",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "tagebuch-schreiben",
+   "name": "Tagebuch schreiben",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "tag-am-morgen-planen",
+   "name": "Tag am Morgen planen",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "tagesruckblick-am-abend",
+   "name": "Tagesrückblick am Abend",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "bewusst-essen-ohne-handy",
+   "name": "Bewusst essen ohne Handy",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "zeit-in-der-natur",
+   "name": "Zeit in der Natur",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "10-min-aufraumen",
+   "name": "10 Min. aufräumen",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "bett-machen",
+   "name": "Bett machen",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "fruh-aufstehen",
+   "name": "Früh aufstehen",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "sun",
+   "tag": "frueh",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "pause-ohne-bildschirm",
+   "name": "Pause ohne Bildschirm",
+   "kind": "build",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "ein-kompliment-machen",
+   "name": "Ein Kompliment machen",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "eine-gute-tat-am-tag",
+   "name": "Eine gute Tat am Tag",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "jemandem-helfen",
+   "name": "Jemandem helfen",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handshake",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "spenden",
+   "name": "Spenden",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 2
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "ehrenamtlich-engagieren",
+   "name": "Ehrenamtlich engagieren",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 2
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "mull-aufsammeln",
+   "name": "Müll aufsammeln",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "blut-spenden",
+   "name": "Blut spenden",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "monthly",
+    "times": 1
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "nachbarn-helfen",
+   "name": "Nachbarn helfen",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handshake",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "dankes-nachricht-schreiben",
+   "name": "Dankes-Nachricht schreiben",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "freundlich-sein-im-alltag",
+   "name": "Freundlich sein im Alltag",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "verschenken-statt-wegwerfen",
+   "name": "Verschenken statt wegwerfen",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "geduldig-zuhoren",
+   "name": "Geduldig zuhören",
+   "kind": "build",
+   "area": "gute-taten",
+   "icon": "handheart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "eltern-anrufen",
+   "name": "Eltern anrufen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "phone",
+   "tag": "anrufen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "mama-anrufen",
+   "name": "Mama anrufen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "phone",
+   "tag": "anrufen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "gemeinsam-essen",
+   "name": "Gemeinsam essen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "mit-den-kindern-spielen",
+   "name": "Mit den Kindern spielen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "vorlesen",
+   "name": "Vorlesen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "book",
+   "tag": "lesen",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "date-night-mit-partner-in",
+   "name": "Date Night mit Partner/in",
+   "kind": "build",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 2
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "hausarbeit-teilen",
+   "name": "Hausarbeit teilen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "grosseltern-besuchen",
+   "name": "Großeltern besuchen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 2
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "geburtstage-gratulieren",
+   "name": "Geburtstage gratulieren",
+   "kind": "build",
+   "area": "familie",
+   "icon": "cake",
+   "tag": "geburtstag",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "familienausflug-am-wochenende",
+   "name": "Familienausflug am Wochenende",
+   "kind": "build",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 2
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "handyfreie-familienzeit",
+   "name": "Handyfreie Familienzeit",
+   "kind": "build",
+   "area": "familie",
+   "icon": "phoneoff",
+   "tag": "handy",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "ich-hab-dich-lieb-sagen",
+   "name": "„Ich hab dich lieb“ sagen",
+   "kind": "build",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "einem-freund-schreiben",
+   "name": "Einem Freund schreiben",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "freunde-treffen",
+   "name": "Freunde treffen",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "zusagen-einhalten",
+   "name": "Zusagen einhalten",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "punktlich-sein",
+   "name": "Pünktlich sein",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "alten-kontakt-wieder-melden",
+   "name": "Alten Kontakt wieder melden",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "zum-geburtstag-gratulieren",
+   "name": "Zum Geburtstag gratulieren",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "cake",
+   "tag": "geburtstag",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "kleine-uberraschung-machen",
+   "name": "Kleine Überraschung machen",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "gemeinsam-sport-treiben",
+   "name": "Gemeinsam Sport treiben",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "dumb",
+   "tag": "sport",
+   "frequency": {
+    "type": "weekly",
+    "times": 3
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "zuhoren-statt-ratschlage-geben",
+   "name": "Zuhören statt Ratschläge geben",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "jemanden-einladen",
+   "name": "Jemanden einladen",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "danke-sagen",
+   "name": "Danke sagen",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "nachfragen-wie-es-jemandem-geht",
+   "name": "Nachfragen, wie es jemandem geht",
+   "kind": "build",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "eine-neue-idee-einbringen",
+   "name": "Eine neue Idee einbringen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "bulb",
+   "tag": "idee",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": true
+  },
+  {
+   "id": "90-min-konzentriert-arbeiten",
+   "name": "90 Min. konzentriert arbeiten",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "target",
+   "tag": "fokus",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": true
+  },
+  {
+   "id": "posteingang-leeren",
+   "name": "Posteingang leeren",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "tagesziele-festlegen",
+   "name": "Tagesziele festlegen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "wissen-teilen",
+   "name": "Wissen teilen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "teach",
+   "tag": "mentor",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "kollegen-helfen",
+   "name": "Kollegen helfen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "handshake",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "feedback-geben",
+   "name": "Feedback geben",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "30-min-weiterbildung",
+   "name": "30 Min. Weiterbildung",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "teach",
+   "tag": "weiterbildung",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "meetings-vorbereiten",
+   "name": "Meetings vorbereiten",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "punktlich-feierabend",
+   "name": "Pünktlich Feierabend",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "pausen-einhalten",
+   "name": "Pausen einhalten",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "wichtigste-aufgabe-zuerst",
+   "name": "Wichtigste Aufgabe zuerst",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "probleme-aktiv-ansprechen",
+   "name": "Probleme aktiv ansprechen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "einen-neuen-kontakt-knupfen",
+   "name": "Einen neuen Kontakt knüpfen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "arbeit-dokumentieren",
+   "name": "Arbeit dokumentieren",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "schreibtisch-aufraumen",
+   "name": "Schreibtisch aufräumen",
+   "kind": "build",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "easy",
+   "popular": false
+  },
+  {
+   "id": "rauchen",
+   "name": "Rauchen",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "flame",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": true
+  },
+  {
+   "id": "vapen",
+   "name": "Vapen",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "flame",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "alkohol",
+   "name": "Alkohol",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "cup",
+   "tag": "alkohol",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": true
+  },
+  {
+   "id": "alkohol-unter-der-woche",
+   "name": "Alkohol unter der Woche",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "cup",
+   "tag": "alkohol",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "energydrinks",
+   "name": "Energydrinks",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "zuckerhaltige-getranke",
+   "name": "Zuckerhaltige Getränke",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "sussigkeiten",
+   "name": "Süßigkeiten",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": true
+  },
+  {
+   "id": "fast-food",
+   "name": "Fast Food",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "essen-nach-20-uhr",
+   "name": "Essen nach 20 Uhr",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "snacken-zwischendurch",
+   "name": "Snacken zwischendurch",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mehr-als-2-kaffee",
+   "name": "Mehr als 2 Kaffee",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "cup",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "chips",
+   "name": "Chips",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mahlzeiten-auslassen",
+   "name": "Mahlzeiten auslassen",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "fertiggerichte",
+   "name": "Fertiggerichte",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "nagelkauen",
+   "name": "Nägelkauen",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "stundenlang-sitzen-ohne-pause",
+   "name": "Stundenlang sitzen ohne Pause",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "handy-im-bett",
+   "name": "Handy im Bett",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "phoneoff",
+   "tag": "handy",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "nach-mitternacht-schlafen-gehen",
+   "name": "Nach Mitternacht schlafen gehen",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "moon",
+   "tag": "schlaf",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "schlummertaste-drucken",
+   "name": "Schlummertaste drücken",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "lift-statt-treppe",
+   "name": "Lift statt Treppe",
+   "kind": "avoid",
+   "area": "gesundheit",
+   "icon": "heart",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "social-media-vor-10-uhr",
+   "name": "Social Media vor 10 Uhr",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": "social",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": true
+  },
+  {
+   "id": "doomscrolling",
+   "name": "Doomscrolling",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "eye",
+   "tag": "doomscroll",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": true
+  },
+  {
+   "id": "kurzvideos-tiktok-reels",
+   "name": "Kurzvideos (TikTok, Reels)",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "handy-beim-essen",
+   "name": "Handy beim Essen",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "handy-direkt-nach-dem-aufwachen",
+   "name": "Handy direkt nach dem Aufwachen",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": "handy",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mehr-als-2-std-private-bildschirmzeit",
+   "name": "Mehr als 2 Std. private Bildschirmzeit",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "serien-marathon",
+   "name": "Serien-Marathon",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "gaming-unter-der-woche",
+   "name": "Gaming unter der Woche",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "standig-nachrichten-checken",
+   "name": "Ständig Nachrichten checken",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mails-nach-feierabend",
+   "name": "Mails nach Feierabend",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "handy-beim-autofahren",
+   "name": "Handy beim Autofahren",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": "handy",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "endlos-youtube",
+   "name": "Endlos-YouTube",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "benachrichtigungen-sofort-offnen",
+   "name": "Benachrichtigungen sofort öffnen",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "online-diskussionen-in-kommentaren",
+   "name": "Online-Diskussionen in Kommentaren",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "pornos",
+   "name": "Pornos",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "handy-auf-der-toilette",
+   "name": "Handy auf der Toilette",
+   "kind": "avoid",
+   "area": "digital",
+   "icon": "phoneoff",
+   "tag": "handy",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "impulskaufe",
+   "name": "Impulskäufe",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "cartx",
+   "tag": "impulskauf",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": true
+  },
+  {
+   "id": "online-shopping",
+   "name": "Online-Shopping",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "cartx",
+   "tag": "impulskauf",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "essen-bestellen",
+   "name": "Essen bestellen",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": true
+  },
+  {
+   "id": "sportwetten-und-glucksspiel",
+   "name": "Sportwetten und Glücksspiel",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "dumb",
+   "tag": "lieferdienst",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "hard",
+   "popular": false
+  },
+  {
+   "id": "ungenutzte-abos-behalten",
+   "name": "Ungenutzte Abos behalten",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "taglich-coffee-to-go",
+   "name": "Täglich Coffee to go",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "lotto",
+   "name": "Lotto",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "konto-uberziehen",
+   "name": "Konto überziehen",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "kaufen-aus-langeweile",
+   "name": "Kaufen aus Langeweile",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "in-app-kaufe",
+   "name": "In-App-Käufe",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "spontane-markenkaufe",
+   "name": "Spontane Markenkäufe",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "ausgaben-ohne-budget",
+   "name": "Ausgaben ohne Budget",
+   "kind": "avoid",
+   "area": "geld",
+   "icon": "wallet",
+   "tag": "budget",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "prokrastinieren",
+   "name": "Prokrastinieren",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": true
+  },
+  {
+   "id": "negative-selbstgesprache",
+   "name": "Negative Selbstgespräche",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "grubeln",
+   "name": "Grübeln",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mich-mit-anderen-vergleichen",
+   "name": "Mich mit anderen vergleichen",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "perfektionismus",
+   "name": "Perfektionismus",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "multitasking",
+   "name": "Multitasking",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "jammern",
+   "name": "Jammern",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "zu-allem-ja-sagen",
+   "name": "Zu allem Ja sagen",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "hetzen",
+   "name": "Hetzen",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "ungeduld",
+   "name": "Ungeduld",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mich-uber-kleinigkeiten-aufregen",
+   "name": "Mich über Kleinigkeiten aufregen",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "zu-harte-selbstkritik",
+   "name": "Zu harte Selbstkritik",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "arzttermine-aufschieben",
+   "name": "Arzttermine aufschieben",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mir-keine-pausen-gonnen",
+   "name": "Mir keine Pausen gönnen",
+   "kind": "avoid",
+   "area": "achtsamkeit",
+   "icon": "lotus",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "lastern",
+   "name": "Lästern",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "fluchen",
+   "name": "Fluchen",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "andere-unterbrechen",
+   "name": "Andere unterbrechen",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "notlugen",
+   "name": "Notlügen",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "zu-spat-kommen",
+   "name": "Zu spät kommen",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "kurzfristig-absagen",
+   "name": "Kurzfristig absagen",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "users",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "handy-im-gesprach",
+   "name": "Handy im Gespräch",
+   "kind": "avoid",
+   "area": "freunde",
+   "icon": "phoneoff",
+   "tag": "handy",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "laut-werden-im-streit",
+   "name": "Laut werden im Streit",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "sarkasmus",
+   "name": "Sarkasmus",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "nachtragend-sein",
+   "name": "Nachtragend sein",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "immer-recht-haben-wollen",
+   "name": "Immer recht haben wollen",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mich-nicht-melden",
+   "name": "Mich nicht melden",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "ungeduld-mit-den-kindern",
+   "name": "Ungeduld mit den Kindern",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "kritisieren-ohne-zu-loben",
+   "name": "Kritisieren ohne zu loben",
+   "kind": "avoid",
+   "area": "familie",
+   "icon": "home",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "unvorbereitet-in-meetings",
+   "name": "Unvorbereitet in Meetings",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "mails-im-minutentakt-checken",
+   "name": "Mails im Minutentakt checken",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "regelmassige-uberstunden",
+   "name": "Regelmäßige Überstunden",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "pausen-ausfallen-lassen",
+   "name": "Pausen ausfallen lassen",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "am-schreibtisch-essen",
+   "name": "Am Schreibtisch essen",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "meal",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "wichtiges-aufschieben",
+   "name": "Wichtiges aufschieben",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "laptop-in-meetings",
+   "name": "Laptop in Meetings",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "keine-grenzen-setzen",
+   "name": "Keine Grenzen setzen",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "arbeit-am-wochenende",
+   "name": "Arbeit am Wochenende",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "chaos-auf-dem-schreibtisch",
+   "name": "Chaos auf dem Schreibtisch",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "social-media-wahrend-der-arbeit",
+   "name": "Social Media während der Arbeit",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "phoneoff",
+   "tag": "social",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "alles-selbst-machen-statt-delegieren",
+   "name": "Alles selbst machen statt delegieren",
+   "kind": "avoid",
+   "area": "arbeit",
+   "icon": "brief",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "plastiktuten",
+   "name": "Plastiktüten",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "recycle",
+   "tag": "einweg",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "einwegbecher",
+   "name": "Einwegbecher",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "recycle",
+   "tag": "einweg",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "lebensmittel-wegwerfen",
+   "name": "Lebensmittel wegwerfen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "recycle",
+   "tag": "verschwendung",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "kurze-strecken-mit-dem-auto",
+   "name": "Kurze Strecken mit dem Auto",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "bike",
+   "tag": "auto",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "licht-brennen-lassen",
+   "name": "Licht brennen lassen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "taglich-fleisch",
+   "name": "Täglich Fleisch",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": "fleisch",
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "fast-fashion-kaufen",
+   "name": "Fast Fashion kaufen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "lange-duschen",
+   "name": "Lange duschen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "unordnung-liegen-lassen",
+   "name": "Unordnung liegen lassen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "wasche-liegen-lassen",
+   "name": "Wäsche liegen lassen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "geschirr-stehen-lassen",
+   "name": "Geschirr stehen lassen",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  },
+  {
+   "id": "unnotige-fluge",
+   "name": "Unnötige Flüge",
+   "kind": "avoid",
+   "area": "umwelt",
+   "icon": "leaf",
+   "tag": null,
+   "frequency": {
+    "type": "daily"
+   },
+   "difficulty": "medium",
+   "popular": false
+  }
+ ]
+}

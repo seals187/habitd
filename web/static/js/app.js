@@ -21,6 +21,25 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Counts ticked boxes for the button label in the onboarding.
+  Alpine.data("picker", () => ({
+    count: 0,
+    init() {
+      this.update();
+    },
+    update() {
+      this.count = this.$root.querySelectorAll("input[type=checkbox]:checked").length;
+    },
+    get label() {
+      const d = this.$root.dataset;
+      if (this.count === 0) return d.empty;
+      return d.prefix + " · " + this.count + " " + (this.count === 1 ? d.one : d.many);
+    },
+    get blocked() {
+      return this.count === 0 && this.$root.dataset.required === "true";
+    },
+  }));
+
   Alpine.data("rewardForm", () => ({
     mode: "coins",
     price: "250",

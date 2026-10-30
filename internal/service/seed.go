@@ -57,10 +57,10 @@ func (s *Service) seed(q *db.Q) error {
 	todayBit := 1 << today.WeekdayIndex()
 	ids := map[string]int64{}
 	for _, h := range []seedHabit{
-		{model.Habit{Name: "20 Min. lesen", Kind: model.KindBuild, Frequency: model.FreqDaily, Icon: "book", Tag: "lesen", AreaID: area["lernen"], Difficulty: model.Medium}, seedReadSpan - 1},
-		{model.Habit{Name: "Sport", Kind: model.KindBuild, Frequency: model.FreqWeekly, WeeklyTarget: 3, Icon: "dumbbell", Tag: "sport", AreaID: area["gesundheit"], Difficulty: model.Hard}, 42},
-		{model.Habit{Name: "Mama anrufen", Kind: model.KindBuild, Frequency: model.FreqCustom, DaysMask: todayBit, Icon: "phone", AreaID: area["familie"], Difficulty: model.Easy}, 35},
-		{model.Habit{Name: "Neue Idee einbringen", Kind: model.KindBuild, Frequency: model.FreqCustom, DaysMask: todayBit, Icon: "lightbulb", AreaID: area["arbeit"], Difficulty: model.Medium}, 21},
+		{model.Habit{Name: "20 Min. lesen", Kind: model.KindBuild, TemplateID: "20-min-lesen", Frequency: model.FreqDaily, Icon: "book", Tag: "lesen", AreaID: area["lernen"], Difficulty: model.Medium}, seedReadSpan - 1},
+		{model.Habit{Name: "Sport", Kind: model.KindBuild, Frequency: model.FreqWeekly, WeeklyTarget: 3, Icon: "dumb", Tag: "sport", AreaID: area["gesundheit"], Difficulty: model.Hard}, 42},
+		{model.Habit{Name: "Mama anrufen", TemplateID: "mama-anrufen", Kind: model.KindBuild, Frequency: model.FreqCustom, DaysMask: todayBit, Icon: "phone", Tag: "anrufen", AreaID: area["familie"], Difficulty: model.Easy}, 35},
+		{model.Habit{Name: "Neue Idee einbringen", Kind: model.KindBuild, Frequency: model.FreqCustom, DaysMask: todayBit, Icon: "bulb", Tag: "idee", AreaID: area["arbeit"], Difficulty: model.Medium}, 21},
 		{model.Habit{Name: "Kein Alkohol", Kind: model.KindAvoid, Frequency: model.FreqDaily, Icon: "ban", AreaID: area["gesundheit"], Difficulty: model.Easy}, 40},
 	} {
 		h.habit.CreatedAt = s.dayAt(today-model.Day(h.age), 9, 0)
@@ -119,6 +119,7 @@ func (s *Service) seed(q *db.Q) error {
 		KeyLevel:        fmt.Sprint(game.LevelFor(seedXP)),
 		KeyReminderTime: "20:00",
 		KeyReminderOn:   "1",
+		KeyOnboarded:    "1",
 	} {
 		if err := q.SetSetting(key, value); err != nil {
 			return err

@@ -46,6 +46,17 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Feiertage:** Bundesweite Feiertage DE sind eingebaut, weitere Tage und das Abschalten
   gehen unter Profil → Server.
 
+- **Monatlich:** Die Vorlage „Blut spenden“ brauchte einen neuen Rhythmus. Die Serie zählt in
+  Monaten, Bonus und Joker rechnen mit 30 Tagen je Monat. Joker gelten hier nicht.
+- **Neue Abzeichen ohne Check-ins:** Digital, Geld und Umwelt enthalten fast nur
+  Vermeiden-Vorlagen. Deshalb zählen „×“ dort saubere Tage statt Check-ins (Offline-Stunde,
+  Mehrweg). Velo statt Auto zählt die Tags `auto` und `velo` zusammen.
+- **Detox-Tag:** Ein ganzer Tag offline lässt sich nicht messen. Das Abzeichen gilt, wenn
+  3 Digital-Vermeiden-Habits zugleich mindestens einen sauberen Tag in Serie haben.
+- **`templates.json` korrigiert:** „Sportwetten und Glücksspiel“ trug das Tag `sport` und hätte
+  Sport-Abzeichen ausgelöst, das Tag ist entfernt. „Essen bestellen“ hat das neue Tag
+  `lieferdienst` für Selbstgemacht.
+
 ## Oberfläche
 
 - **Jahr-Heatmap:** 53 Wochen, horizontal scrollbar, beim Öffnen rechts am aktuellen Rand.
@@ -54,6 +65,17 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Serien im Zeitverlauf:** Die Balken zeigen die Lage auf der Zeitachse des Habits, wie im
   Bild. „Davor“ ist die längste Serie vor dem Rekord.
 - **Monatsstatistik:** Wie im Bild (28/29) zählt der laufende Tag nicht mit.
+- **Neues Habit:** Zuerst nur Name, Vorschläge, „Beliebt“ und der Link zur Bibliothek, wie im
+  Bild. Art, Häufigkeit und die übrigen Felder erscheinen, sobald eine Vorlage oder „… als
+  eigenes Habit anlegen“ gewählt ist. Eine Vorlage übernimmt ihre Werte per Seitenaufruf
+  (`/habits/new?template=…`), so geht es ohne JavaScript-Logik.
+- **Vorschläge:** Beliebte zuerst, dann Namen mit passendem Anfang, dann der Rest.
+- **Onboarding Schritt 2:** Pro Bereich bis zu 3 beliebte Vorlagen. Hat ein Bereich weniger
+  als 2, wird aufgefüllt, ohne dasselbe Tag doppelt zu zeigen. Die Häufigkeit folgt
+  `templates.json`, „30 Min. Sport“ ist dort täglich, im Bild 3× pro Woche.
+- **Onboarding:** Startet, solange es keine Habits gibt und es nicht abgeschlossen wurde.
+  „Überspringen“ steht unter dem Button und fehlt im Bild.
+- **Profil:** Zusätzlich „Onboarding erneut starten“, das Bild zeigt nur die anderen Zeilen.
 - **Abzeichen, Übersicht:** Pro Kategorie zwei Reihen wie im Bild, der Rest über „›“ oder
   die Filter. Die Kategorieansicht zeigt zusätzlich den Hinweistext. Geheime Abzeichen
   zeigen „???“ ohne Hinweis, auch wenn die Übersichtsgrafik ihn nennt.
@@ -77,7 +99,11 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   Testvektor aus RFC 8291). Die Nachricht läuft zwangsläufig über den Push-Dienst des Browsers.
 - **Mehr Tabellen als vorgesehen:** `sessions`, `celebrations` und `push_subscriptions`. `areas`
   hat zusätzlich `key`, damit Abzeichen ein Umbenennen überleben, `habits` hat
-  `weekly_target`.
+  `weekly_target` (Check-ins pro Woche oder Monat).
+- **Version:** Das erste Release heißt `0.0.1`, die Bilder zeigen beispielhaft „v1.0“.
+- **Migrationen** laufen mit deaktivierten Foreign Keys auf einer eigenen Verbindung, weil
+  SQLite für eine neue CHECK-Regel die Tabelle neu aufbauen muss. Danach prüft
+  `foreign_key_check` die Daten.
 - **`internal/service`** ergänzt die vorgeschlagene Struktur: Dort laufen die Transaktionen,
   `internal/game` bleibt pur und ohne Datenbank.
 - **Demo-Daten:** Die Salden stimmen exakt mit den Bildern überein. Der Seed zeigt mehr

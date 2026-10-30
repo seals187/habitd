@@ -15,6 +15,7 @@ import (
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
+	"github.com/seals187/habitd/internal/templates"
 )
 
 const maxImportSize = 32 << 20
@@ -29,6 +30,7 @@ type profileData struct {
 	Redeemed     int
 	Habits       int
 	Areas        int
+	Templates    int
 	ReminderTime string
 	MaxJokers    int
 	Version      string
@@ -59,11 +61,11 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) error {
 	progress := game.ProgressFor(world.Balances.XP, world.Level)
 	d := profileData{Progress: progress, Title: game.Title(progress.Level), DaysIn: int(world.Today - world.Installed),
 		XP: world.Balances.XP, CoinsEarned: world.Balances.CoinsEarned, Redeemed: len(world.Redemptions),
-		Areas: len(areas), ReminderTime: reminder, MaxJokers: game.MaxJokers, Version: s.cfg.Version, Runtime: s.cfg.Runtime}
+		Areas: len(areas), Templates: len(templates.All()), ReminderTime: reminder, MaxJokers: game.MaxJokers, Version: s.cfg.Version, Runtime: s.cfg.Runtime}
 	for _, h := range world.Habits {
 		st := h.StreakAt(world.Today)
 		unit := 1
-		if st.Weekly {
+		if st.Weekly || st.Monthly {
 			unit = h.WeekTarget()
 		}
 		d.Longest = max(d.Longest, st.Longest*unit)

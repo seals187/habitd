@@ -95,6 +95,13 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 }
 
 func (s *Server) today(w http.ResponseWriter, r *http.Request) error {
+	fresh, err := s.needsOnboarding(r.Context())
+	if err != nil {
+		return err
+	}
+	if fresh {
+		return redirect(w, r, "/onboarding")
+	}
 	d, err := s.todayData(r)
 	if err != nil {
 		return err

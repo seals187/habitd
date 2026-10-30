@@ -1,0 +1,30 @@
+{{define "content"}}{{$d := .Data}}<main class="page onboard">
+<div class="steps" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="{{$d.Step}}" aria-label="Schritt {{$d.Step}} von 3"><i class="on"></i><i {{if ge $d.Step 2}}class="on"{{end}}></i><i {{if ge $d.Step 3}}class="on"{{end}}></i></div>
+{{if eq $d.Step 1}}<h1>Was willst du angehen?</h1>
+<p class="lead">Wähle ein oder mehrere Bereiche. Du kannst später jederzeit mehr hinzufügen.</p>
+<form class="onboard-form" method="get" action="/onboarding" x-data="picker" @change="update" data-prefix="Weiter" data-one="Bereich" data-many="Bereiche" data-empty="Bereich wählen" data-required="true">
+<input type="hidden" name="step" value="2">
+<div class="tiles">{{range $d.Tiles}}<label class="area-tile" style="--c:{{.Color}}"><input type="checkbox" name="area" value="{{.Key}}"><span class="tile">{{icon .Icon 24}}</span><span class="area-text"><strong>{{.Name}}</strong><small>{{.Count}} Vorlagen</small></span><span class="tick">{{icon "check" 18}}</span></label>{{end}}</div>
+<button class="btn-primary" type="submit" :disabled="blocked"><span x-text="label">Weiter</span></button>
+</form>{{end}}
+{{if eq $d.Step 2}}<h1>Wähle 3–5 Habits</h1>
+<p class="lead">Klein anfangen hält länger. Beliebte Vorlagen:</p>
+<form class="onboard-form" method="post" action="/onboarding" x-data="picker" @change="update" data-prefix="Los geht’s" data-one="Habit" data-many="Habits" data-empty="Ohne Habits weiter">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<div class="onboard-list">{{range $d.Groups}}<div style="--c:{{.Area.Color}}">
+<p class="group-head"><i class="dot big"></i><strong>{{.Area.Name}}</strong><a href="/templates?area={{.Area.Key}}">alle ›</a></p>
+{{range .Rows}}<label class="tpl-row pick"><input type="checkbox" name="template" value="{{.ID}}"><span class="tile big">{{icon .Icon 24}}</span><span class="tpl-text"><strong>{{.Name}}</strong><small>{{.Meta}}</small></span><span class="tick">{{icon "check" 18}}</span></label>{{end}}
+</div>{{end}}</div>
+<button class="btn-primary" type="submit"><span x-text="label">Los geht’s</span></button>
+</form>{{end}}
+{{if eq $d.Step 3}}<h1>So funktioniert’s</h1>
+<p class="lead">Dranbleiben zahlt sich aus. Das sammelst du:</p>
+<ul class="gains">
+<li class="card"><span class="green">{{icon "star" 20}}</span><span><b>XP</b><br><small class="muted">für jeden Check-in, ab 7 Tagen Serie gibt es Bonus</small></span></li>
+<li class="card"><span class="gold">{{icon "coin" 20}}</span><span><b>Taler</b><br><small class="muted">löst du unter „Gönn dir“ für Belohnungen ein</small></span></li>
+<li class="card"><span class="blue">{{icon "shield" 20}}</span><span><b>Joker</b><br><small class="muted">retten deine Serie an einem verpassten Tag</small></span></li>
+<li class="card"><span class="orange">{{icon "award" 20}}</span><span><b>Abzeichen</b><br><small class="muted">95 Stück warten auf dich, ein paar davon geheim</small></span></li>
+</ul>
+<a class="btn-primary bottom-link" href="/">Zu Heute</a>{{end}}
+{{if lt $d.Step 3}}<form method="post" action="/onboarding/skip" class="skip"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="link-btn" type="submit">Überspringen</button></form>{{end}}
+</main>{{end}}

@@ -47,16 +47,17 @@ func New(files fs.FS) (*Renderer, error) {
 		return nil, err
 	}
 	funcs := template.FuncMap{
-		"icon":     func(name string, size int) template.HTML { return iconHTML(version, name, size) },
-		"num":      Number,
-		"add":      func(a, b int) int { return a + b },
-		"sub":      func(a, b int) int { return a - b },
-		"signed":   func(n int) string { return fmt.Sprintf("%+d", n) },
-		"dash":     dash,
-		"quarter":  func(r float64) string { return fmt.Sprintf("%.2f", 2*math.Pi*r/4) },
-		"streak":   StreakLabel,
-		"multiple": MultiplierLabel,
-		"dict":     dict,
+		"icon":       func(name string, size int) template.HTML { return iconHTML(version, name, size) },
+		"num":        Number,
+		"add":        func(a, b int) int { return a + b },
+		"sub":        func(a, b int) int { return a - b },
+		"signed":     func(n int) string { return fmt.Sprintf("%+d", n) },
+		"dash":       dash,
+		"quarter":    func(r float64) string { return fmt.Sprintf("%.2f", 2*math.Pi*r/4) },
+		"streak":     StreakLabel,
+		"streakUnit": StreakUnit,
+		"multiple":   MultiplierLabel,
+		"dict":       dict,
 	}
 	base, err := template.New("base").Funcs(funcs).ParseFS(files, "templates/_*.html")
 	if err != nil {
@@ -160,6 +161,12 @@ func dash(radius float64, percent int) string {
 
 // StreakLabel formats a streak: "27 Tage" or "5 Wochen".
 func StreakLabel(s game.Streak) string {
+	if s.Monthly {
+		if s.Current == 1 {
+			return "1 Monat"
+		}
+		return fmt.Sprintf("%d Monate", s.Current)
+	}
 	if s.Weekly {
 		if s.Current == 1 {
 			return "1 Woche"
@@ -170,6 +177,17 @@ func StreakLabel(s game.Streak) string {
 		return "1 Tag"
 	}
 	return fmt.Sprintf("%d Tage", s.Current)
+}
+
+// StreakUnit names the unit of a streak.
+func StreakUnit(s game.Streak) string {
+	switch {
+	case s.Weekly:
+		return "Wochen"
+	case s.Monthly:
+		return "Monate"
+	}
+	return "Tage"
 }
 
 // MultiplierLabel formats a bonus factor: "×1,5".
@@ -190,6 +208,8 @@ func FrequencyLabel(h model.Habit) string {
 	switch h.Frequency {
 	case model.FreqWeekly:
 		return fmt.Sprintf("%d× pro Woche", h.WeeklyTarget)
+	case model.FreqMonthly:
+		return fmt.Sprintf("%d× pro Monat", h.WeeklyTarget)
 	case model.FreqCustom:
 		letters := []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 		var picked []string

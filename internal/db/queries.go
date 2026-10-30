@@ -106,14 +106,16 @@ func (q *Q) DeleteArea(id int64) error {
 	return q.exec(`DELETE FROM areas WHERE id = ?`, id)
 }
 
-const habitColumns = `id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort`
+const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort`
 
 func scanHabit(s interface{ Scan(...any) error }) (model.Habit, error) {
 	var h model.Habit
 	var created string
-	err := s.Scan(&h.ID, &h.Name, &h.Kind, &h.Frequency, &h.WeeklyTarget, &h.DaysMask, &h.Icon, &h.Tag,
+	var template sql.NullString
+	err := s.Scan(&h.ID, &template, &h.Name, &h.Kind, &h.Frequency, &h.WeeklyTarget, &h.DaysMask, &h.Icon, &h.Tag,
 		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort)
 	h.CreatedAt = parseTime(created)
+	h.TemplateID = template.String
 	return h, err
 }
 
@@ -151,15 +153,15 @@ func (q *Q) Habits() ([]model.Habit, error) {
 // SaveHabit creates or updates a habit and returns its id.
 func (q *Q) SaveHabit(h model.Habit) (int64, error) {
 	if h.ID != 0 {
-		err := q.exec(`UPDATE habits SET name = ?, kind = ?, frequency = ?, weekly_target = ?, days_mask = ?, icon = ?,
+		err := q.exec(`UPDATE habits SET template_id = ?, name = ?, kind = ?, frequency = ?, weekly_target = ?, days_mask = ?, icon = ?,
 			tag = ?, area_id = ?, difficulty = ?, archived = ? WHERE id = ?`,
-			h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), h.ID)
+			nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), h.ID)
 		return h.ID, err
 	}
 	res, err := q.r.ExecContext(q.ctx, `INSERT INTO habits
-		(name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort), 0) + 1 FROM habits))`,
-		h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), formatTime(h.CreatedAt))
+		(template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort), 0) + 1 FROM habits))`,
+		nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), formatTime(h.CreatedAt))
 	if err != nil {
 		return 0, fmt.Errorf("insert habit: %w", err)
 	}
@@ -348,6 +350,13 @@ func (q *Q) Rewards() ([]model.Reward, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func nullableText(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 func nullable(id int64) any {
@@ -753,8 +762,8 @@ func (q *Q) RestoreAll(e *Export) error {
 		}
 	}
 	for _, h := range e.Habits {
-		if err := q.exec(`INSERT INTO habits (`+habitColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			h.ID, h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty,
+		if err := q.exec(`INSERT INTO habits (`+habitColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			h.ID, nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty,
 			b2i(h.Archived), formatTime(h.CreatedAt), h.Sort); err != nil {
 			return err
 		}

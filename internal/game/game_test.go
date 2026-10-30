@@ -271,15 +271,15 @@ func facts(w *World) *Facts {
 	return BuildFacts(w)
 }
 
-func TestThereAre80BadgesIn13Categories(t *testing.T) {
-	if len(Badges) != 80 {
+func TestThereAre95BadgesIn16Categories(t *testing.T) {
+	if len(Badges) != 95 {
 		t.Fatalf("got %d badges", len(Badges))
 	}
-	if len(Categories) != 13 {
+	if len(Categories) != 16 {
 		t.Fatalf("got %d categories", len(Categories))
 	}
 	want := map[string]int{"serien": 10, "meilensteine": 11, "vermeiden": 5, "comeback": 4, "zeit": 6, "bereiche": 8,
-		"gute-taten": 5, "familie": 5, "freunde": 5, "arbeit": 7, "goenn-dir": 5, "level": 4, "geheim": 5}
+		"gute-taten": 5, "familie": 5, "freunde": 5, "arbeit": 7, "digital": 5, "geld": 5, "umwelt": 5, "goenn-dir": 5, "level": 4, "geheim": 5}
 	got := map[string]int{}
 	seen := map[string]bool{}
 	for _, b := range Badges {
@@ -307,7 +307,7 @@ func TestThereAre80BadgesIn13Categories(t *testing.T) {
 func TestBadgeBoundaries(t *testing.T) {
 	empty := func() *Facts {
 		return &Facts{AreaCount: map[string]int{}, AreaStreak: map[string]int{}, AreaSpan: map[string]int{},
-			TagCount: map[string]int{}, TagStreak: map[string]int{}}
+			TagCount: map[string]int{}, TagStreak: map[string]int{}, TagDays: map[string]int{}, AreaDays: map[string]int{}, AvoidAreaStreak: map[string]int{}}
 	}
 	set := map[string]func(*Facts, int){
 		"funke": func(f *Facts, n int) { f.BestStreak = n }, "legende": func(f *Facts, n int) { f.BestStreak = n },
@@ -338,9 +338,24 @@ func TestBadgeBoundaries(t *testing.T) {
 		"ideengeber":    func(f *Facts, n int) { f.AreaCount["arbeit"] = n }, "initiative": func(f *Facts, n int) { f.AreaCount["arbeit"] = n },
 		"vorangehen": func(f *Facts, n int) { f.AreaCount["arbeit"] = n }, "mentor": func(f *Facts, n int) { f.AreaCount["arbeit"] = n },
 		"weiterbildung": func(f *Facts, n int) { f.AreaCount["arbeit"] = n }, "teamplayer": func(f *Facts, n int) { f.AreaCount["arbeit"] = n },
-		"fokus":        func(f *Facts, n int) { f.AreaStreak["arbeit"] = n },
-		"sparfuchs":    func(f *Facts, n int) { f.Coins = n },
-		"erster-taler": func(f *Facts, n int) { f.Redeemed = n }, "erste-belohnung": func(f *Facts, n int) { f.Redeemed = n }, "geniesser": func(f *Facts, n int) { f.Redeemed = n },
+		"fokus":               func(f *Facts, n int) { f.AreaStreak["arbeit"] = n },
+		"offline-stunde":      func(f *Facts, n int) { f.AreaDays["digital"] = n },
+		"handyfreier-morgen":  func(f *Facts, n int) { f.TagStreak["handy"] = n },
+		"scroll-stopp":        func(f *Facts, n int) { f.TagStreak["doomscroll"] = n },
+		"detox-tag":           func(f *Facts, n int) { f.DigitalClean = n },
+		"bildschirm-zen":      func(f *Facts, n int) { f.AvoidAreaStreak["digital"] = n },
+		"widerstanden":        func(f *Facts, n int) { f.TagStreak["impulskauf"] = n },
+		"budget-profi":        func(f *Facts, n int) { f.TagStreak["budget"] = n },
+		"selbstgemacht":       func(f *Facts, n int) { f.TagStreak["lieferdienst"] = n },
+		"sparschwein":         func(f *Facts, n int) { f.AvoidAreaStreak["geld"] = n },
+		"finanzfreiheit":      func(f *Facts, n int) { f.AvoidAreaStreak["geld"] = n },
+		"mehrweg":             func(f *Facts, n int) { f.TagDays["einweg"] = n },
+		"velo-statt-auto":     func(f *Facts, n int) { f.TagDays["velo"] = n },
+		"veggie-woche":        func(f *Facts, n int) { f.TagStreak["fleisch"] = n },
+		"nichts-verschwendet": func(f *Facts, n int) { f.TagStreak["verschwendung"] = n },
+		"gruener-fussabdruck": func(f *Facts, n int) { f.AreaStreak["umwelt"] = n },
+		"sparfuchs":           func(f *Facts, n int) { f.Coins = n },
+		"erster-taler":        func(f *Facts, n int) { f.Redeemed = n }, "erste-belohnung": func(f *Facts, n int) { f.Redeemed = n }, "geniesser": func(f *Facts, n int) { f.Redeemed = n },
 		"grosser-wunsch": func(f *Facts, n int) { f.MaxRedeemPrice = n },
 		"schatzmeister":  func(f *Facts, n int) { f.CoinsEarned = n },
 		"aufsteiger":     func(f *Facts, n int) { f.Level = n }, "meister": func(f *Facts, n int) { f.Level = n },
@@ -536,5 +551,56 @@ func TestPerfectNeedsTwoHabits(t *testing.T) {
 	markRange(h, day("2026-10-05"), day("2026-10-18"))
 	if f := facts(&World{Today: day("2026-10-18"), Habits: []*HabitData{h}}); f.PerfectRun != 0 {
 		t.Fatalf("got %d", f.PerfectRun)
+	}
+}
+
+func TestMonthlyStreak(t *testing.T) {
+	h := NewHabitData(model.Habit{Kind: model.KindBuild, Frequency: model.FreqMonthly, WeeklyTarget: 1}, day("2026-01-10"))
+	mark(h, day("2026-01-31"))
+	mark(h, day("2026-02-28"))
+	mark(h, day("2026-03-01"))
+	s := h.StreakAt(day("2026-03-15"))
+	if !s.Monthly || s.Current != 3 || s.Days != 90 || s.Active != 3 {
+		t.Fatalf("got %+v", s)
+	}
+	if h.DueOn(day("2026-03-15")) {
+		t.Fatal("month target met")
+	}
+	if s := h.StreakAt(day("2026-05-01")); s.Current != 0 {
+		t.Fatalf("missed april: %+v", s)
+	}
+	if !h.DueOn(day("2026-05-01")) {
+		t.Fatal("new month is due")
+	}
+}
+
+func TestLeapFebruaryIsOneMonth(t *testing.T) {
+	if nextMonth(day("2024-02-29")) != day("2024-03-01") || nextMonth(day("2024-01-31")) != day("2024-02-01") || nextMonth(day("2026-12-05")) != day("2027-01-01") {
+		t.Fatal("nextMonth")
+	}
+}
+
+func TestCleanDaysCountForTagBadges(t *testing.T) {
+	h := avoid("2026-10-01", "2026-10-06")
+	h.Tag, h.AreaKey = "einweg", "umwelt"
+	f := facts(&World{Today: day("2026-10-11"), Habits: []*HabitData{h}})
+	if f.TagDays["einweg"] != 9 || f.AreaDays["umwelt"] != 9 || f.AvoidAreaStreak["umwelt"] != 4 {
+		t.Fatalf("days %d area %d streak %d", f.TagDays["einweg"], f.AreaDays["umwelt"], f.AvoidAreaStreak["umwelt"])
+	}
+}
+
+func TestDetoxNeedsThreeCleanDigitalHabits(t *testing.T) {
+	var habits []*HabitData
+	for range 3 {
+		h := avoid("2026-10-28")
+		h.AreaKey = "digital"
+		habits = append(habits, h)
+	}
+	if f := facts(&World{Habits: habits}); f.DigitalClean != 3 {
+		t.Fatalf("got %d", f.DigitalClean)
+	}
+	habits[0].Relapses = []model.Day{day("2026-10-29")}
+	if f := facts(&World{Today: day("2026-10-29"), Habits: habits}); f.DigitalClean != 2 {
+		t.Fatalf("got %d", f.DigitalClean)
 	}
 }

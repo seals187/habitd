@@ -52,6 +52,9 @@ func (h *HabitData) BridgeDay(d model.Day) (model.Day, bool) {
 	if h.Frequency == model.FreqWeekly {
 		return h.bridgeWeek(d)
 	}
+	if h.Frequency == model.FreqMonthly {
+		return 0, false
+	}
 	if _, done := h.Done[d]; done || h.Joker[d] || !h.Scheduled(d) {
 		return 0, false
 	}
@@ -88,6 +91,8 @@ func RewardProgress(h *HabitData, today, lastRedeemed model.Day, resetOnBreak bo
 	unit := 1
 	if s.Weekly {
 		unit = 7
+	} else if s.Monthly {
+		unit = 30
 	}
 	best := 0
 	for _, r := range s.Runs {

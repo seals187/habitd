@@ -22,6 +22,7 @@ const (
 	KeyPasswordHash = "password_hash"
 	KeyAdminUser    = "admin_user"
 	KeyInstalledOn  = "installed_on"
+	KeyOnboarded    = "onboarded"
 	KeyLevel        = "level"
 	KeyLastSettled  = "last_settled"
 	KeyJokerMode    = "joker_mode"

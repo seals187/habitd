@@ -90,7 +90,7 @@ func (c *client) signIn() {
 	if resp.StatusCode != http.StatusSeeOther {
 		c.t.Fatalf("setup: %s", resp.Status)
 	}
-	_, html := c.get("/")
+	_, html := c.get("/profile")
 	m := csrfPattern.FindStringSubmatch(html)
 	if m == nil {
 		c.t.Fatal("no csrf token in page")
@@ -308,7 +308,7 @@ func TestAllPagesRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"/", "/habits", "/habits/new", "/habits/1/edit", "/habits/1", "/habits/1?view=year", "/habits/2?view=week", "/badges", "/badges?cat=geheim", "/rewards", "/rewards?tab=joker",
-		"/rewards?tab=history", "/rewards/new", "/rewards/1/edit", "/profile", "/settings/areas", "/settings/reminders", "/settings/joker",
+		"/rewards?tab=history", "/rewards/new", "/rewards/1/edit", "/profile", "/templates", "/templates?kind=avoid&area=geld&q=auf", "/onboarding", "/onboarding?step=2&area=familie", "/onboarding?step=3", "/habits/new?template=blut-spenden", "/settings/areas", "/settings/reminders", "/settings/joker",
 		"/settings/backup", "/settings/server", "/manifest.webmanifest", "/sw.js", "/offline", "/static/css/app.css"} {
 		resp, body := c.get(path)
 		if resp.StatusCode != 200 {
@@ -399,7 +399,7 @@ func TestBearerAPI(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &stats); err != nil {
 		t.Fatal(err)
 	}
-	if stats["badges_total"] != float64(80) {
+	if stats["badges_total"] != float64(95) {
 		t.Fatalf("stats %v", stats)
 	}
 	_, body = anon.do("GET", "/api/v1/habits", nil, auth)
@@ -441,5 +441,111 @@ func TestLoginChecksUserName(t *testing.T) {
 	}
 	if resp, _ := anon.do("POST", "/login", url.Values{"username": {"julia"}, "password": {password}}, nil); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("correct login: %s", resp.Status)
+	}
+}
+
+func TestFreshInstallGoesThroughOnboarding(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	resp, _ := c.get("/")
+	if loc := resp.Header.Get("Location"); loc != "/onboarding" {
+		t.Fatalf("location %q", loc)
+	}
+	_, html := c.get("/onboarding")
+	if !strings.Contains(html, "Was willst du angehen?") || !strings.Contains(html, "Digital") {
+		t.Fatal("step 1")
+	}
+	_, html = c.get("/onboarding?step=2&area=gesundheit&area=digital")
+	if !strings.Contains(html, "8 Gläser Wasser trinken") || !strings.Contains(html, "Doomscrolling") || strings.Contains(html, "Eltern anrufen") {
+		t.Fatalf("step 2: %s", html)
+	}
+	form := url.Values{"csrf": {c.csrf}, "template": {"8-glaser-wasser-trinken", "doomscrolling", "joggen"}}
+	resp, _ = c.do("POST", "/onboarding", form, nil)
+	if resp.Header.Get("Location") != "/onboarding?step=3" {
+		t.Fatalf("location %q", resp.Header.Get("Location"))
+	}
+	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(habits) != 3 || habits[0].Tag != "wasser" || habits[0].TemplateID == "" || habits[2].WeeklyTarget != 3 {
+		t.Fatalf("habits %+v", habits)
+	}
+	if resp, _ := c.get("/"); resp.StatusCode != 200 {
+		t.Fatalf("today: %s", resp.Status)
+	}
+	// Running it again must not duplicate habits.
+	if resp, _ := c.do("POST", "/onboarding", form, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("again: %s", resp.Status)
+	}
+	habits, _ = c.svc.Store.Q(context.Background()).Habits()
+	if len(habits) != 3 {
+		t.Fatalf("duplicated: %d", len(habits))
+	}
+}
+
+func TestOnboardingCanBeSkipped(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	if resp, _ := c.post("/onboarding/skip", false); resp.Header.Get("Location") != "/" {
+		t.Fatalf("location %q", resp.Header.Get("Location"))
+	}
+	if resp, _ := c.get("/"); resp.StatusCode != 200 {
+		t.Fatalf("today: %s", resp.Status)
+	}
+}
+
+func TestSuggestions(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	_, html := c.do("GET", "/templates/suggest?q=gl%C3%A4ser", nil, map[string]string{"HX-Request": "true"})
+	if strings.Contains(html, "<html") || !strings.Contains(html, "8 Gläser Wasser trinken") || !strings.Contains(html, "als eigenes Habit anlegen") {
+		t.Fatalf("suggest: %s", html)
+	}
+	if _, html := c.get("/templates/suggest?q="); html != "" {
+		t.Fatalf("empty query: %s", html)
+	}
+	_, html = c.get("/habits/new?template=joggen")
+	if !strings.Contains(html, `value="Joggen"`) || !strings.Contains(html, `value="joggen"`) {
+		t.Fatalf("prefill: %s", html)
+	}
+	_, html = c.get("/habits/new?custom=1&name=Sp")
+	if !strings.Contains(html, `value="Sp"`) {
+		t.Fatal("custom name missing")
+	}
+}
+
+func TestLibraryAddAndActive(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	_, html := c.get("/templates?area=umwelt&kind=avoid")
+	if !strings.Contains(html, "Plastiktüten") || strings.Contains(html, "Joggen") {
+		t.Fatal("filter")
+	}
+	resp, html := c.post("/templates/plastikt-ten/add", true)
+	if resp.StatusCode == 200 {
+		t.Fatalf("unknown template accepted: %s", html)
+	}
+	resp, html = c.post("/templates/joggen/add?q=jog", true)
+	if resp.StatusCode != 200 || !strings.Contains(html, "Aktiv") || strings.Contains(html, "<html") {
+		t.Fatalf("%s %s", resp.Status, html)
+	}
+	_, _ = c.post("/templates/joggen/add", true)
+	habits, _ := c.svc.Store.Q(context.Background()).Habits()
+	if len(habits) != 1 || habits[0].Tag != "sport" {
+		t.Fatalf("habits %+v", habits)
+	}
+}
+
+func TestTemplateTagSurvivesForm(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	form := url.Values{"csrf": {c.csrf}, "name": {"Weniger scrollen"}, "kind": {"avoid"}, "template": {"doomscrolling"}, "icon": {"heart"}, "area": {"8"}, "difficulty": {"easy"}, "freq": {"daily"}}
+	if resp, _ := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("got %s", resp.Status)
+	}
+	habits, _ := c.svc.Store.Q(context.Background()).Habits()
+	if habits[0].Tag != "doomscroll" || habits[0].TemplateID != "doomscrolling" {
+		t.Fatalf("habit %+v", habits[0])
 	}
 }

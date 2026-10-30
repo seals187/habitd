@@ -17,7 +17,7 @@
 <div class="stats-3">
 <div class="card stat"><b class="green">{{$d.DoneDays}}/{{$d.PlanDays}}</b><span>Tage erledigt</span></div>
 <div class="card stat"><b class="green">{{$d.Quote}}%</b><span>Quote</span></div>
-<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if $d.Streak.Weekly}}Wochen{{else}}Serie{{end}}</span></div>
+<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if or $d.Streak.Weekly $d.Streak.Monthly}}{{streakUnit $d.Streak}}{{else}}Serie{{end}}</span></div>
 </div>{{end}}
 {{if eq $d.View "week"}}<section class="card calendar">
 <div class="cal-grid cal-letters">{{range $d.Week}}<span>{{.Letter}}</span>{{end}}</div>
@@ -37,7 +37,7 @@
 <h2 class="section">Bester Wochentag</h2>
 <section class="card weekdays">{{range $d.WeekdayBars}}<div class="wd"><div class="wd-track"><i class="{{if .Best}}best{{end}}" style="height:{{.Height}}%"></i></div><span>{{.Label}}</span></div>{{end}}</section>{{end}}
 <div class="{{if eq $d.View "month"}}stats-2 flush{{else}}stats-3{{end}}">
-{{if ne $d.View "month"}}<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if $d.Streak.Weekly}}Wochen{{else}}Tage{{end}} Serie</span></div>{{end}}
+{{if ne $d.View "month"}}<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{streakUnit $d.Streak}} Serie</span></div>{{end}}
 <div class="card stat"><b class="green">{{num $d.XPTotal}}</b><span>XP gesamt</span></div>
 <div class="card stat"><b class="gold">{{num $d.CoinsTotal}}</b><span>Taler verdient</span></div>
 </div>

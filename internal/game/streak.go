@@ -34,6 +34,7 @@ type Run struct {
 type Streak struct {
 	Current int   // in units
 	Weekly  bool  // true when units are weeks
+	Monthly bool  // true when units are months
 	Days    int   // Current in days, the base of bonus and jokers
 	Active  int   // days with a check-in inside the current streak, the base of Serien badges
 	Longest int   // in units
@@ -42,7 +43,7 @@ type Streak struct {
 
 // WeekBased reports whether streaks of the habit are counted in weeks.
 func (h *HabitData) WeekBased() bool {
-	return h.Kind == model.KindBuild && h.Frequency != model.FreqDaily
+	return h.Kind == model.KindBuild && (h.Frequency == model.FreqWeekly || h.Frequency == model.FreqCustom)
 }
 
 // WeekTarget is the number of check-ins needed per week.
@@ -97,11 +98,14 @@ func (h *HabitData) DueOn(d model.Day) bool {
 	if h.Archived || h.Kind != model.KindBuild {
 		return false
 	}
-	if h.Frequency == model.FreqWeekly {
-		if _, doneToday := h.Done[d]; doneToday {
-			return true
-		}
+	if _, doneToday := h.Done[d]; doneToday && h.Frequency != model.FreqDaily && h.Frequency != model.FreqCustom {
+		return true
+	}
+	switch h.Frequency {
+	case model.FreqWeekly:
 		return d >= h.Start && !h.WeekMet(d.WeekStart())
+	case model.FreqMonthly:
+		return d >= h.Start && h.monthCount(monthStart(d)) < h.WeekTarget()
 	}
 	return h.Scheduled(d)
 }
@@ -114,6 +118,10 @@ func (h *HabitData) StreakAt(today model.Day) Streak {
 		s = h.avoidStreak(today)
 	case h.WeekBased():
 		s = h.weekStreak(today)
+		s.Active = s.Current * h.WeekTarget()
+		return s
+	case h.Kind == model.KindBuild && h.Frequency == model.FreqMonthly:
+		s = h.monthStreak(today)
 		s.Active = s.Current * h.WeekTarget()
 		return s
 	default:
@@ -203,6 +211,48 @@ func (h *HabitData) weekStreak(today model.Day) Streak {
 		}
 	}
 	return t.result(7, true)
+}
+
+// monthStart returns the first day of the day's month.
+func monthStart(d model.Day) model.Day { return d - model.Day(d.Dom()-1) }
+
+// nextMonth returns the first day of the following month.
+func nextMonth(d model.Day) model.Day { return monthStart(monthStart(d) + 31) }
+
+// monthCount counts the check-ins of the month starting at m.
+func (h *HabitData) monthCount(m model.Day) int {
+	n := 0
+	for d := m; d < nextMonth(m); d++ {
+		if _, ok := h.Done[d]; ok {
+			n++
+		}
+	}
+	return n
+}
+
+// monthStreak counts months that reached the target. Jokers bridge days, so
+// they do not apply to this rhythm.
+func (h *HabitData) monthStreak(today model.Day) Streak {
+	var t tally
+	thisMonth := monthStart(today)
+	target := h.WeekTarget()
+	for m := monthStart(h.first()); m <= thisMonth; m = nextMonth(m) {
+		done := 0
+		for d := m; d < nextMonth(m) && d <= today; d++ {
+			if _, ok := h.Done[d]; ok {
+				done++
+			}
+		}
+		switch {
+		case done >= target:
+			t.hit(m, min(nextMonth(m)-1, today))
+		case m != thisMonth:
+			t.miss()
+		}
+	}
+	s := t.result(30, false)
+	s.Monthly = true
+	return s
 }
 
 func (h *HabitData) weekCountsUntil(w, today model.Day) (done, joker int) {

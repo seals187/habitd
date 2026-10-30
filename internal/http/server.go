@@ -74,6 +74,12 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /logout", s.logout)
 
 	handle("GET /{$}", s.today)
+	handle("GET /onboarding", s.onboarding)
+	handle("POST /onboarding", s.onboardingFinish)
+	handle("POST /onboarding/skip", s.onboardingSkip)
+	handle("GET /templates", s.templateList)
+	handle("GET /templates/suggest", s.templateSuggest)
+	handle("POST /templates/{id}/add", s.templateAdd)
 	handle("GET /habits", s.habitList)
 	handle("GET /habits/new", s.habitNew)
 	handle("POST /habits/new", s.habitSave)

@@ -17,8 +17,11 @@ var Categories = []Category{
 	{"bereiche", "Bereiche", "#F28BB0"},
 	{"gute-taten", "Gute Taten", "#E8A0E8"},
 	{"familie", "Familie", "#F2B880"},
-	{"freunde", "Freunde", "#7FB8F0"},
+	{"freunde", "Freunde", "#F5A3A3"},
 	{"arbeit", "Arbeit", "#9FB4C8"},
+	{"digital", "Digital", "#8C8CF5"},
+	{"geld", "Geld", "#D9B26B"},
+	{"umwelt", "Umwelt", "#8ACB7A"},
 	{"goenn-dir", "Gönn dir", "#F2C14E"},
 	{"level", "Level", "#4FB283"},
 	{"geheim", "Geheim", "#A3A69F"},
@@ -55,6 +58,17 @@ func areaStreak(area string) Metric { return func(f *Facts) int { return f.AreaS
 func areaSpan(area string) Metric   { return func(f *Facts) int { return f.AreaSpan[area] } }
 func tagCount(tag string) Metric    { return func(f *Facts) int { return f.TagCount[tag] } }
 func tagStreak(tag string) Metric   { return func(f *Facts) int { return f.TagStreak[tag] } }
+func tagDays(tags ...string) Metric {
+	return func(f *Facts) int {
+		sum := 0
+		for _, t := range tags {
+			sum += f.TagDays[t]
+		}
+		return sum
+	}
+}
+func areaDays(area string) Metric    { return func(f *Facts) int { return f.AreaDays[area] } }
+func avoidStreak(area string) Metric { return func(f *Facts) int { return f.AvoidAreaStreak[area] } }
 
 var (
 	streak     = field(func(f *Facts) int { return f.BestStreak })
@@ -65,7 +79,7 @@ var (
 	reachLevel = field(func(f *Facts) int { return f.Level })
 )
 
-// Badges lists all 80 badges.
+// Badges lists all 95 badges.
 var Badges = []Badge{
 	{Key: "funke", Name: "Funke", Hint: "3 Tage", Category: "serien", Icon: "flame", Target: 3, Metric: streak},
 	{Key: "erste-woche", Name: "Erste Woche", Hint: "7 Tage", Category: "serien", Icon: "flame", Target: 7, Metric: streak},
@@ -110,8 +124,8 @@ var Badges = []Badge{
 
 	{Key: "buecherwurm", Name: "Bücherwurm", Hint: "20× Lernen", Category: "bereiche", Icon: "book", Target: 20, Metric: areaCount("lernen")},
 	{Key: "leseratte", Name: "Leseratte", Hint: "100× Lernen", Category: "bereiche", Icon: "library", Target: 100, Metric: areaCount("lernen")},
-	{Key: "eiserner-wille", Name: "Eiserner Wille", Hint: "10 Wo. Sport", Category: "bereiche", Icon: "dumbbell", Target: 70, Metric: tagStreak("sport")},
-	{Key: "marathon", Name: "Marathon", Hint: "100× Sport", Category: "bereiche", Icon: "footprints", Target: 100, Metric: tagCount("sport")},
+	{Key: "eiserner-wille", Name: "Eiserner Wille", Hint: "10 Wo. Sport", Category: "bereiche", Icon: "dumb", Target: 70, Metric: tagStreak("sport")},
+	{Key: "marathon", Name: "Marathon", Hint: "100× Sport", Category: "bereiche", Icon: "run", Target: 100, Metric: tagCount("sport")},
 	{Key: "ruhepol", Name: "Ruhepol", Hint: "30× Achtsamkeit", Category: "bereiche", Icon: "lotus", Target: 30, Metric: areaCount("achtsamkeit")},
 	{Key: "zen-meister", Name: "Zen-Meister", Hint: "100× Achtsamkeit", Category: "bereiche", Icon: "leaf", Target: 100, Metric: areaCount("achtsamkeit")},
 	{Key: "hydriert", Name: "Hydriert", Hint: "30 T. Wasser", Category: "bereiche", Icon: "droplet", Target: 30, Metric: tagStreak("wasser")},
@@ -142,6 +156,24 @@ var Badges = []Badge{
 	{Key: "weiterbildung", Name: "Weiterbildung", Hint: "20 Lerneinheiten", Category: "arbeit", Icon: "chart-column", Target: 20, Metric: areaCount("arbeit")},
 	{Key: "teamplayer", Name: "Teamplayer", Hint: "20× geholfen", Category: "arbeit", Icon: "handshake", Target: 20, Metric: areaCount("arbeit")},
 	{Key: "fokus", Name: "Fokus", Hint: "30 Tage Serie", Category: "arbeit", Icon: "briefcase", Target: 30, Metric: areaStreak("arbeit")},
+
+	{Key: "offline-stunde", Name: "Offline-Stunde", Hint: "7× 1 Std. offline", Category: "digital", Icon: "wifi-off", Target: 7, Metric: areaDays("digital")},
+	{Key: "handyfreier-morgen", Name: "Handyfreier Morgen", Hint: "14 Tage", Category: "digital", Icon: "phoneoff", Target: 14, Metric: tagStreak("handy")},
+	{Key: "scroll-stopp", Name: "Scroll-Stopp", Hint: "30 T. ohne Doomscrolling", Category: "digital", Icon: "eye", Target: 30, Metric: tagStreak("doomscroll")},
+	{Key: "detox-tag", Name: "Detox-Tag", Hint: "ganzer Tag offline", Category: "digital", Icon: "wifi-off", Target: 3, Metric: field(func(f *Facts) int { return f.DigitalClean })},
+	{Key: "bildschirm-zen", Name: "Bildschirm-Zen", Hint: "90 Tage", Category: "digital", Icon: "crown", Target: 90, Metric: avoidStreak("digital")},
+
+	{Key: "widerstanden", Name: "Widerstanden", Hint: "7 T. ohne Impulskauf", Category: "geld", Icon: "cartx", Target: 7, Metric: tagStreak("impulskauf")},
+	{Key: "budget-profi", Name: "Budget-Profi", Hint: "30 T. im Budget", Category: "geld", Icon: "wallet", Target: 30, Metric: tagStreak("budget")},
+	{Key: "selbstgemacht", Name: "Selbstgemacht", Hint: "30 T. ohne Lieferdienst", Category: "geld", Icon: "cup", Target: 30, Metric: tagStreak("lieferdienst")},
+	{Key: "sparschwein", Name: "Sparschwein", Hint: "90 T. clean", Category: "geld", Icon: "piggy-bank", Target: 90, Metric: avoidStreak("geld")},
+	{Key: "finanzfreiheit", Name: "Finanzfreiheit", Hint: "1 Jahr", Category: "geld", Icon: "gem", Target: 365, Metric: avoidStreak("geld")},
+
+	{Key: "mehrweg", Name: "Mehrweg", Hint: "10× ohne Einweg", Category: "umwelt", Icon: "recycle", Target: 10, Metric: tagDays("einweg")},
+	{Key: "velo-statt-auto", Name: "Velo statt Auto", Hint: "20× gefahren", Category: "umwelt", Icon: "bike", Target: 20, Metric: tagDays("auto", "velo")},
+	{Key: "veggie-woche", Name: "Veggie-Woche", Hint: "7 T. fleischlos", Category: "umwelt", Icon: "sprout", Target: 7, Metric: tagStreak("fleisch")},
+	{Key: "nichts-verschwendet", Name: "Nichts verschwendet", Hint: "30 T.", Category: "umwelt", Icon: "recycle", Target: 30, Metric: tagStreak("verschwendung")},
+	{Key: "gruener-fussabdruck", Name: "Grüner Fußabdruck", Hint: "90 T.", Category: "umwelt", Icon: "globe", Target: 90, Metric: areaStreak("umwelt")},
 
 	{Key: "erster-taler", Name: "Erster Taler", Hint: "1. Einlösung", Category: "goenn-dir", Icon: "coin", Target: 1, Metric: redeemed},
 	{Key: "sparfuchs", Name: "Sparfuchs", Hint: "1.000 gespart", Category: "goenn-dir", Icon: "piggy-bank", Target: 1000, Metric: field(func(f *Facts) int { return f.Coins })},

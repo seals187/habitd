@@ -588,3 +588,20 @@ func TestImportRejectsUnknownVersion(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestMigrationKeepsChildRows(t *testing.T) {
+	e := setup(t)
+	id := e.habit(model.Habit{}, 0)
+	e.check(id, e.s.Today())
+	h, err := e.q().Habit(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.TemplateID != "" {
+		t.Fatalf("got %+v", h)
+	}
+	areas, _ := e.q().Areas()
+	if len(areas) != 10 || areas[5].Color != "#F5A3A3" {
+		t.Fatalf("areas %+v", areas)
+	}
+}

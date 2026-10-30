@@ -56,9 +56,10 @@ const (
 
 // Habit frequencies.
 const (
-	FreqDaily  = "daily"
-	FreqWeekly = "weekly"
-	FreqCustom = "custom"
+	FreqDaily   = "daily"
+	FreqWeekly  = "weekly"
+	FreqCustom  = "custom"
+	FreqMonthly = "monthly"
 )
 
 // Difficulties.
@@ -94,10 +95,11 @@ type Area struct {
 // Habit is a tracked behaviour.
 type Habit struct {
 	ID           int64     `json:"id"`
+	TemplateID   string    `json:"template_id,omitempty"`
 	Name         string    `json:"name"`
 	Kind         string    `json:"kind"`
 	Frequency    string    `json:"frequency"`
-	WeeklyTarget int       `json:"weekly_target"` // for FreqWeekly
+	WeeklyTarget int       `json:"weekly_target"` // check-ins per period, for FreqWeekly and FreqMonthly
 	DaysMask     int       `json:"days_mask"`     // for FreqCustom, bit 0 = Monday
 	Icon         string    `json:"icon"`
 	Tag          string    `json:"tag"`

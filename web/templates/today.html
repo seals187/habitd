@@ -8,7 +8,7 @@
 </div>
 </header>
 <section class="card level-card">
-<div class="ring-56"><svg viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/><circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Progress.Percent}}" transform="rotate(-90 28 28)"/></svg>
+<div class="ring-56"><svg viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/>{{if .Progress.Percent}}<circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Progress.Percent}}" transform="rotate(-90 28 28)"/>{{end}}</svg>
 <div class="ring-text"><small>LVL</small><b>{{.Progress.Level}}</b></div></div>
 <div class="level-info">
 <div class="level-top"><strong>{{.Title}}</strong><span>{{num .Progress.Into}} / {{num .Progress.Cost}} XP</span></div>
