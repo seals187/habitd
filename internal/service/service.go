@@ -20,6 +20,7 @@ import (
 // Setting keys.
 const (
 	KeyPasswordHash = "password_hash"
+	KeyAdminUser    = "admin_user"
 	KeyInstalledOn  = "installed_on"
 	KeyLevel        = "level"
 	KeyLastSettled  = "last_settled"

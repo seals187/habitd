@@ -22,6 +22,7 @@ import (
 const (
 	sessionCookie   = "habitd_session"
 	sessionLifetime = 30 * 24 * time.Hour
+	defaultUser     = "admin"
 	minPasswordLen  = 8
 	maxLoginFails   = 5
 	loginLockout    = 15 * time.Minute
@@ -135,6 +136,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request) error {
 
 type authForm struct {
 	Error string
+	User  string
 }
 
 func (s *Server) setupForm(w http.ResponseWriter, r *http.Request) error {
@@ -145,7 +147,11 @@ func (s *Server) setupForm(w http.ResponseWriter, r *http.Request) error {
 	if set {
 		return redirect(w, r, "/login")
 	}
-	return s.view.Render(w, http.StatusOK, "setup", s.page(r, "Einrichten", "", authForm{}))
+	user, err := s.svc.Store.Q(r.Context()).Setting(service.KeyAdminUser, defaultUser)
+	if err != nil {
+		return err
+	}
+	return s.view.Render(w, http.StatusOK, "setup", s.page(r, "Einrichten", "", authForm{User: user}))
 }
 
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) error {
@@ -156,9 +162,16 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) error {
 	if set {
 		return httpError{http.StatusForbidden, "Passwort ist bereits gesetzt"}
 	}
+	user := strings.TrimSpace(r.FormValue("username"))
+	if user == "" {
+		user = defaultUser
+	}
 	password := r.FormValue("password")
 	if len(password) < minPasswordLen {
-		return s.view.Render(w, http.StatusUnprocessableEntity, "setup", s.page(r, "Einrichten", "", authForm{Error: "Mindestens 8 Zeichen"}))
+		return s.view.Render(w, http.StatusUnprocessableEntity, "setup", s.page(r, "Einrichten", "", authForm{Error: "Mindestens 8 Zeichen", User: user}))
+	}
+	if err := s.svc.Store.Q(r.Context()).SetSetting(service.KeyAdminUser, user); err != nil {
+		return err
 	}
 	if err := SetPassword(r.Context(), s.svc.Store, password); err != nil {
 		return err
@@ -204,16 +217,24 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
 	ip := clientIP(r)
 	if s.limiter.blocked(ip) {
 		w.Header().Set("Retry-After", "900")
-		return s.view.Render(w, http.StatusTooManyRequests, "login", s.page(r, "Anmelden", "", authForm{Error: "Zu viele Versuche. Bitte in 15 Minuten erneut."}))
+		return s.view.Render(w, http.StatusTooManyRequests, "login", s.page(r, "Anmelden", "", authForm{Error: "Zu viele Versuche. Bitte in 15 Minuten erneut.", User: r.FormValue("username")}))
 	}
-	hash, err := s.svc.Store.Q(r.Context()).Setting(service.KeyPasswordHash, "")
+	q := s.svc.Store.Q(r.Context())
+	hash, err := q.Setting(service.KeyPasswordHash, "")
 	if err != nil {
 		return err
 	}
+	user, err := q.Setting(service.KeyAdminUser, defaultUser)
+	if err != nil {
+		return err
+	}
+	// The password is always checked, so a wrong name takes just as long.
+	name := r.FormValue("username")
+	nameOK := subtle.ConstantTimeCompare([]byte(name), []byte(user)) == 1
 	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.FormValue("password")))
-	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) || errors.Is(err, bcrypt.ErrHashTooShort) {
+	if !nameOK || errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) || errors.Is(err, bcrypt.ErrHashTooShort) {
 		s.limiter.fail(ip)
-		return s.view.Render(w, http.StatusUnauthorized, "login", s.page(r, "Anmelden", "", authForm{Error: "Passwort falsch"}))
+		return s.view.Render(w, http.StatusUnauthorized, "login", s.page(r, "Anmelden", "", authForm{Error: "Benutzername oder Passwort falsch", User: name}))
 	}
 	if err != nil {
 		return err

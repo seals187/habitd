@@ -13,5 +13,5 @@
 <p class="badge-name">{{.Name}}</p>
 <p class="muted">{{.Hint}}</p>
 <ul class="gains"><li class="card"><span class="gold">{{icon "coin" 20}}</span>Taler-Bonus<b class="gold">+{{$d.Coins}}</b></li></ul>{{end}}
-<form method="post" action="/celebrate" class="bottom-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn-primary" type="submit" autofocus>Weiter</button></form>
+<form method="post" action="/celebrate" class="bottom-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn-primary" type="submit">Weiter</button></form>
 </main>{{end}}

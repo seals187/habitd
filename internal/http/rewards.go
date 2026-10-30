@@ -338,7 +338,7 @@ func celebrationView(kind, payload string) (*celebrateData, error) {
 		d.Coins = game.LevelUpCoins
 		d.Color = "#4FB283"
 		switch {
-		case up.Tag == "lesen" && up.Days > 0:
+		case up.Tag == "lesen" && up.Days > 1:
 			d.Message = fmt.Sprintf("%d Tage gelesen hat sich gelohnt. Das hast du dir verdient:", up.Days)
 		case up.Habit != "":
 			d.Message = fmt.Sprintf("Dranbleiben bei „%s“ hat sich gelohnt. Das hast du dir verdient:", up.Habit)

@@ -64,7 +64,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) error {
 		st := h.StreakAt(world.Today)
 		unit := 1
 		if st.Weekly {
-			unit = 7
+			unit = h.WeekTarget()
 		}
 		d.Longest = max(d.Longest, st.Longest*unit)
 		if !h.Archived {
@@ -262,7 +262,12 @@ func (s *Server) serverInfo(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	user, err := q.Setting(service.KeyAdminUser, defaultUser)
+	if err != nil {
+		return err
+	}
 	return s.view.Render(w, http.StatusOK, "server", s.page(r, "Server", "profile", map[string]any{
+		"User":    user,
 		"Version": s.cfg.Version, "Runtime": s.cfg.Runtime, "Go": runtime.Version(), "Zone": s.svc.Loc.String(),
 		"Holidays": on == "1", "Extra": extra, "API": s.cfg.APIToken != "",
 	}))

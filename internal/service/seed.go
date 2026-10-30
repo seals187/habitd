@@ -118,6 +118,7 @@ func (s *Service) seed(q *db.Q) error {
 		KeyLastSettled:  (today - 1).String(),
 		KeyLevel:        fmt.Sprint(game.LevelFor(seedXP)),
 		KeyReminderTime: "20:00",
+		KeyReminderOn:   "1",
 	} {
 		if err := q.SetSetting(key, value); err != nil {
 			return err
@@ -143,17 +144,20 @@ func readingGaps(today model.Day) (map[model.Day]bool, model.Day) {
 	for _, i := range []model.Day{119, 139, 149, 191, 209, 218} {
 		missed[first+i] = true
 	}
-	joker := first + 200
+	joker := first + 202
 	missed[joker] = true
 	regions := [][2]model.Day{{0, 118}, {140, 148}, {192, 208}}
-	const total = seedReadSpan - 212
-	for _, weekday := range []int{5, 6, 0, 3} {
+	for _, q := range []struct{ weekday, count int }{{5, 11}, {6, 7}, {0, 3}, {2, 3}, {4, 2}, {3, 1}} {
+		var days []model.Day
 		for _, r := range regions {
-			for i := r[0]; i <= r[1] && len(missed) < total; i++ {
-				if (first + i).WeekdayIndex() == weekday {
-					missed[first+i] = true
+			for i := r[0]; i <= r[1]; i++ {
+				if (first+i).WeekdayIndex() == q.weekday && !missed[first+i] {
+					days = append(days, first+i)
 				}
 			}
+		}
+		for n := range q.count {
+			missed[days[n*len(days)/q.count]] = true
 		}
 	}
 	return missed, joker

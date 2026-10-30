@@ -2,7 +2,7 @@
 
 # Local development without HTTPS. The database lands in ./data.
 dev:
-	HABITD_DB=./data/habitd.db HABITD_ADDR=:8080 HABITD_COOKIE_SECURE=false go run ./cmd/habitd
+	HABITD_DB=./data/habitd.db HABITD_COOKIE_SECURE=false go run ./cmd/habitd
 
 test:
 	go test ./...

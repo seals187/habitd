@@ -60,7 +60,10 @@ func TestVapidHeaderVerifies(t *testing.T) {
 	}
 	sig, _ := b64.DecodeString(parts[2])
 	pub, _ := b64.DecodeString(keys.Public)
-	key := &ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(pub[1:33]), Y: new(big.Int).SetBytes(pub[33:65])}
+	key, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), pub)
+	if err != nil {
+		t.Fatal(err)
+	}
 	digest := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
 	if !ecdsa.Verify(key, digest[:], new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:])) {
 		t.Fatal("signature does not verify")

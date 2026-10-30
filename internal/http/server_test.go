@@ -131,7 +131,10 @@ func TestHealthzAndHeaders(t *testing.T) {
 	if !strings.Contains(csp, "default-src 'none'") || strings.Contains(csp, "http") {
 		t.Fatalf("csp: %s", csp)
 	}
-	if resp.Header.Get("X-Content-Type-Options") != "nosniff" || resp.Header.Get("Referrer-Policy") == "" {
+	if got := resp.Header.Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("cache-control: %s", got)
+	}
+	if resp.Header.Get("X-Content-Type-Options") != "nosniff" || resp.Header.Get("Referrer-Policy") != "same-origin" {
 		t.Fatalf("headers: %v", resp.Header)
 	}
 }
@@ -182,11 +185,11 @@ func TestLoginRateLimit(t *testing.T) {
 	c.signIn()
 	anon := &client{t: t, base: c.base, http: &http.Client{CheckRedirect: c.http.CheckRedirect}}
 	for range maxLoginFails {
-		if resp, _ := anon.do("POST", "/login", url.Values{"password": {"wrong"}}, nil); resp.StatusCode != http.StatusUnauthorized {
+		if resp, _ := anon.do("POST", "/login", url.Values{"username": {"admin"}, "password": {"wrong"}}, nil); resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("got %s", resp.Status)
 		}
 	}
-	resp, _ := anon.do("POST", "/login", url.Values{"password": {password}}, nil)
+	resp, _ := anon.do("POST", "/login", url.Values{"username": {"admin"}, "password": {password}}, nil)
 	if resp.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("got %s", resp.Status)
 	}
@@ -304,7 +307,7 @@ func TestAllPagesRender(t *testing.T) {
 	if err := c.svc.Seed(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/", "/habits", "/habits/new", "/habits/1/edit", "/badges", "/badges?cat=geheim", "/rewards", "/rewards?tab=joker",
+	for _, path := range []string{"/", "/habits", "/habits/new", "/habits/1/edit", "/habits/1", "/habits/1?view=year", "/habits/2?view=week", "/badges", "/badges?cat=geheim", "/rewards", "/rewards?tab=joker",
 		"/rewards?tab=history", "/rewards/new", "/rewards/1/edit", "/profile", "/settings/areas", "/settings/reminders", "/settings/joker",
 		"/settings/backup", "/settings/server", "/manifest.webmanifest", "/sw.js", "/offline", "/static/css/app.css"} {
 		resp, body := c.get(path)
@@ -370,7 +373,7 @@ func TestExportHidesSecrets(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &e); err != nil {
 		t.Fatal(err)
 	}
-	if e.Version != 1 || strings.Contains(body, "$2a$") || strings.Contains(body, "password") {
+	if e.Version != 1 || strings.Contains(body, "$2a$") || strings.Contains(body, "password") || strings.Contains(body, "admin_user") {
 		t.Fatalf("export leaks: %s", body)
 	}
 }
@@ -411,5 +414,32 @@ func TestAreaColorValidated(t *testing.T) {
 	resp, _ := c.do("POST", "/settings/areas", url.Values{"csrf": {c.csrf}, "name": {"X"}, "color": {"red;background:url(x)"}}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("got %s", resp.Status)
+	}
+}
+
+// A browser on plain HTTP sends no Sec-Fetch-Site, only Origin.
+func TestSameOriginPostOnPlainHTTP(t *testing.T) {
+	c := newApp(t, Config{})
+	resp, _ := c.do("POST", "/setup", url.Values{"password": {password}}, map[string]string{"Origin": c.base})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("got %s", resp.Status)
+	}
+}
+
+func TestLoginChecksUserName(t *testing.T) {
+	c := newApp(t, Config{})
+	resp, _ := c.do("POST", "/setup", url.Values{"username": {"julia"}, "password": {password}}, nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("setup: %s", resp.Status)
+	}
+	anon := &client{t: t, base: c.base, http: &http.Client{CheckRedirect: c.http.CheckRedirect}}
+	if resp, _ := anon.do("POST", "/login", url.Values{"username": {"admin"}, "password": {password}}, nil); resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("wrong name: %s", resp.Status)
+	}
+	if resp, _ := anon.do("POST", "/login", url.Values{"username": {"julia"}, "password": {"wrong-password"}}, nil); resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("wrong password: %s", resp.Status)
+	}
+	if resp, _ := anon.do("POST", "/login", url.Values{"username": {"julia"}, "password": {password}}, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("correct login: %s", resp.Status)
 	}
 }

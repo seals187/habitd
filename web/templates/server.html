@@ -1,6 +1,7 @@
 {{define "content"}}{{$d := .Data}}<main class="page">
 {{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
 <section class="list">
+<div class="row"><span class="row-text">Benutzer</span><em>{{$d.User}}</em></div>
 <div class="row"><span class="row-text">Version</span><em>v{{$d.Version}} · {{$d.Runtime}}</em></div>
 <div class="row"><span class="row-text">Go</span><em>{{$d.Go}}</em></div>
 <div class="row"><span class="row-text">Zeitzone</span><em>{{$d.Zone}}</em></div>

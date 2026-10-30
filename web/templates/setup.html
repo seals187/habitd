@@ -1,8 +1,10 @@
 {{define "content"}}<main class="auth">
 <div class="auth-mark">{{icon "flame" 34}}</div>
 <h1>habitd</h1>
-<p class="muted">Lege dein Passwort fest, um loszulegen.</p>
+<p class="muted">Lege deine Zugangsdaten fest, um loszulegen.</p>
 <form method="post" action="/setup">
+<label class="field-label" for="username">Benutzername</label>
+<input class="input" id="username" name="username" value="{{.Data.User}}" autocomplete="username" autocapitalize="none" required>
 <label class="field-label" for="password">Passwort (mindestens 8 Zeichen)</label>
 <input class="input" id="password" type="password" name="password" autocomplete="new-password" minlength="8" required autofocus>
 {{with .Data.Error}}<p class="error" role="alert">{{.}}</p>{{end}}

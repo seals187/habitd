@@ -621,7 +621,7 @@ type ExportRelapse struct {
 }
 
 // privateSettings never leave the instance.
-var privateSettings = []string{"password_hash", "vapid_private", "vapid_public"}
+var privateSettings = []string{"password_hash", "admin_user", "vapid_private", "vapid_public"}
 
 func isPrivateSetting(key string) bool {
 	for _, p := range privateSettings {

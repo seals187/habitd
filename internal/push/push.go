@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"net/http"
 	"net/url"
 	"time"
@@ -114,13 +113,9 @@ func vapidHeader(endpoint string, keys Keys, now time.Time) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("private key: %w", err)
 	}
-	pub, err := b64.DecodeString(keys.Public)
+	key, err := ecdsa.ParseRawPrivateKey(elliptic.P256(), raw)
 	if err != nil {
-		return "", fmt.Errorf("public key: %w", err)
-	}
-	key := &ecdsa.PrivateKey{
-		PublicKey: ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(pub[1:33]), Y: new(big.Int).SetBytes(pub[33:65])},
-		D:         new(big.Int).SetBytes(raw),
+		return "", fmt.Errorf("private key: %w", err)
 	}
 	digest := sha256.Sum256([]byte(unsigned))
 	r, s, err := ecdsa.Sign(rand.Reader, key, digest[:])

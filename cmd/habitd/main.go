@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 	_ "time/tzdata" // the scratch image has no zone files
@@ -87,7 +88,7 @@ func serve() error {
 	}
 	defer svc.Store.Close()
 
-	if err := initialPassword(ctx, svc); err != nil {
+	if err := initialCredentials(ctx, svc); err != nil {
 		return err
 	}
 	cfg := server.Config{
@@ -105,7 +106,7 @@ func serve() error {
 	}
 	go svc.RunBackground(ctx)
 
-	addr := env("HABITD_ADDR", ":8080")
+	addr := ":" + env("HABITD_PORT", "8080")
 	srv := &http.Server{Addr: addr, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout: 2 * time.Minute}
 	errs := make(chan error, 1)
@@ -126,8 +127,14 @@ func serve() error {
 	return srv.Shutdown(shutdown)
 }
 
-// initialPassword applies HABITD_PASSWORD once; later changes happen in the app.
-func initialPassword(ctx context.Context, svc *service.Service) error {
+// initialCredentials applies HABITD_USER on every start and HABITD_PASSWORD only
+// once; later password changes happen in the app.
+func initialCredentials(ctx context.Context, svc *service.Service) error {
+	if user := strings.TrimSpace(os.Getenv("HABITD_USER")); user != "" {
+		if err := svc.Store.Q(ctx).SetSetting(service.KeyAdminUser, user); err != nil {
+			return err
+		}
+	}
 	password := os.Getenv("HABITD_PASSWORD")
 	if password == "" {
 		return nil
@@ -158,9 +165,8 @@ func seed() error {
 
 // healthcheck backs the Docker HEALTHCHECK, the image has no curl.
 func healthcheck() error {
-	port := env("HABITD_ADDR", ":8080")
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get("http://127.0.0.1" + port + "/healthz")
+	resp, err := client.Get("http://127.0.0.1:" + env("HABITD_PORT", "8080") + "/healthz")
 	if err != nil {
 		return err
 	}

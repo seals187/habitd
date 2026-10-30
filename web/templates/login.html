@@ -3,8 +3,10 @@
 <h1>habitd</h1>
 <p class="muted">Willkommen zurück.</p>
 <form method="post" action="/login">
+<label class="field-label" for="username">Benutzername</label>
+<input class="input" id="username" name="username" value="{{.Data.User}}" autocomplete="username" autocapitalize="none" required autofocus>
 <label class="field-label" for="password">Passwort</label>
-<input class="input" id="password" type="password" name="password" autocomplete="current-password" required autofocus>
+<input class="input" id="password" type="password" name="password" autocomplete="current-password" required>
 {{with .Data.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <button class="btn-primary" type="submit">Anmelden</button>
 </form>

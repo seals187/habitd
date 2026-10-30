@@ -2,13 +2,16 @@ services:
   habitd:
     image: habitd:latest
     build: .
-    ports: ["8080:8080"]
+    ports: ["${HABITD_PORT:-8080}:${HABITD_PORT:-8080}"]
     volumes: ["./data:/data"]
     environment:
       - TZ=Europe/Zurich
+      - HABITD_PORT=${HABITD_PORT:-8080}
+      # Login name, applied on every start.
+      - HABITD_USER=${HABITD_USER:-admin}
       # Only used on the very first start. Set your own in .env, see .env.example.
       - HABITD_PASSWORD=${HABITD_PASSWORD:-changeme}
-      # Plain HTTP for local use. Remove this line behind HTTPS.
+      # Plain HTTP for local use. Set to true behind HTTPS.
       - HABITD_COOKIE_SECURE=${HABITD_COOKIE_SECURE:-false}
       - HABITD_API_TOKEN=${HABITD_API_TOKEN:-}
     restart: unless-stopped

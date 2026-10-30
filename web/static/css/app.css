@@ -138,7 +138,7 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
 .ring-56, .ring-72 { position: relative; flex: none; }
 .ring-56 { width: 56px; height: 56px; }
 .ring-72 { width: 72px; height: 72px; display: grid; place-items: center; }
-.ring-56 svg, .ring-72 svg, .medal svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ring-56 > svg, .ring-72 > svg, .medal > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ring-track { fill: none; stroke: var(--track); stroke-width: 4; }
 .ring-fill { fill: none; stroke: var(--green); stroke-width: 4; stroke-linecap: round; }
 .ring-text {
@@ -257,7 +257,7 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .pill input:checked + span { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 700; }
 .pill.small span { padding: 0 11px; }
@@ -340,16 +340,14 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
 .heat-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 14px; }
 .heat-head strong { font-size: 15.5px; font-weight: 600; }
 .heat-wrap { display: flex; gap: 6px; }
-.heat-days { flex: none; display: grid; grid-template-rows: 14px repeat(7, 10px); gap: 2px; color: var(--muted); font-size: 9.5px; line-height: 10px; }
-.heat-days span:first-child { grid-row: 2; }
+.heat-days { flex: none; display: flex; flex-direction: column; gap: 2px; padding-top: 16px; color: var(--muted); font-size: 9.5px; line-height: 10px; }
+.heat-days span { height: 10px; }
 /* Newest weeks stay in view: the row layout runs right to left. */
 .heat-scroll { overflow-x: auto; direction: rtl; scrollbar-width: none; }
 .heat-scroll::-webkit-scrollbar { display: none; }
 .heat { display: inline-flex; gap: 2px; direction: ltr; }
-.heat-col { position: relative; display: grid; grid-template-rows: 14px repeat(7, 10px); gap: 2px; width: 10px; }
+.heat-col { position: relative; display: flex; flex-direction: column; gap: 2px; width: 10px; padding-top: 16px; }
 .heat-month { position: absolute; top: 0; left: 0; color: var(--muted); font-size: 10px; line-height: 12px; }
-.heat-col .heat-month:empty { display: none; }
-.heat-col i:nth-child(2) { grid-row: 2; }
 .heat-col i { width: 10px; height: 10px; border-radius: 2px; }
 .h-1 { background: transparent; }
 .h0 { background: #252926; }
@@ -364,6 +362,9 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
 .bar-row b { width: 28px; text-align: right; color: var(--text); font-weight: 600; }
 .timeline { position: relative; flex: 1; height: 10px; border-radius: 5px; background: #232724; overflow: hidden; }
 .timeline i { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.tl-current { background: var(--orange); }
+.tl-record { background: var(--gold); }
+.tl-before { background: var(--green-strong); }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 16px; }
 .wd span { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; text-align: center; }
 .wd-track { height: 48px; display: flex; align-items: flex-end; }
@@ -422,11 +423,14 @@ form:has(input[name="mode"][value="streak"]:checked) .only-coins { display: none
 .preview span { color: var(--muted); font-size: 12px; }
 .stepper-card { margin-top: 16px; padding: 18px 16px 24px; }
 .only-streak.stepper-card { padding-top: 2px; }
-.stepper { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.stepper { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px; }
 .step { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #3a3e3b; border-radius: 50%; flex: none; }
 .stepper-value { display: flex; align-items: center; gap: 6px; }
 .stepper-value input {
   width: 118px;
+  field-sizing: content;
+  min-width: 2ch;
+  max-width: 150px;
   padding: 0;
   background: none;
   border: 0;
@@ -449,7 +453,8 @@ form:has(input[name="mode"][value="streak"]:checked) .only-coins { display: none
 .error { margin: 10px 0 0; color: var(--red); font-size: 14px; }
 .form-footer { display: flex; justify-content: center; margin-top: 16px; }
 .actions { display: flex; gap: 8px; margin-top: 10px; }
-.sticky-action .btn-primary.bottom { margin-top: 24px; }
+.sticky-action form#reward-form { display: flex; flex-direction: column; min-height: calc(100dvh - 124px); }
+.sticky-action .btn-primary.bottom { margin-top: auto; }
 
 /* Badges */
 .badge-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
@@ -590,3 +595,4 @@ form:has(input[name="mode"][value="streak"]:checked) .only-coins { display: none
   transform: translateX(-50%);
 }
 .htmx-request { opacity: .6; }
+.stats-2.flush { margin-top: 10px; }

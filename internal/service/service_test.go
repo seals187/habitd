@@ -521,6 +521,21 @@ func TestSeedMatchesMockups(t *testing.T) {
 	if s := reading.StreakAt(w.Today); s.Longest != 41 {
 		t.Errorf("record %d", s.Longest)
 	}
+	if got := len(reading.Done); got != 212 {
+		t.Errorf("done %d", got)
+	}
+	seen19 := false
+	for _, r := range reading.StreakAt(w.Today).Runs {
+		if r.Length == 19 {
+			seen19 = true
+		}
+		if r.Length > 19 && r.Length != 27 && r.Length != 41 {
+			t.Errorf("unexpected run %+v", r)
+		}
+	}
+	if !seen19 {
+		t.Error("run of 19 missing")
+	}
 	if err := e.s.Seed(e.ctx); !errors.Is(err, ErrNotEmpty) {
 		t.Fatalf("second seed: %v", err)
 	}

@@ -33,11 +33,11 @@
 <div class="heat-legend">weniger<i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i>mehr</div>
 </section>
 {{if $d.StreakBars}}<h2 class="section">Serien im Zeitverlauf</h2>
-<section class="card bars">{{range $d.StreakBars}}<div class="bar-row"><span>{{.Label}}</span><div class="timeline"><i style="left:{{.Left}}%;width:{{.Width}}%;background:{{.Color}}"></i></div><b>{{.Value}}</b></div>{{end}}</section>{{end}}
+<section class="card bars">{{range $d.StreakBars}}<div class="bar-row"><span>{{.Label}}</span><div class="timeline"><i class="{{.Class}}" style="left:{{.Left}}%;width:{{.Width}}%"></i></div><b>{{.Value}}</b></div>{{end}}</section>{{end}}
 <h2 class="section">Bester Wochentag</h2>
 <section class="card weekdays">{{range $d.WeekdayBars}}<div class="wd"><div class="wd-track"><i class="{{if .Best}}best{{end}}" style="height:{{.Height}}%"></i></div><span>{{.Label}}</span></div>{{end}}</section>{{end}}
-<div class="stats-3">
-<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if $d.Streak.Weekly}}Wochen{{else}}Tage{{end}} Serie</span></div>
+<div class="{{if eq $d.View "month"}}stats-2 flush{{else}}stats-3{{end}}">
+{{if ne $d.View "month"}}<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if $d.Streak.Weekly}}Wochen{{else}}Tage{{end}} Serie</span></div>{{end}}
 <div class="card stat"><b class="green">{{num $d.XPTotal}}</b><span>XP gesamt</span></div>
 <div class="card stat"><b class="gold">{{num $d.CoinsTotal}}</b><span>Taler verdient</span></div>
 </div>

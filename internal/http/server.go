@@ -204,8 +204,11 @@ func securityHeaders(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("Content-Security-Policy", csp)
 		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("Referrer-Policy", "no-referrer")
+		// Not no-referrer: browsers would then send "Origin: null" on form posts,
+		// which the cross-origin check rejects on plain HTTP outside localhost.
+		h.Set("Referrer-Policy", "same-origin")
 		h.Set("X-Frame-Options", "DENY")
+		h.Set("Cache-Control", "no-store") // static assets override this
 		next.ServeHTTP(w, r)
 	})
 }

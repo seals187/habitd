@@ -43,7 +43,7 @@ type streakBar struct {
 	Value int
 	Left  int
 	Width int
-	Color string
+	Class string
 }
 
 type weekdayBar struct {
@@ -290,7 +290,7 @@ func buildYear(d *detailData, h *game.HabitData, today model.Day) {
 		}
 		if m := monday.Month(); m != month && week < heatmapWeeks-1 {
 			if month != 0 {
-				col.Month = view.Months[m-1][:3]
+				col.Month = string([]rune(view.Months[m-1])[:3])
 			}
 			month = m
 		}
@@ -307,9 +307,9 @@ func heatFor(h *game.HabitData, x, today model.Day, age map[model.Day]int) heatC
 		c.Level = -1
 	case h.Kind == model.KindAvoid && (x < h.Start || x == today || containsDay(h.Relapses, x)):
 	case h.Kind != model.KindAvoid && !hasDone(h, x):
-	case age[x] >= 30:
+	case age[x] >= 10:
 		c.Level = 3
-	case age[x] >= 7:
+	case age[x] >= 3:
 		c.Level = 2
 	default:
 		c.Level = 1
@@ -325,17 +325,17 @@ func streakBars(s game.Streak, h *game.HabitData, today model.Day) []streakBar {
 	}
 	first := max(s.Runs[0].Start, today-364)
 	span := max(int(today-first)+1, 1)
-	bar := func(label, color string, r game.Run) streakBar {
+	bar := func(label, class string, r game.Run) streakBar {
 		left := max(int(r.Start-first), 0)
 		width := max(int(r.End-r.Start)+1, 1)
 		return streakBar{Label: label, Value: r.Length, Left: left * 100 / span,
-			Width: max(min(width*100/span, 100-left*100/span), 6), Color: color}
+			Width: max(min(width*100/span, 100-left*100/span), 6), Class: class}
 	}
 	var out []streakBar
 	current := -1
 	if s.Current > 0 {
 		current = len(s.Runs) - 1
-		out = append(out, bar("Aktuell", "var(--orange)", s.Runs[current]))
+		out = append(out, bar("Aktuell", "tl-current", s.Runs[current]))
 	}
 	record := -1
 	for i, r := range s.Runs {
@@ -346,7 +346,7 @@ func streakBars(s game.Streak, h *game.HabitData, today model.Day) []streakBar {
 	if record < 0 {
 		return out
 	}
-	out = append(out, bar("Rekord", "var(--gold)", s.Runs[record]))
+	out = append(out, bar("Rekord", "tl-record", s.Runs[record]))
 	before := -1
 	for i, r := range s.Runs[:record] {
 		if before < 0 || r.Length >= s.Runs[before].Length {
@@ -354,7 +354,7 @@ func streakBars(s game.Streak, h *game.HabitData, today model.Day) []streakBar {
 		}
 	}
 	if before >= 0 {
-		out = append(out, bar("Davor", "var(--green-strong)", s.Runs[before]))
+		out = append(out, bar("Davor", "tl-before", s.Runs[before]))
 	}
 	return out
 }
