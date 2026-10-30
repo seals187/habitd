@@ -1,0 +1,13 @@
+{{define "content"}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+{{with .Data.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<a class="btn-primary" href="/export" download>Daten exportieren (JSON)</a>
+<p class="hint">Der Export enthält Habits, Check-ins, Belohnungen und Abzeichen, aber kein Passwort.</p>
+<h2 class="section">Import</h2>
+<form method="post" action="/import" enctype="multipart/form-data">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input class="input" type="file" name="file" accept="application/json,.json" required aria-label="Export-Datei">
+<button class="btn-primary" type="submit">Importieren</button>
+</form>
+<p class="hint">Achtung: Der Import ersetzt alle aktuellen Daten.</p>
+</main>{{end}}

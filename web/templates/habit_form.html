@@ -1,0 +1,45 @@
+{{define "content"}}{{$d := .Data}}<main class="page form-page" x-data="habitForm" data-config='{{$d.Config}}'>
+<header class="form-head"><a href="{{if $d.New}}/{{else}}/habits/{{$d.Habit.ID}}{{end}}">Abbrechen</a><h1>{{.Title}}</h1><button type="submit" form="habit-form">Sichern</button></header>
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form id="habit-form" method="post">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label class="field-label" for="name">Name</label>
+<input class="input" id="name" name="name" value="{{$d.Habit.Name}}" placeholder="Wasser trinken" maxlength="80" required>
+<p class="field-label">Art</p>
+<div class="seg seg-2">
+<label><input type="radio" name="kind" value="build" x-model="kind" {{if eq $d.Habit.Kind "build"}}checked{{end}}><span>Aufbauen</span></label>
+<label><input type="radio" name="kind" value="avoid" x-model="kind" {{if eq $d.Habit.Kind "avoid"}}checked{{end}}><span>Vermeiden</span></label>
+</div>
+<div class="only-build">
+<p class="field-label">Wie oft?</p>
+<div class="pills">
+<label class="pill"><input type="radio" name="freq" value="daily" {{if eq $d.Freq "daily"}}checked{{end}}><span>Täglich</span></label>
+<label class="pill"><input type="radio" name="freq" value="3x" {{if eq $d.Freq "3x"}}checked{{end}}><span>3× / Woche</span></label>
+<label class="pill"><input type="radio" name="freq" value="5x" {{if eq $d.Freq "5x"}}checked{{end}}><span>5× / Woche</span></label>
+<label class="pill"><input type="radio" name="freq" value="custom" {{if eq $d.Freq "custom"}}checked{{end}}><span>Eigene</span></label>
+</div>
+<div class="pills only-custom">{{range $d.Days}}<label class="pill small"><input type="checkbox" name="days" value="{{.Bit}}" {{if .Checked}}checked{{end}}><span>{{.Label}}</span></label>{{end}}</div>
+</div>
+<p class="field-label">Icon</p>
+<div class="icons">{{range $d.Icons}}<label class="icon-pick"><input type="radio" name="icon" value="{{.Name}}" {{if eq .Name $d.Habit.Icon}}checked{{end}} aria-label="Icon {{.Name}}"><span>{{icon .Name 24}}</span></label>{{end}}</div>
+<p class="field-label">Bereich</p>
+<div class="pills">{{range $d.Areas}}<label class="pill"><input type="radio" name="area" value="{{.ID}}" {{if eq .ID $d.Habit.AreaID}}checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+<div class="only-build">
+<p class="field-label">Schwierigkeit</p>
+<div class="seg seg-3">
+<label><input type="radio" name="difficulty" value="easy" x-model="difficulty" {{if eq $d.Habit.Difficulty "easy"}}checked{{end}}><span>Leicht</span></label>
+<label><input type="radio" name="difficulty" value="medium" x-model="difficulty" {{if eq $d.Habit.Difficulty "medium"}}checked{{end}}><span>Mittel</span></label>
+<label><input type="radio" name="difficulty" value="hard" x-model="difficulty" {{if eq $d.Habit.Difficulty "hard"}}checked{{end}}><span>Schwer</span></label>
+</div>
+</div>
+<div class="preview">
+<div><b class="green" x-text="xpLabel">+10 XP</b><span>pro Tag</span></div>
+<div><b class="gold" x-text="coinLabel">+3 Taler</b><span>pro Tag</span></div>
+<div><b class="orange">×1,5</b><span>ab 7 Tagen</span></div>
+</div>
+</form>
+{{if not $d.New}}<form method="post" action="/habits/{{$d.Habit.ID}}/{{if $d.Habit.Archived}}restore{{else}}archive{{end}}" class="form-footer">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button class="link-btn" type="submit">{{icon "archive" 18}}{{if $d.Habit.Archived}}Wiederherstellen{{else}}Archivieren{{end}}</button>
+</form>{{end}}
+</main>{{end}}

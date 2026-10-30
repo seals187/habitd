@@ -1,0 +1,16 @@
+{{define "content"}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+<section class="list">{{range .Data.Active}}<div class="row">
+<span class="row-icon" style="color:{{.Area.Color}}">{{icon .Icon 22}}</span>
+<a class="row-text" href="/habits/{{.ID}}/edit"><strong>{{.Name}}</strong><small>{{.Area.Name}} · {{.Frequency}}</small></a>
+<form method="post" action="/habits/{{.ID}}/move?dir=up"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} nach oben">{{icon "arrow-up" 18}}</button></form>
+<form method="post" action="/habits/{{.ID}}/move?dir=down"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} nach unten">{{icon "arrow-down" 18}}</button></form>
+</div>{{else}}<p class="row muted">Noch keine Habits.</p>{{end}}</section>
+<a class="btn-primary" href="/habits/new">Neues Habit</a>
+{{if .Data.Archived}}<h2 class="section">Archiviert</h2>
+<section class="list">{{range .Data.Archived}}<div class="row">
+<span class="row-icon muted">{{icon .Icon 22}}</span>
+<span class="row-text"><strong>{{.Name}}</strong><small>{{.Area.Name}}</small></span>
+<form method="post" action="/habits/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} wiederherstellen">{{icon "undo-2" 18}}</button></form>
+</div>{{end}}</section>{{end}}
+</main>{{end}}

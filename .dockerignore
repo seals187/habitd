@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+.claude
+.env
+.env.*
+data
+bin
+docs
+*.db
+*.db-*

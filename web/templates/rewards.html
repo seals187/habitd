@@ -1,0 +1,27 @@
+{{define "content"}}<main id="page" class="page">{{template "rewards-body" .}}</main>{{end}}
+
+{{define "rewards-body"}}{{$d := .Data}}<header class="rewards-head"><h1>Gönn dir</h1><a class="round light" href="/rewards/new" aria-label="Neue Belohnung">{{icon "plus" 22}}</a></header>
+<section class="purse"><span class="gold">{{icon "coin" 28}}</span><b>{{num $d.Bal.Coins}}</b><p>Taler · +{{$d.Bal.CoinsToday}} heute verdient</p></section>
+<nav class="filters" aria-label="Bereiche">
+<a href="/rewards" {{if eq $d.Tab "rewards"}}class="on"{{end}}>Belohnungen</a>
+<a href="/rewards?tab=joker" {{if eq $d.Tab "joker"}}class="on"{{end}}><span class="blue">{{icon "shield" 16}}</span>Joker · {{$d.JokerPrice}}</a>
+<a href="/rewards?tab=history" {{if eq $d.Tab "history"}}class="on"{{end}}>Verlauf</a>
+</nav>
+{{if eq $d.Tab "rewards"}}<h2 class="section">Wofür sparst du?</h2>
+{{range $d.Rows}}<article class="card reward">
+<a class="reward-text" href="/rewards/{{.ID}}/edit"><strong>{{.Title}}</strong>
+{{if eq .Mode "coins"}}<small class="gold">{{icon "coin" 14}}{{num .Price}}</small>{{else}}<small class="orange">{{icon "flame" 14}}{{.Progress}} / {{.StreakTarget}} Tage · {{.Habit}}</small>{{end}}</a>
+{{if .Available}}<button class="pill-btn light" hx-post="/rewards/{{.ID}}/redeem" hx-target="#page" hx-confirm="„{{.Title}}“ einlösen?">Einlösen</button>
+{{else if eq .Mode "coins"}}<span class="muted">noch {{num .Missing}}</span>
+{{else}}<span class="muted">noch {{sub .StreakTarget .Progress}} Tage</span>{{end}}
+</article>{{else}}<section class="empty"><p class="muted">Noch keine Belohnungen. Was gönnst du dir?</p></section>{{end}}{{end}}
+{{if eq $d.Tab "joker"}}<h2 class="section">Serien-Joker</h2>
+<article class="card reward">
+<div class="reward-text"><strong>Joker kaufen</strong><small class="gold">{{icon "coin" 14}}{{$d.JokerPrice}}</small></div>
+{{if $d.CanBuy}}<button class="pill-btn light" hx-post="/joker/buy?tab=joker" hx-target="#page">Kaufen</button>
+{{else if $d.AtLimit}}<span class="muted">max. {{$d.MaxJokers}}</span>
+{{else}}<span class="muted">noch {{num $d.Missing}}</span>{{end}}
+</article>
+<p class="hint">Du hast {{$d.Bal.Jokers}} von {{$d.MaxJokers}} Jokern. Ein Joker überbrückt einen verpassten Tag, ohne dass die Serie bricht.</p>{{end}}
+{{if eq $d.Tab "history"}}<h2 class="section">Eingelöst</h2>
+<section class="list">{{range $d.History}}<div class="row"><span class="row-text"><strong>{{.Title}}</strong><small>{{.Date}}</small></span><span class="gold">{{if .Price}}−{{num .Price}}{{else}}Serie{{end}}</span></div>{{else}}<p class="row muted">Noch nichts eingelöst.</p>{{end}}</section>{{end}}{{end}}

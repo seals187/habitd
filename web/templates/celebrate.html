@@ -1,0 +1,17 @@
+{{define "content"}}{{$d := .Data}}<main class="page celebrate" style="--c:{{$d.Color}}">
+<div class="confetti" aria-hidden="true">{{range $d.Confetti}}<i class="c{{.}}"></i>{{end}}</div>
+{{with $d.Level}}<div class="big-ring"><small>LEVEL</small><b>{{.Level}}</b></div>
+<h1>Level aufgestiegen!</h1>
+<p class="muted">{{$d.Message}}</p>
+<ul class="gains">
+<li class="card"><span class="gold">{{icon "coin" 20}}</span>Taler-Bonus<b class="gold">+{{$d.Coins}}</b></li>
+{{if .Joker}}<li class="card"><span class="blue">{{icon "shield" 20}}</span>Serien-Joker<b class="blue">+1</b></li>{{end}}
+{{if .NewTitle}}<li class="card"><span class="purple">{{icon "star" 20}}</span>Neuer Titel<b class="purple">{{.Title}}</b></li>{{end}}
+</ul>{{end}}
+{{with $d.Badge}}<div class="big-ring medal-big"><span>{{icon .Icon 44}}</span></div>
+<h1>Abzeichen freigeschaltet!</h1>
+<p class="badge-name">{{.Name}}</p>
+<p class="muted">{{.Hint}}</p>
+<ul class="gains"><li class="card"><span class="gold">{{icon "coin" 20}}</span>Taler-Bonus<b class="gold">+{{$d.Coins}}</b></li></ul>{{end}}
+<form method="post" action="/celebrate" class="bottom-form"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn-primary" type="submit" autofocus>Weiter</button></form>
+</main>{{end}}

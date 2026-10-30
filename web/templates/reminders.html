@@ -1,0 +1,14 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+<form method="post" action="/settings/reminders">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label class="card toggle"><span>Tägliche Erinnerung</span><input type="checkbox" name="enabled" {{if $d.On}}checked{{end}}><i></i></label>
+<label class="field-label" for="time">Uhrzeit</label>
+<input class="input" id="time" type="time" name="time" value="{{$d.Time}}" required>
+<button class="btn-primary" type="submit">Speichern</button>
+</form>
+<h2 class="section">Dieses Gerät</h2>
+<section class="card note"><span class="muted">{{icon "bell" 18}}</span><p><b>Web-Push</b><br><span class="muted" id="push-state">{{$d.Devices}} Geräte verbunden</span></p></section>
+<div class="actions"><button id="push-on" class="pill-btn light" type="button" data-key="{{$d.Public}}">Aktivieren</button><button id="push-off" class="pill-btn" type="button">Deaktivieren</button></div>
+<p class="hint">Web-Push braucht HTTPS (oder localhost). Die Nachricht läuft über den Push-Dienst deines Browsers.</p>
+</main>{{end}}

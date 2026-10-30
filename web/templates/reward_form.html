@@ -1,0 +1,37 @@
+{{define "content"}}{{$d := .Data}}<main class="page form-page sticky-action" x-data="rewardForm" data-config='{{$d.Config}}'>
+<header class="form-head"><a href="/rewards">Abbrechen</a><h1>{{.Title}}</h1><button type="submit" form="reward-form">Sichern</button></header>
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form id="reward-form" method="post">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label class="field-label" for="title">Was gönnst du dir?</label>
+<input class="input" id="title" name="title" value="{{$d.Reward.Title}}" placeholder="Kino-Abend" maxlength="80" required>
+<p class="field-label">Wie freischalten?</p>
+<div class="seg seg-2">
+<label><input type="radio" name="mode" value="coins" x-model="mode" {{if eq $d.Reward.Mode "coins"}}checked{{end}}><span>Mit Talern</span></label>
+<label><input type="radio" name="mode" value="streak" x-model="mode" {{if eq $d.Reward.Mode "streak"}}checked{{end}}><span>Mit Serie</span></label>
+</div>
+<div class="only-coins card stepper-card">
+<div class="stepper">
+<button type="button" class="step" @click="dec" aria-label="Weniger">{{icon "minus" 20}}</button>
+<div class="stepper-value"><span class="gold">{{icon "coin" 26}}</span><input name="price" type="number" min="1" step="1" inputmode="numeric" x-model="price" value="{{$d.Reward.Price}}" aria-label="Preis in Talern"></div>
+<button type="button" class="step" @click="inc" aria-label="Mehr">{{icon "plus" 20}}</button>
+</div>
+<p class="stepper-unit">Taler</p>
+<div class="pills center">{{range $d.Presets}}<label class="pill"><input type="radio" name="preset" value="{{.}}" x-model="price"><span>{{.}}</span></label>{{end}}</div>
+</div>
+<div class="only-streak card stepper-card">
+<label class="field-label" for="habit">Welches Habit?</label>
+<select class="input" id="habit" name="habit" x-model="habit">{{range $d.Habits}}<option value="{{.ID}}" {{if eq .ID $d.Reward.HabitID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+<label class="field-label" for="target">Serie in Tagen</label>
+<input class="input" id="target" name="target" type="number" min="1" inputmode="numeric" x-model="target" value="{{$d.Reward.StreakTarget}}">
+<label class="toggle plain"><span>Bei Rückfall zurücksetzen</span><input type="checkbox" name="reset" {{if $d.Reward.ResetOnRelapse}}checked{{end}}><i></i></label>
+</div>
+<label class="card toggle"><span>Mehrfach einlösbar</span><input type="checkbox" name="repeatable" {{if $d.Reward.Repeatable}}checked{{end}}><i></i></label>
+<p class="hint" x-text="estimate"></p>
+<button class="btn-primary bottom" type="submit">Belohnung speichern</button>
+</form>
+{{if not $d.New}}<form method="post" action="/rewards/{{$d.Reward.ID}}/archive" class="form-footer">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button class="link-btn" type="submit">{{icon "archive" 18}}Archivieren</button>
+</form>{{end}}
+</main>{{end}}

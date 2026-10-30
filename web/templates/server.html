@@ -1,0 +1,30 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+<section class="list">
+<div class="row"><span class="row-text">Version</span><em>v{{$d.Version}} · {{$d.Runtime}}</em></div>
+<div class="row"><span class="row-text">Go</span><em>{{$d.Go}}</em></div>
+<div class="row"><span class="row-text">Zeitzone</span><em>{{$d.Zone}}</em></div>
+<div class="row"><span class="row-text">API-Token</span><em>{{if $d.API}}aktiv{{else}}nicht gesetzt{{end}}</em></div>
+</section>
+<h2 class="section">Feiertage</h2>
+<form method="post" action="/settings/holidays">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label class="card toggle"><span>Feiertage DE</span><input type="checkbox" name="enabled" {{if $d.Holidays}}checked{{end}}><i></i></label>
+<label class="field-label" for="extra">Weitere Tage (MM-TT, mit Komma getrennt)</label>
+<input class="input" id="extra" name="extra" value="{{$d.Extra}}" placeholder="08-01, 12-24">
+<button class="btn-primary" type="submit">Speichern</button>
+</form>
+<h2 class="section">Passwort ändern</h2>
+<form method="post" action="/settings/password">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<label class="field-label" for="current">Aktuelles Passwort</label>
+<input class="input" id="current" type="password" name="current" autocomplete="current-password" required>
+<label class="field-label" for="password">Neues Passwort</label>
+<input class="input" id="password" type="password" name="password" autocomplete="new-password" minlength="8" required>
+<button class="btn-primary" type="submit">Passwort ändern</button>
+</form>
+<form method="post" action="/logout" class="form-footer">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button class="link-btn" type="submit">{{icon "log-out" 18}}Abmelden</button>
+</form>
+</main>{{end}}

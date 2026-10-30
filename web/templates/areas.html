@@ -1,0 +1,16 @@
+{{define "content"}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+{{range .Data.Areas}}<form class="card area-row" method="post" action="/settings/areas">
+<input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="icon" value="{{.Icon}}">
+<input type="color" name="color" value="{{.Color}}" aria-label="Farbe von {{.Name}}">
+<input class="input slim" name="name" value="{{.Name}}" maxlength="40" required aria-label="Name">
+<button class="mini" type="submit" aria-label="{{.Name}} speichern">{{icon "check" 18}}</button>
+<button class="mini" type="submit" formaction="/settings/areas/{{.ID}}/delete" aria-label="{{.Name}} löschen">{{icon "trash-2" 18}}</button>
+</form>{{end}}
+<h2 class="section">Neuer Bereich</h2>
+<form class="card area-row" method="post" action="/settings/areas">
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="color" name="color" value="#7FB8F0" aria-label="Farbe">
+<input class="input slim" name="name" placeholder="Name" maxlength="40" required aria-label="Name">
+<button class="mini" type="submit" aria-label="Bereich anlegen">{{icon "plus" 18}}</button>
+</form>
+</main>{{end}}

@@ -1,0 +1,21 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+<header class="profile-head">
+<div class="ring-72"><svg viewBox="0 0 72 72" aria-hidden="true"><circle class="ring-track" cx="36" cy="36" r="33"/><circle class="ring-fill" cx="36" cy="36" r="33" stroke-dasharray="{{dash 33.0 $d.Progress.Percent}}" transform="rotate(-90 36 36)"/></svg><b>{{$d.Progress.Level}}</b></div>
+<div><h1>{{$d.Title}}</h1><p class="muted">Level {{$d.Progress.Level}} · dabei seit {{$d.DaysIn}} Tagen</p></div>
+</header>
+<div class="stats-2">
+<div class="card stat"><b class="green">{{num $d.XP}}</b><span>XP gesamt</span></div>
+<div class="card stat"><b class="gold">{{icon "coin" 20}}{{num $d.CoinsEarned}}</b><span>Taler verdient</span></div>
+<div class="card stat"><b class="orange">{{icon "flame" 18}}{{$d.Longest}}</b><span>Längste Serie</span></div>
+<div class="card stat"><b>{{$d.Redeemed}}</b><span>Belohnungen gegönnt</span></div>
+</div>
+<h2 class="section">Einstellungen</h2>
+<nav class="list" aria-label="Einstellungen">
+<a class="row" href="/habits">{{icon "list-minus" 22}}<span>Habits verwalten</span><em>{{$d.Habits}}</em>{{icon "chevron-right" 18}}</a>
+<a class="row" href="/settings/reminders">{{icon "bell" 22}}<span>Erinnerungen</span><em>{{$d.ReminderTime}}</em>{{icon "chevron-right" 18}}</a>
+<a class="row" href="/settings/areas">{{icon "layout-grid" 22}}<span>Bereiche verwalten</span><em>{{$d.Areas}}</em>{{icon "chevron-right" 18}}</a>
+<a class="row" href="/settings/joker">{{icon "shield" 22}}<span>Joker-Regeln</span><em>max. {{$d.MaxJokers}}</em>{{icon "chevron-right" 18}}</a>
+<a class="row" href="/settings/backup">{{icon "download" 22}}<span>Export &amp; Backup</span><em>JSON</em>{{icon "chevron-right" 18}}</a>
+<a class="row" href="/settings/server">{{icon "server" 22}}<span>Server</span><em>v{{$d.Version}} · {{$d.Runtime}}</em>{{icon "chevron-right" 18}}</a>
+</nav>
+</main>{{end}}

@@ -1,0 +1,47 @@
+{{define "content"}}<main id="page" class="page detail">{{template "habit-body" .}}</main>{{end}}
+
+{{define "habit-body"}}{{$d := .Data}}<div class="detail-nav">{{template "back" "/"}}<a class="round" href="/habits/{{$d.Habit.ID}}/edit" aria-label="Habit bearbeiten">{{icon "pencil" 18}}</a></div>
+<p class="meta"><i class="dot big" style="background:{{$d.Area.Color}}"></i><em style="color:{{$d.Area.Color}}">{{$d.Area.Name}}</em> · {{$d.Kind}} · {{$d.Frequency}}</p>
+<h1>{{$d.Habit.Name}}</h1>
+<nav class="seg seg-3" aria-label="Ansicht">
+<a href="/habits/{{$d.Habit.ID}}?view=week" {{if eq $d.View "week"}}class="on"{{end}}>Woche</a>
+<a href="/habits/{{$d.Habit.ID}}?view=month" {{if eq $d.View "month"}}class="on"{{end}}>Monat</a>
+<a href="/habits/{{$d.Habit.ID}}?view=year" {{if eq $d.View "year"}}class="on"{{end}}>Jahr</a>
+</nav>
+{{if eq $d.View "month"}}<section class="card calendar">
+<div class="cal-head"><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.PrevMonth}}" aria-label="Voriger Monat">{{icon "chevron-left" 22}}</a><strong>{{$d.MonthTitle}}</strong><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.NextMonth}}" aria-label="Nächster Monat">{{icon "chevron-right" 22}}</a></div>
+<div class="cal-grid cal-letters"><span>M</span><span>D</span><span>M</span><span>D</span><span>F</span><span>S</span><span>S</span></div>
+{{range $d.Weeks}}<div class="cal-grid">{{range .}}{{template "day" dict "Cell" . "D" $d}}{{end}}</div>{{end}}
+<div class="legend"><span><i class="l-done"></i>Erledigt</span><span><i class="l-missed"></i>Verpasst</span><span><i class="l-open"></i>Offen</span></div>
+</section>
+<div class="stats-3">
+<div class="card stat"><b class="green">{{$d.DoneDays}}/{{$d.PlanDays}}</b><span>Tage erledigt</span></div>
+<div class="card stat"><b class="green">{{$d.Quote}}%</b><span>Quote</span></div>
+<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if $d.Streak.Weekly}}Wochen{{else}}Serie{{end}}</span></div>
+</div>{{end}}
+{{if eq $d.View "week"}}<section class="card calendar">
+<div class="cal-grid cal-letters">{{range $d.Week}}<span>{{.Letter}}</span>{{end}}</div>
+<div class="cal-grid">{{range $d.Week}}{{template "day" dict "Cell" . "D" $d}}{{end}}</div>
+<div class="legend"><span><i class="l-done"></i>Erledigt</span><span><i class="l-missed"></i>Verpasst</span><span><i class="l-open"></i>Offen</span></div>
+</section>{{end}}
+{{if eq $d.View "year"}}<section class="card heat-card">
+<div class="heat-head"><strong>{{$d.YearDone}} Tage erledigt</strong><span class="green">{{$d.YearQuote}}%</span></div>
+<div class="heat-wrap">
+<div class="heat-days"><span>Mo</span><span></span><span>Mi</span><span></span><span>Fr</span><span></span><span>So</span></div>
+<div class="heat-scroll"><div class="heat">{{range $d.Heat}}<div class="heat-col"><span class="heat-month">{{.Month}}</span>{{range .Cells}}<i class="h{{.Level}}" title="{{.Title}}"></i>{{end}}</div>{{end}}</div></div>
+</div>
+<div class="heat-legend">weniger<i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i>mehr</div>
+</section>
+{{if $d.StreakBars}}<h2 class="section">Serien im Zeitverlauf</h2>
+<section class="card bars">{{range $d.StreakBars}}<div class="bar-row"><span>{{.Label}}</span><div class="timeline"><i style="left:{{.Left}}%;width:{{.Width}}%;background:{{.Color}}"></i></div><b>{{.Value}}</b></div>{{end}}</section>{{end}}
+<h2 class="section">Bester Wochentag</h2>
+<section class="card weekdays">{{range $d.WeekdayBars}}<div class="wd"><div class="wd-track"><i class="{{if .Best}}best{{end}}" style="height:{{.Height}}%"></i></div><span>{{.Label}}</span></div>{{end}}</section>{{end}}
+<div class="stats-3">
+<div class="card stat"><b class="orange">{{$d.Streak.Current}}</b><span>{{if $d.Streak.Weekly}}Wochen{{else}}Tage{{end}} Serie</span></div>
+<div class="card stat"><b class="green">{{num $d.XPTotal}}</b><span>XP gesamt</span></div>
+<div class="card stat"><b class="gold">{{num $d.CoinsTotal}}</b><span>Taler verdient</span></div>
+</div>
+<section class="card note"><span class="orange">{{icon "flame" 18}}</span><p><b>{{if gt $d.Multiplier 1.0}}Serienbonus {{multiple $d.Multiplier}} aktiv{{else}}Noch kein Serienbonus{{end}}</b><br><span class="muted">{{$d.NextBonus}}</span></p></section>
+{{range $d.Rewards}}<section class="card note goal"><span class="gold">{{icon "gift" 18}}</span><div><p><b>{{.Title}}</b> <span class="muted">{{.Progress}} / {{.Target}} Tage</span></p><div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div></div></section>{{end}}{{end}}
+
+{{define "day"}}{{$c := .Cell}}{{$d := .D}}{{if not $c.Label}}<span class="day blank"></span>{{else if $c.Editable}}<button class="day {{$c.State}}{{if $c.Today}} today{{end}}" hx-post="/habits/{{$d.Habit.ID}}/{{if $d.Avoid}}relapse{{else}}check{{end}}?date={{$c.Date}}&from=detail&view={{$d.View}}&m={{$d.MonthParam}}" hx-target="#page" aria-label="{{$c.Date}}">{{$c.Label}}</button>{{else}}<span class="day {{$c.State}}{{if $c.Today}} today{{end}}">{{$c.Label}}</span>{{end}}{{end}}

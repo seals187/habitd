@@ -1,0 +1,27 @@
+# Runtime data – never commit
+/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+docker-compose.override.yml
+
+# Build output
+/bin/
+/habitd
+*.exe
+*.test
+*.out
+
+# Editors and OS
+.idea/
+.vscode/
+.claude/
+.DS_Store
+Thumbs.db

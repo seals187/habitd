@@ -1,0 +1,12 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+<header class="badge-head"><h1>Abzeichen</h1><b class="gold">{{$d.Unlocked}} / {{$d.Total}}</b></header>
+<div class="bar gold-bar"><i style="width:{{$d.Percent}}%"></i></div>
+<nav class="filters" aria-label="Kategorien">{{range $d.Filters}}<a href="/badges{{if .Key}}?cat={{.Key}}{{end}}" {{if eq .Key $d.Active}}class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
+{{range $d.Sections}}<section class="badge-section" style="--c:{{.Color}}">
+<a class="badge-title" href="/badges?cat={{.Key}}"><i class="dot big"></i><strong>{{.Name}}</strong><span>{{.Unlocked}} / {{.Total}}{{if not $d.Detail}} ›{{end}}</span></a>
+<div class="badge-grid">{{range .Badges}}<div class="badge{{if .Unlocked}} on{{end}}">
+<div class="medal"><svg viewBox="0 0 58 58" aria-hidden="true"><circle class="ring-track" cx="29" cy="29" r="27"/><circle class="ring-c" cx="29" cy="29" r="27" stroke-dasharray="{{dash 27.0 .Percent}}" transform="rotate(-90 29 29)"/></svg><span>{{icon .Icon 24}}</span></div>
+<strong>{{.Label}}</strong>{{if $d.Detail}}{{with .Hint}}<small>{{.}}</small>{{end}}{{end}}
+</div>{{end}}</div>
+</section>{{end}}
+</main>{{end}}

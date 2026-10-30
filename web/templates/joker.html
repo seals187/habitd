@@ -1,0 +1,19 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+<form method="post" action="/settings/joker">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<p class="field-label">Einsatz</p>
+<div class="seg seg-2">
+<label><input type="radio" name="mode" value="auto" {{if $d.Auto}}checked{{end}}><span>Automatisch</span></label>
+<label><input type="radio" name="mode" value="manual" {{if not $d.Auto}}checked{{end}}><span>Manuell</span></label>
+</div>
+<button class="btn-primary" type="submit">Speichern</button>
+</form>
+<p class="hint">Automatisch rettet ein Joker jede laufende Serie nach einem verpassten Tag. Manuell entscheidest du auf dem Heute-Screen.</p>
+<section class="list">
+<div class="row"><span class="row-text">Deine Joker</span><em>{{$d.Jokers}} / {{$d.Max}}</em></div>
+<div class="row"><span class="row-text">Alle 7 Tage Serie</span><em>+1 Joker</em></div>
+<div class="row"><span class="row-text">Level-Up</span><em>+1 Joker</em></div>
+<div class="row"><span class="row-text">Im Shop</span><em>{{$d.Price}} Taler</em></div>
+</section>
+</main>{{end}}
