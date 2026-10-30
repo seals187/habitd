@@ -107,7 +107,7 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **`internal/service`** ergänzt die vorgeschlagene Struktur: Dort laufen die Transaktionen,
   `internal/game` bleibt pur und ohne Datenbank.
 - **Demo-Daten:** Die Salden stimmen exakt mit den Bildern überein. Der Seed zeigt mehr
-  freigeschaltete Abzeichen (23 statt 18), weil die Regeln auf den Bild-Daten mehr
+  freigeschaltete Abzeichen (24 statt 18), weil die Regeln auf den Bild-Daten mehr
   auslösen, etwa Jongleur bei 5 Habits. Die Daten sind nicht geschönt, sonst käme beim ersten
   Abhaken eine Serie von Feiern. Lesen existiert 246 Tage, damit 212 Tage 86 % ergeben, obwohl
   das Profil „dabei seit 212 Tagen“ zeigt: So widersprechen sich die Bilder selbst.
