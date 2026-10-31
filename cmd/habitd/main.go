@@ -44,8 +44,10 @@ func main() {
 		err = seed()
 	case "healthcheck":
 		err = healthcheck()
+	case "admin":
+		err = admin(os.Args[2:])
 	default:
-		err = fmt.Errorf("unknown command %q (use serve, seed or healthcheck)", cmd)
+		err = fmt.Errorf("unknown command %q (use serve, seed, healthcheck or admin)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "habitd:", err)
@@ -131,6 +133,16 @@ func bootstrap(ctx context.Context, svc *service.Service) error {
 		slog.Warn("the admin password is still the default: change it before exposing habitd")
 	}
 	return svc.Bootstrap(ctx, service.BootstrapOptions{AdminUser: user, Password: password})
+}
+
+func admin(args []string) error {
+	ctx := context.Background()
+	svc, err := open(ctx)
+	if err != nil {
+		return err
+	}
+	defer svc.Store.Close()
+	return adminCommand(ctx, svc, args, os.Stdout)
 }
 
 func seed() error {

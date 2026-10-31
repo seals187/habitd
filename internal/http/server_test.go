@@ -546,7 +546,8 @@ func TestBoostedRequestsGetFullPages(t *testing.T) {
 	if _, html := c.do("GET", "/templates", nil, map[string]string{"HX-Request": "true"}); strings.Contains(html, "<html") {
 		t.Fatal("search got a full page")
 	}
-	resp, _ := c.do("POST", "/habits/1/archive", url.Values{"csrf": {c.csrf}}, full)
+	id := c.habit("Lesen", "build")
+	resp, _ := c.do("POST", fmt.Sprintf("/habits/%d/archive", id), url.Values{"csrf": {c.csrf}}, full)
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("boosted form must follow a normal redirect: %s", resp.Status)
 	}
