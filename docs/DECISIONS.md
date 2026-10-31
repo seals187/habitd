@@ -174,6 +174,8 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Quest-Habits:** Der Quest-Pool gehört der Instanz und wird im Admin-Bereich angepasst, Habits
   gehören den Nutzern. Darum wählt jeder selbst, welche Habits für die „Alle Habits“-Quests zählen.
   Die Wahl gilt ab sofort auch für die Quest des Tages, vergangene Tage bleiben, wie sie sind.
+- **Habit-Größe:** liegt pro Gerät in einem Cookie statt im Konto, weil ein Handy andere Größen
+  braucht als ein Desktop. Der Server liest das Cookie, so springt die Seite beim Laden nicht.
 - **Vorlagen** öffnen immer zuerst das Formular. Nur das Onboarding legt mehrere direkt an.
 - **Wochenziel:** Zähler und Mengen können pro Woche gelten. Das Habit läuft dann als „1× pro
   Woche“, das Ziel sammelt sich über die Einträge der Woche, und der Check-in entsteht an dem Tag,

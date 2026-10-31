@@ -197,6 +197,24 @@ type todayData struct {
 	Bridges  []bridgeOffer
 	Treats   []todayReward
 	Undo     *undoToast
+	Zoom     int // size of the habit cards in percent
+}
+
+// Scale is the size of the habit cards as a CSS factor.
+func (d *todayData) Scale() float64 { return float64(d.Zoom) / 100 }
+
+// habitZoom reads the card size of this device. It lives in a cookie, because a
+// phone wants other sizes than a desktop, and the server renders it without a jump.
+func habitZoom(r *http.Request) int {
+	c, err := r.Cookie("habit_zoom")
+	if err != nil {
+		return 100
+	}
+	zoom, err := strconv.Atoi(c.Value)
+	if err != nil || zoom < 80 || zoom > 120 || zoom%5 != 0 {
+		return 100
+	}
+	return zoom
 }
 
 // fillToday adds the level card and the rewards to the Today screen.
@@ -251,7 +269,7 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 	}
 	byID := areaMap(areas)
 	_, kw := w.Today.Time().ISOWeek()
-	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances}
+	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances, Zoom: habitZoom(r)}
 	for _, h := range w.Habits {
 		if h.Archived || w.Today < h.Start {
 			continue

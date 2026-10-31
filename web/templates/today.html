@@ -1,4 +1,4 @@
-{{define "content"}}<main id="page" class="page">{{template "today-body" .}}</main>{{end}}
+{{define "content"}}<main id="page" class="page" style="--habit-zoom:{{.Data.Scale}}">{{template "today-body" .}}</main>{{end}}
 
 {{define "today-body"}}{{with .Data}}<header class="today-head">
 <div><p class="date">{{.Date}}</p><h1>Heute</h1></div>
@@ -23,11 +23,11 @@
 <p><b>{{.Habit}}</b><br><span class="muted">{{.Label}} verpasst</span></p>
 <button class="pill-btn" hx-post="/habits/{{.HabitID}}/joker?date={{.Date}}" hx-target="#page">{{icon "shield" 16}}Joker einsetzen</button>
 </section>{{end}}
-{{if .Build}}<h2 class="section">Aufbauen</h2>
+{{if .Build}}{{template "habit-head" (dict "Title" "Aufbauen" "Tools" true "Zoom" .Zoom)}}
 {{range .Build}}{{template "build-card" .}}{{end}}{{end}}
-{{if .Rest}}<h2 class="section">Heute frei</h2>
+{{if .Rest}}{{template "habit-head" (dict "Title" "Heute frei" "Tools" (not .Build) "Zoom" .Zoom)}}
 {{range .Rest}}{{template "build-card" .}}{{end}}{{end}}
-{{if .Avoid}}<h2 class="section">Vermeiden</h2>
+{{if .Avoid}}{{template "habit-head" (dict "Title" "Vermeiden" "Tools" (not (or .Build .Rest)) "Zoom" .Zoom)}}
 {{range .Avoid}}<article class="card hcard{{if .Relapsed}} relapsed{{end}}{{if .Collapsed}} collapsed{{end}}" style="--c:{{.Area.Color}}">
 <div class="hring"><button class="hring-face" hx-post="/habits/{{.ID}}/relapse" hx-target="#page" {{if not .Relapsed}}data-yes="Rückfall melden" hx-confirm="Rückfall bei „{{.Name}}“ melden? Die Serie startet neu, XP bleiben erhalten."{{end}} aria-pressed="{{if .Relapsed}}true{{else}}false{{end}}" aria-label="{{if .Relapsed}}Rückfall zurücknehmen{{else}}Rückfall melden{{end}}: {{.Name}}">{{template "hring-face" .}}</button>
 {{template "hstreak" .}}</div>
@@ -39,6 +39,8 @@
 {{if not (or .Build .Avoid .Rest)}}<section class="empty"><p class="muted">Noch keine Habits. Leg dein erstes an!</p></section>{{end}}
 <a class="add-link" href="/habits/new">{{icon "plus" 18}}Neues Habit</a>
 {{template "undo-toast" .Undo}}{{end}}{{end}}
+
+{{define "habit-head"}}<div class="habit-head"><h2 class="section">{{.Title}}</h2>{{if .Tools}}<span class="zoom" role="group" aria-label="Größe der Habits" data-value="{{.Zoom}}"><button type="button" data-zoom="-5" data-stop="80" aria-label="Habits kleiner" {{if eq .Zoom 80}}disabled{{end}}>{{icon "minus" 14}}</button><b>{{.Zoom}}%</b><button type="button" data-zoom="5" data-stop="120" aria-label="Habits größer" {{if eq .Zoom 120}}disabled{{end}}>{{icon "plus" 14}}</button></span>{{end}}</div>{{end}}
 
 {{define "build-card"}}<article class="card hcard{{if .Collapsed}} collapsed{{end}}" style="--c:{{.Area.Color}}">
 <div class="hring">{{if .Meter}}<span class="hring-face">{{template "hring-face" .}}</span>

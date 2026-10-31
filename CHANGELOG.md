@@ -11,6 +11,12 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.0.6] - 2026-10-31
+
+### Added
+
+- **Habit size:** `−` and `+` beside the first habit heading on Today make the habit cards smaller or larger, from 80 % to 120 %. Text, rings, week strip and buttons scale with the card, and each device keeps its own size.
+
 ## [0.0.5] - 2026-10-31
 
 ### Added
@@ -110,6 +116,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.0.6]: https://github.com/seals187/habitd/releases/tag/v0.0.6
 [0.0.5]: https://github.com/seals187/habitd/releases/tag/v0.0.5
 [0.0.4]: https://github.com/seals187/habitd/releases/tag/v0.0.4
 [0.0.3]: https://github.com/seals187/habitd/releases/tag/v0.0.3

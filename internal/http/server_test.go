@@ -762,6 +762,30 @@ func TestFoldHabit(t *testing.T) {
 	}
 }
 
+func TestHabitZoom(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	c.habit("Lesen", "build")
+	if _, html := c.get("/"); !strings.Contains(html, "--habit-zoom:1") || !strings.Contains(html, "<b>100%</b>") {
+		t.Fatalf("default size: %s", html)
+	}
+	size := func(value string) string {
+		_, html := c.do("GET", "/", nil, map[string]string{"Cookie": "habit_zoom=" + value})
+		return html
+	}
+	if html := size("90"); !strings.Contains(html, "--habit-zoom:0.9") || !strings.Contains(html, "<b>90%</b>") {
+		t.Fatalf("stored size: %s", html)
+	}
+	if html := size("80"); !strings.Contains(html, `aria-label="Habits kleiner" disabled`) {
+		t.Fatalf("smallest size: %s", html)
+	}
+	for _, bad := range []string{"500", "87", "x"} {
+		if html := size(bad); !strings.Contains(html, "<b>100%</b>") {
+			t.Fatalf("size %s is not on offer: %s", bad, html)
+		}
+	}
+}
+
 func TestReachedHabitOpens(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()

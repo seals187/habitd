@@ -276,6 +276,19 @@ document.addEventListener("click", (e) => {
   clicks = clicks.then(() => htmx.ajax("POST", url, { target: "#page" })).catch(() => {});
 });
 
+// Size of the habit cards. Each device keeps its own, the server reads the cookie.
+document.addEventListener("click", (e) => {
+  const button = e.target.closest("[data-zoom]");
+  if (!button || button.disabled) return;
+  const box = button.closest(".zoom");
+  const zoom = Number(box.dataset.value) + Number(button.dataset.zoom);
+  box.dataset.value = zoom;
+  box.querySelector("b").textContent = `${zoom}%`;
+  box.querySelectorAll("button").forEach((b) => (b.disabled = zoom === Number(b.dataset.stop)));
+  document.getElementById("page").style.setProperty("--habit-zoom", zoom / 100);
+  document.cookie = `habit_zoom=${zoom}; path=/; max-age=31536000; samesite=lax`;
+});
+
 // Role select of the user list.
 document.addEventListener("change", (e) => {
   if (e.target.matches("[data-submit]")) e.target.form.requestSubmit();
