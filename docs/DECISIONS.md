@@ -104,6 +104,8 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   das Image bei jedem Tag `v*` und veröffentlicht es als `latest` und mit der Versionsnummer.
   `build: .` bleibt drin, damit `docker compose up --build` weiter aus dem Quellcode baut.
 - **Version:** Das erste Release heißt `0.0.1`, die Bilder zeigen beispielhaft „v1.0“.
+- **Changelog:** Jedes Release bekommt vor dem Tag einen Eintrag in `CHANGELOG.md`, der Text des
+  GitHub-Release entspricht diesem Eintrag.
 - **Seitenwechsel:** `hx-boost` auf `body` tauscht nur den Inhalt, damit nichts sichtbar neu lädt.
   Login, Setup, Abmelden und Passwort bleiben normale Formulare, weil sich dort die Session und
   mit ihr das CSRF-Token in `hx-headers` ändert. Export und Import brauchen ebenfalls den

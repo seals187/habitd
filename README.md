@@ -125,7 +125,7 @@ make docker  # build the image
 make seed    # demo data for make dev
 ```
 
-Stack: Go `net/http`, SQLite via `modernc.org/sqlite` (no CGO), `html/template`, HTMX, Alpine.js (CSP build) and one hand-written CSS file. There is no build step. Game rules live in `internal/game`, free of I/O. Design decisions are in [docs/DECISIONS.md](docs/DECISIONS.md).
+Stack: Go `net/http`, SQLite via `modernc.org/sqlite` (no CGO), `html/template`, HTMX, Alpine.js (CSP build) and one hand-written CSS file. There is no build step. Game rules live in `internal/game`, free of I/O. Design decisions are in [docs/DECISIONS.md](docs/DECISIONS.md), the history of all releases is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 
