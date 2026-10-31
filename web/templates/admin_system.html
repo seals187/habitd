@@ -1,0 +1,18 @@
+{{define "content"}}{{$d := .Data}}{{template "admin-head" dict "Title" .Title "Sub" "Zustand dieser Instanz"}}
+<div class="admin-stats">
+<div class="card admin-stat"><b>{{$d.Version}}</b><span>Version</span></div>
+<div class="card admin-stat"><b>{{$d.Size}}</b><span>Datenbank</span></div>
+<div class="card admin-stat"><b>{{$d.Users}}</b><span>Benutzer</span></div>
+<div class="card admin-stat"><b>{{$d.Uptime}}</b><span>Laufzeit</span></div>
+</div>
+<h2 class="section">Backup</h2>
+<section class="card admin-card inline-form">
+<p class="muted">Eine in sich stimmige Kopie der gesamten Datenbank, alle Benutzer eingeschlossen.</p>
+<a class="admin-btn light" href="/admin/system/backup" hx-boost="false" download>{{icon "download" 18}}Backup herunterladen</a>
+</section>
+<h2 class="section">Umgebungsvariablen</h2>
+<section class="card admin-table-card"><div class="admin-scroll"><table class="admin-table">
+<thead><tr><th>Variable</th><th>Wert</th></tr></thead>
+<tbody>{{range $d.Env}}<tr><td class="mono">{{.Name}}</td><td>{{if .Set}}{{.Value}}{{else}}<span class="muted">nicht gesetzt</span>{{end}}</td></tr>{{end}}</tbody>
+</table></div></section>
+{{end}}

@@ -179,6 +179,20 @@ document.addEventListener("click", (e) => {
   clicks = clicks.then(() => htmx.ajax("POST", url, { target: "#page" })).catch(() => {});
 });
 
+// Role select of the user list.
+document.addEventListener("change", (e) => {
+  if (e.target.matches("select[data-submit]")) e.target.form.requestSubmit();
+});
+
+// Copies a one-time secret; plain HTTP has no clipboard, the text stays selected.
+document.addEventListener("click", (e) => {
+  const button = e.target.closest("[data-copy]");
+  if (!button) return;
+  const field = document.querySelector(button.dataset.copy);
+  field.select();
+  navigator.clipboard?.writeText(field.value);
+});
+
 // History pages come fresh from the server, htmx keeps no scroll position for them.
 const scrolls = new Map();
 history.scrollRestoration = "manual";

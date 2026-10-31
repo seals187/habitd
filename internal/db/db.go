@@ -182,6 +182,9 @@ func (s *Store) BackupTo(ctx context.Context, path string) error {
 	return nil
 }
 
+// Path returns the database file.
+func (s *Store) Path() string { return s.path }
+
 // Size returns the size of the database file in bytes.
 func (s *Store) Size() (int64, error) {
 	info, err := os.Stat(s.path)

@@ -1,0 +1,48 @@
+{{define "content"}}{{$d := .Data}}{{template "admin-head" dict "Title" .Title "Sub" "Konten, Rollen und Einladungen. Habit-Inhalte bleiben privat."}}
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+{{with $d.Secret}}<section class="card admin-card secret-box">
+<p class="admin-label">{{.Label}}</p>
+<div class="inline-form"><input class="admin-input" id="secret-value" value="{{.Value}}" readonly aria-label="{{.Label}}"><button class="admin-btn light" type="button" data-copy="#secret-value">Kopieren</button></div>
+<p class="muted admin-sub">Wird nur jetzt angezeigt.</p>
+</section>{{end}}
+<section class="card admin-table-card"><div class="admin-scroll"><table class="admin-table users">
+<thead><tr><th>Name</th><th>Rolle</th><th>Level</th><th>Habits</th><th>XP</th><th>Zuletzt aktiv</th><th>Status</th><th></th></tr></thead>
+<tbody>{{range $d.Rows}}<tr>
+<td><strong>{{.Username}}</strong>{{if .Self}} <small class="muted">du</small>{{end}}</td>
+<td><form method="post" action="/admin/users/{{.ID}}/role"><input type="hidden" name="csrf" value="{{$.CSRF}}"><select class="admin-input" name="role" aria-label="Rolle von {{.Username}}" data-submit>
+<option value="user" {{if eq .Role "user"}}selected{{end}}>Benutzer</option><option value="admin" {{if eq .Role "admin"}}selected{{end}}>Admin</option></select></form></td>
+<td>{{.Level}}</td><td>{{.Habits}}</td><td>{{num .XP}}</td><td class="muted">{{.LastSeen}}</td>
+<td>{{if .Disabled}}<span class="red-text">Deaktiviert</span>{{else}}<span class="green">Aktiv</span>{{end}}</td>
+<td><details class="user-actions"><summary>Aktionen</summary><div>
+<form method="post" action="/admin/users/{{.ID}}/password" hx-confirm="Neues Passwort für {{.Username}} erzeugen? Bestehende Anmeldungen enden."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="admin-btn" type="submit">Passwort zurücksetzen</button></form>
+<form method="post" action="/admin/users/{{.ID}}/disabled"><input type="hidden" name="csrf" value="{{$.CSRF}}">{{if not .Disabled}}<input type="hidden" name="disabled" value="on">{{end}}<button class="admin-btn" type="submit">{{if .Disabled}}Aktivieren{{else}}Deaktivieren{{end}}</button></form>
+<form class="delete-user" method="post" action="/admin/users/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input class="admin-input" name="confirm" placeholder="{{.Username}}" aria-label="Benutzername zur Bestätigung" autocomplete="off" required><button class="admin-btn danger" type="submit">Mit allen Daten löschen</button></form>
+</div></details></td>
+</tr>{{end}}</tbody>
+</table></div></section>
+<div class="admin-split even">
+<section>
+<h2 class="section">Benutzer anlegen</h2>
+<form class="card admin-card stack-form" method="post" action="/admin/users">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<div class="admin-grid-2">
+<div><label class="admin-label" for="username">Benutzername</label><input class="admin-input" id="username" name="username" maxlength="40" autocomplete="off" required></div>
+<div><label class="admin-label" for="role">Rolle</label><select class="admin-input" id="role" name="role"><option value="user">Benutzer</option><option value="admin">Admin</option></select></div>
+</div>
+<label class="admin-label spaced" for="password">Passwort (leer = zufällig)</label>
+<input class="admin-input" id="password" type="password" name="password" autocomplete="new-password" minlength="8">
+<button class="admin-btn light" type="submit">Anlegen</button>
+</form>
+</section>
+<section>
+<h2 class="section">Einladen</h2>
+<form class="card admin-card inline-form" method="post" action="/admin/invites">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<select class="admin-input" name="role" aria-label="Rolle der Einladung"><option value="user">Benutzer</option><option value="admin">Admin</option></select>
+<button class="admin-btn light" type="submit">Einladungslink erzeugen</button>
+</form>
+{{if $d.Invites}}<section class="list invite-list">{{range $d.Invites}}<div class="row"><span class="row-text"><strong>{{if eq .Role "admin"}}Admin{{else}}Benutzer{{end}}</strong><small>gültig bis {{.Until}}</small></span>
+<form method="post" action="/admin/invites/{{.Token}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="Einladung zurückziehen">{{icon "trash-2" 18}}</button></form></div>{{end}}</section>{{end}}
+</section>
+</div>
+{{end}}

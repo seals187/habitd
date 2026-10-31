@@ -831,8 +831,23 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
 .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .inline-form .admin-input { flex: 1 1 200px; width: auto; }
 .row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.admin-split.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-top: 6px; }
+.admin-table.users { min-width: 760px; }
+.admin-table.users select { width: 118px; }
+.red-text { color: var(--red); }
+.secret-box { margin-bottom: 14px; border-color: var(--gold); }
+.secret-box .admin-sub { margin: 6px 0 0; }
+.stack-form .admin-btn { margin-top: 12px; }
+.user-actions summary { color: var(--muted); font-size: 13px; cursor: pointer; white-space: nowrap; }
+.user-actions > div { position: absolute; right: 30px; z-index: 3; display: flex; flex-direction: column; gap: 8px; width: 250px; margin-top: 6px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.user-actions .admin-btn { width: 100%; justify-content: center; }
+.delete-user { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.invite-list { margin-top: 10px; }
+.admin-table-card, .admin-scroll { overflow: visible; }
 @media (max-width: 860px) {
   .admin-split { grid-template-columns: minmax(0, 1fr); }
+  .admin-split.even { grid-template-columns: minmax(0, 1fr); }
+  .admin-table-card, .admin-scroll { overflow-x: auto; }
   .admin-split.wide, .admin-badges, .rule-grid { grid-template-columns: minmax(0, 1fr); }
   .cat-list { flex-direction: row; overflow-x: auto; }
   .cat-list a { flex: none; }

@@ -39,6 +39,7 @@ type Server struct {
 	static  fs.FS
 	gzipped map[string][]byte // compressed text assets by URL path
 	limiter *loginLimiter
+	started time.Time
 }
 
 // New wires up the server. files must contain templates/ and static/.
@@ -58,7 +59,7 @@ func New(cfg Config, svc *service.Service, files fs.FS) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("compress assets: %w", err)
 	}
-	return &Server{cfg: cfg, svc: svc, view: renderer, static: static, gzipped: gzipped, limiter: newLoginLimiter()}, nil
+	return &Server{cfg: cfg, svc: svc, view: renderer, static: static, gzipped: gzipped, limiter: newLoginLimiter(), started: time.Now()}, nil
 }
 
 // gzipAssets compresses the text assets once at startup. Pages stay uncompressed:
@@ -199,6 +200,16 @@ func (s *Server) routes(mux *http.ServeMux) {
 	admin("GET /admin/badges/transfer", s.adminBadgesTransfer)
 	admin("GET /admin/badges/export", s.adminBadgesExport)
 	admin("POST /admin/badges/import", s.adminBadgesImport)
+	admin("GET /admin/users", s.adminUsers)
+	admin("POST /admin/users", s.adminUserCreate)
+	admin("POST /admin/users/{id}/role", s.adminUserRole)
+	admin("POST /admin/users/{id}/disabled", s.adminUserDisabled)
+	admin("POST /admin/users/{id}/password", s.adminUserPassword)
+	admin("POST /admin/users/{id}/delete", s.adminUserDelete)
+	admin("POST /admin/invites", s.adminInviteCreate)
+	admin("POST /admin/invites/{token}/delete", s.adminInviteDelete)
+	admin("GET /admin/system", s.adminSystem)
+	admin("GET /admin/system/backup", s.adminBackup)
 	admin("GET /admin/areas", s.adminPlaceholder("Bereiche", "areas", "Die Standardwerte der Bereiche sind vorerst fest. Jeder Benutzer verwaltet seine eigene Kopie im Profil."))
 	admin("GET /admin/templates", s.adminPlaceholder("Vorlagen", "templates", "Die Vorlagen sind vorerst fest eingebaut."))
 	admin("GET /admin/economy", s.adminPlaceholder("Taler & Joker", "economy", "Preise und Grenzen sind vorerst fest eingebaut."))
