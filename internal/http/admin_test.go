@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -57,6 +58,55 @@ func TestRoleChangeCountsAtOnce(t *testing.T) {
 	}
 	if resp, _ := b.get("/admin"); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("role survived in the session: %s", resp.Status)
+	}
+}
+
+func TestQuestHabits(t *testing.T) {
+	a := newApp(t, Config{})
+	a.signIn()
+	id := a.habit("Lesen", "build")
+	a.habit("Laufen", "build")
+	var weekend, other int64
+	for _, q := range a.svc.Rules().Quests {
+		switch q.Key {
+		case "wochenend":
+			weekend = q.ID
+		case "frueher-vogel":
+			other = q.ID
+		}
+	}
+	if _, html := a.get("/quest"); !strings.Contains(html, `href="/settings/quests"`) {
+		t.Fatalf("no way to the choice: %s", html)
+	}
+	_, html := a.get("/settings/quests")
+	for _, want := range []string{"Wochenend-Held · Sa–So", "Alles erledigt", "Lesen", fmt.Sprintf(`/settings/quests/%d/habits/%d`, weekend, id)} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("choice: missing %q in %s", want, html)
+		}
+	}
+	if strings.Contains(html, "Früher Vogel") {
+		t.Fatal("only quests over all habits can be chosen")
+	}
+	path := fmt.Sprintf("/settings/quests/%d/habits/%d", weekend, id)
+	if resp, _ := a.post(path, true); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("switch off: %s", resp.Status)
+	}
+	if skips, _ := a.q().QuestSkips(); len(skips) != 1 || skips[0].QuestID != weekend || skips[0].HabitID != id {
+		t.Fatalf("stored: %+v", skips)
+	}
+	if e, err := a.q().DumpAll(); err != nil || len(e.QuestSkips) != 1 {
+		t.Fatalf("export: %+v %v", e, err)
+	}
+	if resp, _ := a.do("POST", path, url.Values{"csrf": {a.csrf}, "on": {"on"}}, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("switch on: %s", resp.Status)
+	}
+	if skips, _ := a.q().QuestSkips(); len(skips) != 0 {
+		t.Fatalf("still left out: %+v", skips)
+	}
+	for _, bad := range []string{fmt.Sprintf("/settings/quests/%d/habits/%d", other, id), fmt.Sprintf("/settings/quests/%d/habits/9999", weekend), "/settings/quests/9999/habits/1"} {
+		if resp, _ := a.post(bad, true); resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s: %s", bad, resp.Status)
+		}
 	}
 }
 

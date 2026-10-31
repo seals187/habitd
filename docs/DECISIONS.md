@@ -167,6 +167,11 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   Vorjahres. Die Jahresansicht zeigt das Kalenderjahr, nicht die letzten zwölf Monate.
 - **Heute frei:** Habits mit festen Wochentagen bleiben an freien Tagen unten auf „Heute“ sichtbar.
   Ein erreichtes Wochen- oder Monatsziel klappt die Karte bis zum Ende des Zeitraums ein.
+- **Erreichte Karten** lassen sich aufklappen. Das gilt nur für den laufenden Tag, am nächsten Tag
+  klappt eine weiterhin erreichte Karte wieder ein, damit „Heute“ übersichtlich bleibt.
+- **Quest-Habits:** Der Quest-Pool gehört der Instanz und wird im Admin-Bereich angepasst, Habits
+  gehören den Nutzern. Darum wählt jeder selbst, welche Habits für die „Alle Habits“-Quests zählen.
+  Die Wahl gilt ab sofort auch für die Quest des Tages, vergangene Tage bleiben, wie sie sind.
 - **Vorlagen** öffnen immer zuerst das Formular. Nur das Onboarding legt mehrere direkt an.
 - **Wochenziel:** Zähler und Mengen können pro Woche gelten. Das Habit läuft dann als „1× pro
   Woche“, das Ziel sammelt sich über die Einträge der Woche, und der Check-in entsteht an dem Tag,

@@ -220,6 +220,39 @@ func TestStreakJokerOnceAndCapped(t *testing.T) {
 	}
 }
 
+func TestQuestSkipSettlesToday(t *testing.T) {
+	e := setup(t)
+	a := e.habit(model.Habit{Name: "A"}, 0)
+	b := e.habit(model.Habit{Name: "B"}, 0)
+	today := e.s.Today()
+	e.check(a, today)
+	var def game.QuestDef
+	for _, x := range e.s.Rules().Quests {
+		if x.Key == "alles" {
+			def = x
+		}
+	}
+	quest := func() int {
+		sums, err := e.q().LedgerSum(questRef(today))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sums[model.LedgerCoins]
+	}
+	if err := e.s.SetQuestSkip(e.ctx, def.ID, b, true); err != nil {
+		t.Fatal(err)
+	}
+	if quest() != game.QuestCoins {
+		t.Fatal("the remaining habit finishes the quest")
+	}
+	if err := e.s.SetQuestSkip(e.ctx, def.ID, b, false); err != nil {
+		t.Fatal(err)
+	}
+	if quest() != 0 {
+		t.Fatal("taking the habit back reopens the quest")
+	}
+}
+
 func TestQuestNeedsAllAndIsPaidOnce(t *testing.T) {
 	e := setup(t)
 	a := e.habit(model.Habit{Name: "A"}, 0)

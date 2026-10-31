@@ -1,0 +1,7 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+<p class="muted quest-choice-intro">Wähle, welche Habits für die Quest zählen. Was du ausschaltest, musst du dafür nicht erledigen. Die Änderung gilt sofort, auch für die Quest von heute.</p>
+{{range $d}}{{$quest := .ID}}<h2 class="section">{{.Name}} · {{.When}}</h2>
+<section class="card quest-choices" style="--c:{{.Color}}">{{range .Habits}}<label class="toggle plain"><span>{{.Name}}</span><input type="checkbox" name="on" {{if .On}}checked{{end}} hx-post="/settings/quests/{{$quest}}/habits/{{.ID}}" hx-trigger="change" hx-swap="none" aria-label="{{.Name}} zählt"><i></i></label>{{else}}<p class="muted">Noch keine Habits.</p>{{end}}</section>
+{{else}}<section class="empty"><p class="muted">Gerade gibt es keine Quest, für die du Habits wählen kannst.</p></section>{{end}}
+</main>{{end}}

@@ -70,7 +70,7 @@ func (s *Service) draw(q *db.Q, w *game.World, d model.Day) error {
 	}
 	if cfg.WeekendRule && d.WeekdayIndex() >= 5 {
 		for _, def := range rules.Quests {
-			if def.Key == "wochenend" && def.Active {
+			if def.Key == "wochenend" && def.Active && (!cfg.Matching || def.Eligible(w, d)) {
 				chosen = append(chosen, def.ID)
 			}
 		}
@@ -146,6 +146,27 @@ func (s *Service) EnsureQuests(ctx context.Context) error {
 		return err
 	}
 	return s.Store.Tx(ctx, func(q *db.Q) error {
+		w, err := s.World(q)
+		if err != nil {
+			return err
+		}
+		if err := s.updateQuest(q, w); err != nil {
+			return err
+		}
+		return s.evaluate(q, nil, false)
+	})
+}
+
+// SetQuestSkip leaves a habit out of a quest or takes it back in. Today's quest
+// is settled again, because the change can finish or reopen it.
+func (s *Service) SetQuestSkip(ctx context.Context, questID, habitID int64, skip bool) error {
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		if _, err := q.Habit(habitID); err != nil {
+			return err
+		}
+		if err := q.SetQuestSkip(questID, habitID, skip); err != nil {
+			return err
+		}
 		w, err := s.World(q)
 		if err != nil {
 			return err

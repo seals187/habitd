@@ -151,6 +151,34 @@ func (q *Q) QuestDays() (map[model.Day]bool, error) {
 	return out, rows.Err()
 }
 
+// QuestSkip is a habit the current user leaves out of a quest.
+type QuestSkip struct {
+	QuestID int64 `json:"quest_id"`
+	HabitID int64 `json:"habit_id"`
+}
+
+// QuestSkips lists the habits left out of quests.
+func (q *Q) QuestSkips() ([]QuestSkip, error) {
+	var out []QuestSkip
+	err := q.each(`SELECT quest_id, habit_id FROM quest_skips WHERE user_id = ?`, func(s scanner) error {
+		var x QuestSkip
+		if err := s.Scan(&x.QuestID, &x.HabitID); err != nil {
+			return err
+		}
+		out = append(out, x)
+		return nil
+	})
+	return out, err
+}
+
+// SetQuestSkip leaves a habit out of a quest or takes it back in.
+func (q *Q) SetQuestSkip(questID, habitID int64, skip bool) error {
+	if skip {
+		return q.exec(`INSERT OR IGNORE INTO quest_skips (user_id, quest_id, habit_id) VALUES (?, ?, ?)`, q.uid, questID, habitID)
+	}
+	return q.exec(`DELETE FROM quest_skips WHERE user_id = ? AND quest_id = ? AND habit_id = ?`, q.uid, questID, habitID)
+}
+
 // QuestStat counts the draws of a quest.
 type QuestStat struct {
 	Drawn int

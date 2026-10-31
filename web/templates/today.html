@@ -52,7 +52,7 @@
 
 {{define "hring-face"}}<svg class="ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/>{{if .Ring}}<circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Ring}}" transform="rotate(-90 28 28)"/>{{end}}</svg>{{if and .RingLabel (not .Auto)}}<b>{{.RingLabel}}</b>{{else if .Relapsed}}{{icon "ban" 20}}{{else if .Auto}}{{icon "check" 20}}{{end}}{{end}}
 
-{{define "fold"}}{{if not (or .Auto .Rest)}}<button class="fold-btn" hx-post="/habits/{{.ID}}/fold" hx-target="#page" aria-expanded="{{if .Collapsed}}false{{else}}true{{end}}" aria-label="{{.Name}} {{if .Collapsed}}aufklappen{{else}}einklappen{{end}}">{{icon "chevron-right" 18}}</button>{{end}}{{end}}
+{{define "fold"}}{{if not .Rest}}<button class="fold-btn" hx-post="/habits/{{.ID}}/{{if .Auto}}open{{else}}fold{{end}}" hx-target="#page" aria-expanded="{{if .Collapsed}}false{{else}}true{{end}}" aria-label="{{.Name}} {{if .Collapsed}}aufklappen{{else}}einklappen{{end}}">{{icon "chevron-right" 18}}</button>{{end}}{{end}}
 
 {{define "hstreak"}}<span class="hstreak{{if not .Streak.Current}} zero{{end}}" aria-label="Serie {{.StreakLabel}}">{{icon "flame" 12}}{{.StreakLabel}}</span>{{end}}
 

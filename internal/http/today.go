@@ -21,7 +21,7 @@ type habitCard struct {
 	Area        model.Area
 	Done        bool
 	Collapsed   bool   // folded by hand or reached
-	Auto        bool   // reached today or for this period, folds by itself
+	Auto        bool   // reached today or for this period, folds by itself until opened
 	Rest        string // next planned day of a habit that is off today
 	Relapsed    bool
 	Streak      game.Streak
@@ -292,7 +292,9 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 			card.Ring = 100
 		}
 		card.Auto = card.Done || periodMet
-		card.Collapsed = card.Collapsed || card.Auto
+		if card.Auto {
+			card.Collapsed = h.OpenedOn != w.Today.String()
+		}
 		if h.Frequency == model.FreqCustom && !h.Scheduled(w.Today) && !card.Done {
 			card.Rest, card.Collapsed = nextPlanned(h, w.Today), true
 			d.Rest = append(d.Rest, card)
@@ -342,6 +344,27 @@ func (s *Server) habitFold(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if err := q.SetHabitCollapsed(id, !h.Collapsed); err != nil {
+		return err
+	}
+	return s.afterHabitChange(w, r, id)
+}
+
+// habitOpen opens a reached card for today or folds it again.
+func (s *Server) habitOpen(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	q := s.svc.Store.Q(r.Context())
+	h, err := q.Habit(id)
+	if err != nil {
+		return err
+	}
+	day := s.svc.Today().String()
+	if h.OpenedOn == day {
+		day = ""
+	}
+	if err := q.SetHabitOpened(id, day); err != nil {
 		return err
 	}
 	return s.afterHabitChange(w, r, id)

@@ -19,11 +19,12 @@ type HabitData struct {
 	Relapses []model.Day             // sorted
 	Amount   float64                 // sum of all entries of counter and quantity habits
 	Entries  map[model.Day]float64   // sum of the entries per day
+	Skips    map[int64]bool          // quests this habit does not count for
 }
 
 // NewHabitData returns an empty history.
 func NewHabitData(h model.Habit, start model.Day) *HabitData {
-	return &HabitData{Habit: h, Start: start, Done: map[model.Day]time.Time{}, Joker: map[model.Day]bool{}, Entries: map[model.Day]float64{}}
+	return &HabitData{Habit: h, Start: start, Done: map[model.Day]time.Time{}, Joker: map[model.Day]bool{}, Entries: map[model.Day]float64{}, Skips: map[int64]bool{}}
 }
 
 // Run is a stretch of an unbroken streak.

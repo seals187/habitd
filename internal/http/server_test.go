@@ -762,6 +762,44 @@ func TestFoldHabit(t *testing.T) {
 	}
 }
 
+func TestReachedHabitOpens(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "count", "1", "1", "Gläser")
+	c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	for {
+		pending, _, _, err := c.q().NextCelebration()
+		if err != nil || pending == 0 {
+			break
+		}
+		if err := c.q().DeleteCelebration(pending); err != nil {
+			t.Fatal(err)
+		}
+	}
+	open := fmt.Sprintf("/habits/%d/open", id)
+	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") || !strings.Contains(html, `hx-post="`+open+`"`) {
+		t.Fatalf("a reached habit folds and can open: %s", html)
+	}
+	if _, html := c.post(open, true); strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser einklappen") {
+		t.Fatalf("opened: %s", html)
+	}
+	if _, html := c.get("/"); strings.Contains(html, "hcard collapsed") {
+		t.Fatal("opening does not last for the day")
+	}
+	if _, html := c.post(open, true); !strings.Contains(html, "hcard collapsed") {
+		t.Fatalf("folded again: %s", html)
+	}
+	if err := c.q().SetHabitOpened(id, (c.svc.Today() - 1).String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") {
+		t.Fatal("a new day folds the reached habit again")
+	}
+	if resp, _ := c.post("/habits/9999/open", true); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown habit: %s", resp.Status)
+	}
+}
+
 func TestWeeklyGoalFoldsForTheWeek(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()

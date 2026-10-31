@@ -21,7 +21,7 @@ import (
 )
 
 // version is set at build time.
-var version = "0.0.3"
+var version = "dev"
 
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {

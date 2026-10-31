@@ -252,7 +252,7 @@ func (q QuestDef) Eval(w *World, d model.Day) QuestState {
 		area = weakestArea(w, d)
 	}
 	for _, h := range w.Habits {
-		if !running(h, d) {
+		if !running(h, d) || h.Skips[q.ID] {
 			continue
 		}
 		_, done := h.Done[d]

@@ -143,6 +143,7 @@ type Habit struct {
 	Unit         string    `json:"unit"`
 	Collapsed    bool      `json:"collapsed,omitempty"` // stays folded on the Today screen
 	GoalWeek     bool      `json:"goal_week,omitempty"` // Target adds up over a week instead of a day
+	OpenedOn     string    `json:"-"`                   // day a reached habit was opened again, not exported
 }
 
 // RoundAmount cuts the noise of adding up decimal amounts like 0,1 and 0,2.

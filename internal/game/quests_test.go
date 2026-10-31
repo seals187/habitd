@@ -36,6 +36,28 @@ func TestQuestUntilCountsOnlyEarlyCheckins(t *testing.T) {
 	}
 }
 
+func TestQuestLeavesOutSkippedHabits(t *testing.T) {
+	d := day("2026-10-31")
+	a, b := questHabit("A", model.KindBuild, d-5), questHabit("B", model.KindBuild, d-5)
+	w := &World{Today: d, Habits: []*HabitData{a, b}}
+	q := QuestDef{ID: 7, Kind: QuestAll, Reward: 1}
+	a.Done[d] = clock(d, 9)
+	if st := q.Eval(w, d); st.Complete || st.Total != 2 {
+		t.Fatalf("both count: %+v", st)
+	}
+	b.Skips[7] = true
+	if st := q.Eval(w, d); !st.Complete || st.Total != 1 || len(st.Items) != 1 {
+		t.Fatalf("skipped habit counted: %+v", st)
+	}
+	if st := (QuestDef{ID: 8, Kind: QuestAll, Reward: 1}).Eval(w, d); st.Total != 2 {
+		t.Fatalf("a skip belongs to one quest: %+v", st)
+	}
+	a.Skips[7] = true
+	if q.Eligible(w, d) {
+		t.Fatal("a quest without habits cannot be drawn")
+	}
+}
+
 func TestQuestAllCountsRelapses(t *testing.T) {
 	d := day("2026-10-28")
 	build, avoid := questHabit("A", model.KindBuild, d-5), questHabit("B", model.KindAvoid, d-5)

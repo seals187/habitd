@@ -149,6 +149,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /habits/{id}/restore", s.habitRestore)
 	handle("POST /habits/{id}/move", s.habitMove)
 	handle("POST /habits/{id}/fold", s.habitFold)
+	handle("POST /habits/{id}/open", s.habitOpen)
 
 	handle("GET /badges", s.badges)
 
@@ -178,6 +179,8 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /settings/reminders", s.remindersSave)
 	handle("GET /settings/joker", s.jokerRules)
 	handle("POST /settings/joker", s.jokerRulesSave)
+	handle("GET /settings/quests", s.questHabits)
+	handle("POST /settings/quests/{quest}/habits/{id}", s.questHabitSave)
 	handle("GET /settings/backup", s.backup)
 	handle("GET /settings/server", s.serverInfo)
 	handle("POST /settings/password", s.passwordChange)

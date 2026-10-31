@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -134,6 +135,67 @@ func (s *Server) questDetail(w http.ResponseWriter, r *http.Request) error {
 		d.Days = append(d.Days, day)
 	}
 	return s.view.Render(w, http.StatusOK, "quest", s.page(r, "Tagesquest", "", d))
+}
+
+// questChoice is a quest whose habits the user can choose.
+type questChoice struct {
+	game.QuestDef
+	Label  string
+	When   string
+	Habits []questChoiceHabit
+}
+
+type questChoiceHabit struct {
+	ID   int64
+	Name string
+	On   bool
+}
+
+// questHabits lets a user choose which habits count for the "all habits" quests.
+func (s *Server) questHabits(w http.ResponseWriter, r *http.Request) error {
+	q := s.svc.Store.Q(r.Context())
+	habits, err := q.Habits()
+	if err != nil {
+		return err
+	}
+	skips, err := q.QuestSkips()
+	if err != nil {
+		return err
+	}
+	var d []questChoice
+	for _, def := range s.svc.Rules().Quests {
+		if !def.Active || def.Kind != game.QuestAll {
+			continue
+		}
+		c := questChoice{QuestDef: def, Label: def.Label(), When: whenLabel(def)}
+		for _, h := range habits {
+			if h.Archived {
+				continue
+			}
+			c.Habits = append(c.Habits, questChoiceHabit{ID: h.ID, Name: h.Name, On: !slices.Contains(skips, db.QuestSkip{QuestID: def.ID, HabitID: h.ID})})
+		}
+		d = append(d, c)
+	}
+	return s.view.Render(w, http.StatusOK, "quest_habits", s.page(r, "Quest-Habits", "", d))
+}
+
+func (s *Server) questHabitSave(w http.ResponseWriter, r *http.Request) error {
+	habit, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	quest, err := strconv.ParseInt(r.PathValue("quest"), 10, 64)
+	if err != nil {
+		return notFound()
+	}
+	if !slices.ContainsFunc(s.svc.Rules().Quests, func(def game.QuestDef) bool { return def.ID == quest && def.Kind == game.QuestAll }) {
+		return notFound()
+	}
+	if err := s.svc.SetQuestSkip(r.Context(), quest, habit, r.FormValue("on") != "on"); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 type questRow struct {

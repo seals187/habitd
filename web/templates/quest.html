@@ -9,6 +9,7 @@
 </section>
 {{if .State.Items}}<h2 class="section">Zählt für diese Quest</h2>
 <section class="quest-items">{{range .State.Items}}<div class="quest-item{{if .Done}} done{{end}}"><span class="quest-tick">{{if .Done}}{{icon "check" 16}}{{end}}</span><strong>{{.Name}}</strong><small>{{.Note}}</small></div>{{end}}</section>{{end}}
+{{if eq .Kind "all"}}<a class="add-link" href="/settings/quests">{{icon "list-minus" 18}}Habits auswählen</a>{{end}}
 {{else}}<section class="empty"><p class="muted">Heute gibt es keine passende Quest. Leg zuerst ein Habit an.</p></section>{{end}}
 <h2 class="section">Quest-Serie · {{$d.Streak}} {{if eq $d.Streak 1}}Tag{{else}}Tage{{end}}</h2>
 <section class="card quest-week">{{range $d.Days}}<div class="quest-day"><span>{{.Name}}</span><i class="{{.State}}" {{if eq .State "today"}}style="--pie:{{.Pie}}%"{{end}}>{{if eq .State "done"}}{{icon "check" 16}}{{end}}</i></div>{{end}}</section>

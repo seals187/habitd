@@ -145,14 +145,14 @@ func (q *Q) DeleteArea(id int64) error {
 	return q.execOne(`DELETE FROM areas WHERE id = ? AND user_id = ?`, id, q.uid)
 }
 
-const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit, collapsed, goal_week`
+const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit, collapsed, goal_week, opened_on`
 
 func scanHabit(s interface{ Scan(...any) error }) (model.Habit, error) {
 	var h model.Habit
 	var created string
 	var template sql.NullString
 	err := s.Scan(&h.ID, &template, &h.Name, &h.Kind, &h.Frequency, &h.WeeklyTarget, &h.DaysMask, &h.Icon, &h.Tag,
-		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort, &h.Measure, &h.Target, &h.Step, &h.Unit, &h.Collapsed, &h.GoalWeek)
+		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort, &h.Measure, &h.Target, &h.Step, &h.Unit, &h.Collapsed, &h.GoalWeek, &h.OpenedOn)
 	h.CreatedAt = parseTime(created)
 	h.TemplateID = template.String
 	return h, err
@@ -218,6 +218,11 @@ func (q *Q) SetHabitArchived(id int64, archived bool) error {
 // SetHabitCollapsed folds or unfolds a habit on the Today screen.
 func (q *Q) SetHabitCollapsed(id int64, collapsed bool) error {
 	return q.execOne(`UPDATE habits SET collapsed = ? WHERE id = ? AND user_id = ?`, b2i(collapsed), id, q.uid)
+}
+
+// SetHabitOpened keeps a reached habit open on the given day, empty folds it again.
+func (q *Q) SetHabitOpened(id int64, day string) error {
+	return q.execOne(`UPDATE habits SET opened_on = ? WHERE id = ? AND user_id = ?`, day, id, q.uid)
 }
 
 // MoveHabit swaps the habit with its neighbour among the active habits.
@@ -425,6 +430,16 @@ func (q *Q) LoadHabits(loc *time.Location) ([]*game.HabitData, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+
+	skips, err := q.QuestSkips()
+	if err != nil {
+		return nil, err
+	}
+	for _, x := range skips {
+		if h := byID[x.HabitID]; h != nil {
+			h.Skips[x.QuestID] = true
+		}
 	}
 
 	amounts, err := q.r.QueryContext(q.ctx, `SELECT habit_id, date, sum(amount) FROM habit_entries WHERE user_id = ? GROUP BY habit_id, date`, q.uid)
@@ -815,6 +830,7 @@ type Export struct {
 	Redemptions []model.Redemption  `json:"redemptions"`
 	Ledger      []model.LedgerEntry `json:"ledger"`
 	Badges      map[string]string   `json:"badges"`
+	QuestSkips  []QuestSkip         `json:"quest_skips,omitempty"`
 }
 
 // ExportCheckin is the JSON form of a check-in.
@@ -860,6 +876,9 @@ func (q *Q) DumpAll() (*Export, error) {
 		return nil, err
 	}
 	if e.Redemptions, err = q.Redemptions(); err != nil {
+		return nil, err
+	}
+	if e.QuestSkips, err = q.QuestSkips(); err != nil {
 		return nil, err
 	}
 	err = q.each(`SELECT key, value FROM user_settings WHERE user_id = ?`, func(s scanner) error {
@@ -1030,6 +1049,13 @@ func (q *Q) RestoreAll(e *Export) error {
 	}
 	for k, at := range e.Badges {
 		if err := q.exec(`INSERT INTO badges_unlocked (user_id, badge_key, unlocked_at) VALUES (?, ?, ?)`, q.uid, k, at); err != nil {
+			return err
+		}
+	}
+	for _, x := range e.QuestSkips {
+		// The quest pool belongs to the instance: quests it does not know fall away.
+		if err := q.exec(`INSERT OR IGNORE INTO quest_skips (user_id, quest_id, habit_id) SELECT ?, id, ? FROM quests WHERE id = ?`,
+			q.uid, habits[x.HabitID], x.QuestID); err != nil {
 			return err
 		}
 	}
