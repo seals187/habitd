@@ -3,6 +3,7 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -137,10 +138,13 @@ type Habit struct {
 	CreatedAt    time.Time `json:"created_at"`
 	Sort         int       `json:"sort"`
 	Measure      string    `json:"measure"`
-	Target       int       `json:"target"` // daily goal of counter and quantity habits
-	Step         int       `json:"step"`   // amount of one click
+	Target       float64   `json:"target"` // daily goal of counter and quantity habits
+	Step         float64   `json:"step"`   // amount of one click, may be below 1
 	Unit         string    `json:"unit"`
 }
+
+// RoundAmount cuts the noise of adding up decimal amounts like 0,1 and 0,2.
+func RoundAmount(v float64) float64 { return math.Round(v*1000) / 1000 }
 
 // Measured reports whether the habit is filled up during the day.
 func (h Habit) Measured() bool { return h.Measure == MeasureCount || h.Measure == MeasureAmount }
@@ -158,7 +162,7 @@ type Entry struct {
 	ID        int64
 	HabitID   int64
 	Date      Day
-	Amount    int
+	Amount    float64
 	CreatedAt time.Time
 }
 
@@ -188,10 +192,15 @@ type Reward struct {
 	ResetOnRelapse bool   `json:"reset_on_relapse"`
 	Repeatable     bool   `json:"repeatable"`
 	Archived       bool   `json:"archived"`
+	Icon           string `json:"icon"`
+	Weekly         bool   `json:"weekly"` // at most once per week
+	Paused         bool   `json:"paused"`
+	ShowToday      bool   `json:"show_today"`
 }
 
 // Redemption records a redeemed reward.
 type Redemption struct {
+	ID         int64     `json:"id"`
 	RewardID   int64     `json:"reward_id"`
 	Title      string    `json:"title"`
 	RedeemedAt time.Time `json:"redeemed_at"`
@@ -215,4 +224,5 @@ type Balances struct {
 	Jokers      int
 	CoinsEarned int // Taler earned, spending excluded
 	CoinsToday  int // Taler earned today
+	XPToday     int // XP earned today
 }

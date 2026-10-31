@@ -1,0 +1,16 @@
+{{define "content"}}{{$d := .Data}}<main class="page quest-page">
+<header class="sub-head center">{{template "back" "/"}}<h1>Tagesquest</h1></header>
+{{range $d.Quests}}<section class="quest-hero" style="--c:{{.Color}}">
+<div class="quest-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="hero-track" cx="60" cy="60" r="56"/>{{if .Percent}}<circle class="hero-fill" cx="60" cy="60" r="56" stroke-dasharray="{{dash 56.0 .Percent}}" transform="rotate(-90 60 60)"/>{{end}}</svg>{{icon .Icon 36}}</div>
+<p class="quest-when">Heute · {{.Deadline}}</p>
+<h2>{{.Name}}</h2>
+<p class="muted">{{.Label}}</p>
+<div class="quest-chips"><span class="{{if eq .RewardKind "joker"}}blue{{else if eq .RewardKind "xp"}}green{{else}}gold{{end}}">{{if eq .RewardKind "joker"}}{{icon "shield" 16}}{{else if eq .RewardKind "coins"}}{{icon "coin" 16}}{{end}}{{.Reward}}</span><span>{{.State.Done}} / {{.State.Total}} erledigt</span></div>
+</section>
+{{if .State.Items}}<h2 class="section">Zählt für diese Quest</h2>
+<section class="quest-items">{{range .State.Items}}<div class="quest-item{{if .Done}} done{{end}}"><span class="quest-tick">{{if .Done}}{{icon "check" 16}}{{end}}</span><strong>{{.Name}}</strong><small>{{.Note}}</small></div>{{end}}</section>{{end}}
+{{else}}<section class="empty"><p class="muted">Heute gibt es keine passende Quest. Leg zuerst ein Habit an.</p></section>{{end}}
+<h2 class="section">Quest-Serie · {{$d.Streak}} {{if eq $d.Streak 1}}Tag{{else}}Tage{{end}}</h2>
+<section class="card quest-week">{{range $d.Days}}<div class="quest-day"><span>{{.Name}}</span><i class="{{.State}}" {{if eq .State "today"}}style="--pie:{{.Pie}}%"{{end}}>{{if eq .State "done"}}{{icon "check" 16}}{{end}}</i></div>{{end}}</section>
+{{if $d.Bonus}}<p class="hint">Noch {{$d.ToNext}} {{if eq $d.ToNext 1}}Quest{{else}}Quests{{end}} in Folge bis <b class="blue">+1 Joker</b></p>{{end}}
+</main>{{end}}

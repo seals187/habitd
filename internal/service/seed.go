@@ -167,31 +167,34 @@ func readingGaps(today model.Day) (map[model.Day]bool, model.Day) {
 func (s *Service) seedRewards(q *db.Q, readingID int64) error {
 	titles := []struct {
 		title string
+		icon  string
 		price int
 		count int
 	}{
-		{"Serien-Folge schauen", 50, 6},
-		{"Lieblingskaffee", 80, 6},
-		{"Essen bestellen", 200, 3},
-		{"Ausschlafen am Samstag", 150, 2},
-		{"Neues Videospiel", 900, 0},
+		{"Serien-Folge schauen", "eye", 50, 6},
+		{"Lieblingskaffee", "cup", 80, 6},
+		{"Essen bestellen", "meal", 200, 3},
+		{"Ausschlafen am Samstag", "moon", 150, 2},
+		{"Neues Videospiel", "trophy", 900, 0},
 	}
 	today := s.Today()
 	back := model.Day(5)
-	rewards := 0
 	for _, t := range titles {
-		rewards++
-		if err := q.SaveReward(model.Reward{Title: t.title, Mode: model.RewardCoins, Price: t.price, Repeatable: true}); err != nil {
+		if err := q.SaveReward(model.Reward{Title: t.title, Icon: t.icon, Mode: model.RewardCoins, Price: t.price, Repeatable: true}); err != nil {
+			return err
+		}
+		saved, err := q.Rewards()
+		if err != nil {
 			return err
 		}
 		for range t.count {
-			if err := q.AddRedemption(int64(rewards), s.dayAt(today-back, 18, 0), t.price); err != nil {
+			if _, err := q.AddRedemption(saved[len(saved)-1].ID, s.dayAt(today-back, 18, 0), t.price, ""); err != nil {
 				return err
 			}
 			back += 11
 		}
 	}
-	return q.SaveReward(model.Reward{Title: "Neues Buch", Mode: model.RewardStreak, HabitID: readingID, StreakTarget: 30, ResetOnRelapse: true, Repeatable: true})
+	return q.SaveReward(model.Reward{Title: "Neues Buch", Icon: "book", Mode: model.RewardStreak, HabitID: readingID, StreakTarget: 30, ResetOnRelapse: true, Repeatable: true})
 }
 
 // seedLedger books the balances of the mockup. Check-ins are not replayed one

@@ -8,6 +8,9 @@ import (
 	"github.com/seals187/habitd/internal/game"
 )
 
+// BadgesOffKey is the instance setting that switches off all badges.
+const BadgesOffKey = "badges_off"
+
 // SeedRules stores the start values. New built-in badges of a later version are
 // added, nothing that exists is touched.
 func (q *Q) SeedRules(r *game.Rules) error {
@@ -96,6 +99,11 @@ func (q *Q) LoadRules() (*game.Rules, error) {
 	if err != nil {
 		return nil, fmt.Errorf("level settings: %w", err)
 	}
+	off, err := q.GlobalSetting(BadgesOffKey, "")
+	if err != nil {
+		return nil, err
+	}
+	r.BadgesOff = off == "1"
 	return r, nil
 }
 

@@ -91,7 +91,8 @@ func fillChart(d *levelsData, levels []game.Level, st game.LevelSettings) {
 }
 
 func (s *Server) levelsPage(w http.ResponseWriter, r *http.Request, status int, levels []game.Level, st game.LevelSettings, message string) error {
-	d := levelsData{All: r.FormValue("all") == "1", Settings: st, Base: decimal(st.Base), Exponent: decimal(st.Exponent), Error: message}
+	// A rejected threshold can collide with a level the short table hides.
+	d := levelsData{All: r.FormValue("all") == "1" || message != "", Settings: st, Base: decimal(st.Base), Exponent: decimal(st.Exponent), Error: message}
 	for _, l := range levels {
 		if d.All || slices.Contains(levelMilestones, l.Level) || l.Overridden {
 			d.Rows = append(d.Rows, l)
@@ -182,7 +183,7 @@ func validateLevels(levels []game.Level) string {
 			continue
 		}
 		if l.XP <= levels[i-1].XP {
-			return fmt.Sprintf("Die XP-Schwellen müssen streng steigen: Level %d liegt nicht über Level %d", l.Level, levels[i-1].Level)
+			return fmt.Sprintf("Die XP-Schwellen müssen streng steigen: Level %d (%d XP) liegt nicht über Level %d (%d XP)", l.Level, l.XP, levels[i-1].Level, levels[i-1].XP)
 		}
 	}
 	return ""

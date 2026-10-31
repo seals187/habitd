@@ -66,10 +66,13 @@ func (s LevelSettings) XP(level int) int {
 // Rules are all global game rules: the admin area changes them at runtime, so a
 // value is never modified after it was built.
 type Rules struct {
-	Categories []Category
-	Badges     []Badge
-	Levels     []Level
-	Settings   LevelSettings
+	Categories  []Category
+	Badges      []Badge
+	Levels      []Level
+	Settings    LevelSettings
+	BadgesOff   bool // the whole badge feature is switched off
+	Quests      []QuestDef
+	QuestConfig QuestConfig
 }
 
 var levelBadges = map[int]string{5: "aufsteiger", 10: "erfahren", 25: "profi", 50: "meister"}
@@ -105,7 +108,7 @@ func DefaultRules() *Rules {
 	for i := range categories {
 		categories[i].Sort = i + 1
 	}
-	return &Rules{Categories: categories, Badges: badges, Levels: DefaultLevels(), Settings: DefaultLevelSettings()}
+	return &Rules{Categories: categories, Badges: badges, Levels: DefaultLevels(), Settings: DefaultLevelSettings(), QuestConfig: DefaultQuestConfig()}
 }
 
 var defaults = DefaultRules()
@@ -214,6 +217,9 @@ func (r *Rules) ActiveBadges() int {
 
 // NewlyReached returns the active rules that are fulfilled but not unlocked yet.
 func (r *Rules) NewlyReached(f *Facts, unlocked map[string]bool) []Badge {
+	if r.BadgesOff {
+		return nil
+	}
 	var out []Badge
 	for _, b := range r.Badges {
 		if b.Active && !unlocked[b.Key] && b.Reached(f) {

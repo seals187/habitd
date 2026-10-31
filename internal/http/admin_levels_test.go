@@ -100,6 +100,9 @@ func TestLevelsRejectFallingThresholds(t *testing.T) {
 	if a.svc.Rules().Levels[4].Overridden {
 		t.Fatal("stored despite the error")
 	}
+	if !strings.Contains(html, `name="xp_9"`) {
+		t.Fatal("levels without a milestone stay hidden on an error")
+	}
 }
 
 func TestLevelsResetAndTheProfileSwitch(t *testing.T) {

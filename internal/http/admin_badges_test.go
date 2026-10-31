@@ -21,7 +21,7 @@ func TestBadgeListFilters(t *testing.T) {
 	a := newApp(t, Config{})
 	a.signIn()
 	_, html := a.get("/admin/badges")
-	for _, want := range []string{"95 eingebaut · 0 eigene · 0 deaktiviert", "Funke", "Serie ≥ 3 Tage", "Check-ins ≥ 1", "Bereich Gute Taten · Anzahl ≥ 20", "Tag doomscroll · Serie ≥ 30 Tage", "Vermeiden-Serie ≥ 30", "+50"} {
+	for _, want := range []string{"96 eingebaut · 0 eigene · 0 deaktiviert", "Funke", "Serie ≥ 3 Tage", "Check-ins ≥ 1", "Bereich Gute Taten · Anzahl ≥ 20", "Tag doomscroll · Serie ≥ 30 Tage", "Vermeiden-Serie ≥ 30", "+50"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("missing %q", want)
 		}
@@ -52,7 +52,7 @@ func TestBadgeCreateEvaluateDelete(t *testing.T) {
 		t.Fatalf("badge: %+v", b)
 	}
 	_, html := a.get("/admin/badges")
-	if !strings.Contains(html, "95 eingebaut · 1 eigene") {
+	if !strings.Contains(html, "96 eingebaut · 1 eigene") {
 		t.Fatal("counts")
 	}
 	_, html = a.get("/admin/badges?cat=_eigene")

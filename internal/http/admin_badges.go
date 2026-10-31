@@ -17,6 +17,21 @@ import (
 	"github.com/seals187/habitd/internal/templates"
 )
 
+// adminBadgesFeature switches the whole badge feature on or off.
+func (s *Server) adminBadgesFeature(w http.ResponseWriter, r *http.Request) error {
+	value := "1"
+	if r.FormValue("enabled") == "on" {
+		value = ""
+	}
+	if err := s.svc.Store.Q(r.Context()).SetGlobalSetting(db.BadgesOffKey, value); err != nil {
+		return err
+	}
+	if err := s.svc.LoadRules(r.Context()); err != nil {
+		return err
+	}
+	return redirect(w, r, "/admin/badges")
+}
+
 // ownFilter is the category filter for badges made in the admin area.
 const ownFilter = "_eigene"
 
@@ -38,6 +53,7 @@ type categoryFilter struct {
 
 type badgesAdminData struct {
 	Rows     []badgeRow
+	Enabled  bool
 	Filters  []categoryFilter
 	Own      int
 	Builtin  int
@@ -95,7 +111,7 @@ func (s *Server) adminBadges(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	rules := s.svc.Rules()
-	d := badgesAdminData{Category: r.FormValue("cat"), Query: strings.TrimSpace(r.FormValue("q")), Status: r.FormValue("status"), Total: len(rules.Badges),
+	d := badgesAdminData{Enabled: !rules.BadgesOff, Category: r.FormValue("cat"), Query: strings.TrimSpace(r.FormValue("q")), Status: r.FormValue("status"), Total: len(rules.Badges),
 		Statuses: []badgeFilter{{"", "Alle"}, {"aktiv", "Aktiv"}, {"deaktiviert", "Deaktiviert"}, {"geheim", "Geheim"}}}
 	counts := map[string]int{}
 	names := areaNames(areas)

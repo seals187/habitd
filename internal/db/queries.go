@@ -92,6 +92,20 @@ func (q *Q) DeleteGlobalSetting(key string) error {
 	return q.exec(`DELETE FROM settings WHERE key = ?`, key)
 }
 
+// habitViewPrefix marks the remembered detail view of a habit. It follows the
+// habit id, so it stays out of exports, where ids change.
+const habitViewPrefix = "habit_view:"
+
+// HabitView returns the remembered detail view of a habit, empty if there is none.
+func (q *Q) HabitView(id int64) (string, error) {
+	return q.Setting(habitViewPrefix+strconv.FormatInt(id, 10), "")
+}
+
+// SetHabitView remembers the detail view of a habit.
+func (q *Q) SetHabitView(id int64, view string) error {
+	return q.SetSetting(habitViewPrefix+strconv.FormatInt(id, 10), view)
+}
+
 // Areas lists all areas in display order.
 func (q *Q) Areas() ([]model.Area, error) {
 	rows, err := q.r.QueryContext(q.ctx, `SELECT id, key, name, color, icon, sort FROM areas WHERE user_id = ? ORDER BY sort, id`, q.uid)
@@ -256,16 +270,20 @@ func (q *Q) DeleteHabit(id int64) error {
 	if err := q.exec(`UPDATE rewards SET archived = 1 WHERE habit_id = ? AND mode = ? AND user_id = ?`, id, model.RewardStreak, q.uid); err != nil {
 		return err
 	}
+	if err := q.exec(`DELETE FROM user_settings WHERE user_id = ? AND key = ?`, q.uid, habitViewPrefix+strconv.FormatInt(id, 10)); err != nil {
+		return err
+	}
 	return q.exec(`DELETE FROM habits WHERE id = ? AND user_id = ?`, id, q.uid)
 }
 
-// ResetProgress removes habits and everything earned. Unlike DeleteHabit it also
-// clears the ledger. Areas, settings and coin rewards stay.
+// ResetProgress removes habits, rewards and everything earned. Unlike DeleteHabit
+// it also clears the ledger. Areas and settings stay.
 func (q *Q) ResetProgress() error {
 	for _, stmt := range []string{
 		`DELETE FROM celebrations WHERE user_id = ?`, `DELETE FROM badges_unlocked WHERE user_id = ?`,
 		`DELETE FROM ledger WHERE user_id = ?`, `DELETE FROM redemptions WHERE user_id = ?`,
-		`UPDATE rewards SET archived = 1 WHERE user_id = ? AND mode = '` + model.RewardStreak + `'`, `DELETE FROM habits WHERE user_id = ?`,
+		`DELETE FROM rewards WHERE user_id = ?`, `DELETE FROM habits WHERE user_id = ?`, `DELETE FROM user_quests WHERE user_id = ?`,
+		`DELETE FROM user_settings WHERE user_id = ? AND key LIKE '` + habitViewPrefix + `%'`,
 	} {
 		if err := q.exec(stmt, q.uid); err != nil {
 			return err
@@ -301,20 +319,43 @@ func (q *Q) DeleteDayEntries(habitID int64, d model.Day) error {
 }
 
 // DayTotals sums the entries of a day per habit.
-func (q *Q) DayTotals(d model.Day) (map[int64]int, error) {
+func (q *Q) DayTotals(d model.Day) (map[int64]float64, error) {
 	rows, err := q.r.QueryContext(q.ctx, `SELECT habit_id, sum(amount) FROM habit_entries WHERE date = ? AND user_id = ? GROUP BY habit_id`, d.String(), q.uid)
 	if err != nil {
 		return nil, fmt.Errorf("day totals: %w", err)
 	}
 	defer rows.Close()
-	out := map[int64]int{}
+	out := map[int64]float64{}
 	for rows.Next() {
 		var id int64
-		var total int
+		var total float64
 		if err := rows.Scan(&id, &total); err != nil {
 			return nil, fmt.Errorf("scan day total: %w", err)
 		}
-		out[id] = total
+		out[id] = model.RoundAmount(total)
+	}
+	return out, rows.Err()
+}
+
+// HabitDays sums the entries of a habit per day.
+func (q *Q) HabitDays(habitID int64) (map[model.Day]float64, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT date, sum(amount) FROM habit_entries WHERE habit_id = ? AND user_id = ? GROUP BY date`, habitID, q.uid)
+	if err != nil {
+		return nil, fmt.Errorf("habit days: %w", err)
+	}
+	defer rows.Close()
+	out := map[model.Day]float64{}
+	for rows.Next() {
+		var date string
+		var total float64
+		if err := rows.Scan(&date, &total); err != nil {
+			return nil, fmt.Errorf("scan habit day: %w", err)
+		}
+		d, err := model.ParseDay(date)
+		if err != nil {
+			return nil, err
+		}
+		out[d] = model.RoundAmount(total)
 	}
 	return out, rows.Err()
 }
@@ -381,19 +422,25 @@ func (q *Q) LoadHabits(loc *time.Location) ([]*game.HabitData, error) {
 		return nil, err
 	}
 
-	amounts, err := q.r.QueryContext(q.ctx, `SELECT habit_id, sum(amount) FROM habit_entries WHERE user_id = ? GROUP BY habit_id`, q.uid)
+	amounts, err := q.r.QueryContext(q.ctx, `SELECT habit_id, date, sum(amount) FROM habit_entries WHERE user_id = ? GROUP BY habit_id, date`, q.uid)
 	if err != nil {
 		return nil, fmt.Errorf("sum entries: %w", err)
 	}
 	defer amounts.Close()
 	for amounts.Next() {
 		var id int64
-		var sum int
-		if err := amounts.Scan(&id, &sum); err != nil {
+		var date string
+		var sum float64
+		if err := amounts.Scan(&id, &date, &sum); err != nil {
 			return nil, fmt.Errorf("scan entry sum: %w", err)
 		}
+		day, err := model.ParseDay(date)
+		if err != nil {
+			return nil, err
+		}
 		if h := byID[id]; h != nil {
-			h.Amount = sum
+			h.Entries[day] = model.RoundAmount(sum)
+			h.Amount = model.RoundAmount(h.Amount + sum)
 		}
 	}
 	if err := amounts.Err(); err != nil {
@@ -434,12 +481,15 @@ func (q *Q) LastJokerDay() (model.Day, error) {
 	return model.ParseDay(date.String)
 }
 
+const rewardColumns = `id, title, mode, price, habit_id, streak_target, reset_on_relapse, repeatable, archived, icon, weekly, paused, show_today`
+
 // Reward returns one reward.
 func (q *Q) Reward(id int64) (model.Reward, error) {
 	var r model.Reward
 	var habit sql.NullInt64
-	err := q.r.QueryRowContext(q.ctx, `SELECT id, title, mode, price, habit_id, streak_target, reset_on_relapse, repeatable, archived
-		FROM rewards WHERE id = ? AND user_id = ?`, id, q.uid).Scan(&r.ID, &r.Title, &r.Mode, &r.Price, &habit, &r.StreakTarget, &r.ResetOnRelapse, &r.Repeatable, &r.Archived)
+	err := q.r.QueryRowContext(q.ctx, `SELECT `+rewardColumns+`
+		FROM rewards WHERE id = ? AND user_id = ?`, id, q.uid).Scan(&r.ID, &r.Title, &r.Mode, &r.Price, &habit, &r.StreakTarget, &r.ResetOnRelapse, &r.Repeatable, &r.Archived,
+		&r.Icon, &r.Weekly, &r.Paused, &r.ShowToday)
 	if errors.Is(err, sql.ErrNoRows) {
 		return r, ErrNotFound
 	}
@@ -452,7 +502,7 @@ func (q *Q) Reward(id int64) (model.Reward, error) {
 
 // Rewards lists all rewards, archived ones included.
 func (q *Q) Rewards() ([]model.Reward, error) {
-	rows, err := q.r.QueryContext(q.ctx, `SELECT id, title, mode, price, habit_id, streak_target, reset_on_relapse, repeatable, archived
+	rows, err := q.r.QueryContext(q.ctx, `SELECT `+rewardColumns+`
 		FROM rewards WHERE user_id = ? ORDER BY id`, q.uid)
 	if err != nil {
 		return nil, fmt.Errorf("list rewards: %w", err)
@@ -462,7 +512,8 @@ func (q *Q) Rewards() ([]model.Reward, error) {
 	for rows.Next() {
 		var r model.Reward
 		var habit sql.NullInt64
-		if err := rows.Scan(&r.ID, &r.Title, &r.Mode, &r.Price, &habit, &r.StreakTarget, &r.ResetOnRelapse, &r.Repeatable, &r.Archived); err != nil {
+		if err := rows.Scan(&r.ID, &r.Title, &r.Mode, &r.Price, &habit, &r.StreakTarget, &r.ResetOnRelapse, &r.Repeatable, &r.Archived,
+			&r.Icon, &r.Weekly, &r.Paused, &r.ShowToday); err != nil {
 			return nil, fmt.Errorf("scan reward: %w", err)
 		}
 		r.HabitID = habit.Int64
@@ -487,24 +538,76 @@ func nullable(id int64) any {
 
 // SaveReward creates or updates a reward.
 func (q *Q) SaveReward(r model.Reward) error {
+	if r.Icon == "" {
+		r.Icon = "gift"
+	}
 	if r.ID != 0 {
 		return q.execOne(`UPDATE rewards SET title = ?, mode = ?, price = ?, habit_id = ?, streak_target = ?,
-			reset_on_relapse = ?, repeatable = ?, archived = ? WHERE id = ? AND user_id = ?`,
-			r.Title, r.Mode, r.Price, nullable(r.HabitID), r.StreakTarget, b2i(r.ResetOnRelapse), b2i(r.Repeatable), b2i(r.Archived), r.ID, q.uid)
+			reset_on_relapse = ?, repeatable = ?, archived = ?, icon = ?, weekly = ?, paused = ?, show_today = ? WHERE id = ? AND user_id = ?`,
+			r.Title, r.Mode, r.Price, nullable(r.HabitID), r.StreakTarget, b2i(r.ResetOnRelapse), b2i(r.Repeatable), b2i(r.Archived),
+			r.Icon, b2i(r.Weekly), b2i(r.Paused), b2i(r.ShowToday), r.ID, q.uid)
 	}
-	return q.exec(`INSERT INTO rewards (user_id, title, mode, price, habit_id, streak_target, reset_on_relapse, repeatable, archived)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		q.uid, r.Title, r.Mode, r.Price, nullable(r.HabitID), r.StreakTarget, b2i(r.ResetOnRelapse), b2i(r.Repeatable), b2i(r.Archived))
+	_, err := q.insertReward(r)
+	return err
 }
 
-// AddRedemption records a redeemed reward.
-func (q *Q) AddRedemption(rewardID int64, at time.Time, price int) error {
-	return q.exec(`INSERT INTO redemptions (user_id, reward_id, redeemed_at, price_paid) VALUES (?, ?, ?, ?)`, q.uid, rewardID, formatTime(at), price)
+func (q *Q) insertReward(r model.Reward) (int64, error) {
+	if r.Icon == "" {
+		r.Icon = "gift"
+	}
+	res, err := q.r.ExecContext(q.ctx, `INSERT INTO rewards (user_id, title, mode, price, habit_id, streak_target, reset_on_relapse, repeatable, archived,
+		icon, weekly, paused, show_today) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		q.uid, r.Title, r.Mode, r.Price, nullable(r.HabitID), r.StreakTarget, b2i(r.ResetOnRelapse), b2i(r.Repeatable), b2i(r.Archived),
+		r.Icon, b2i(r.Weekly), b2i(r.Paused), b2i(r.ShowToday))
+	if err != nil {
+		return 0, fmt.Errorf("insert reward: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+// SetRewardPaused pauses or resumes a reward.
+func (q *Q) SetRewardPaused(id int64, paused bool) error {
+	return q.execOne(`UPDATE rewards SET paused = ? WHERE id = ? AND user_id = ?`, b2i(paused), id, q.uid)
+}
+
+// DeleteReward removes a reward with its redemptions. The ledger stays.
+func (q *Q) DeleteReward(id int64) error {
+	return q.execOne(`DELETE FROM rewards WHERE id = ? AND user_id = ?`, id, q.uid)
+}
+
+// AddRedemption records a redeemed reward and returns its id.
+func (q *Q) AddRedemption(rewardID int64, at time.Time, price int, ref string) (int64, error) {
+	res, err := q.r.ExecContext(q.ctx, `INSERT INTO redemptions (user_id, reward_id, redeemed_at, price_paid, ledger_ref) VALUES (?, ?, ?, ?, ?)`,
+		q.uid, rewardID, formatTime(at), price, ref)
+	if err != nil {
+		return 0, fmt.Errorf("add redemption: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+// Redemption returns one redemption with its ledger reference.
+func (q *Q) Redemption(id int64) (model.Redemption, string, error) {
+	var r model.Redemption
+	var ref string
+	err := q.r.QueryRowContext(q.ctx, `SELECT id, reward_id, price_paid, ledger_ref FROM redemptions WHERE id = ? AND user_id = ?`, id, q.uid).
+		Scan(&r.ID, &r.RewardID, &r.PricePaid, &ref)
+	if errors.Is(err, sql.ErrNoRows) {
+		return r, "", ErrNotFound
+	}
+	if err != nil {
+		return r, "", fmt.Errorf("get redemption: %w", err)
+	}
+	return r, ref, nil
+}
+
+// DeleteRedemption removes a redemption.
+func (q *Q) DeleteRedemption(id int64) error {
+	return q.execOne(`DELETE FROM redemptions WHERE id = ? AND user_id = ?`, id, q.uid)
 }
 
 // Redemptions lists redemptions, newest first.
 func (q *Q) Redemptions() ([]model.Redemption, error) {
-	rows, err := q.r.QueryContext(q.ctx, `SELECT d.reward_id, r.title, d.redeemed_at, d.price_paid
+	rows, err := q.r.QueryContext(q.ctx, `SELECT d.id, d.reward_id, r.title, d.redeemed_at, d.price_paid
 		FROM redemptions d JOIN rewards r ON r.id = d.reward_id WHERE d.user_id = ? ORDER BY d.redeemed_at DESC, d.id DESC`, q.uid)
 	if err != nil {
 		return nil, fmt.Errorf("list redemptions: %w", err)
@@ -514,7 +617,7 @@ func (q *Q) Redemptions() ([]model.Redemption, error) {
 	for rows.Next() {
 		var r model.Redemption
 		var at string
-		if err := rows.Scan(&r.RewardID, &r.Title, &at, &r.PricePaid); err != nil {
+		if err := rows.Scan(&r.ID, &r.RewardID, &r.Title, &at, &r.PricePaid); err != nil {
 			return nil, fmt.Errorf("scan redemption: %w", err)
 		}
 		r.RedeemedAt = parseTime(at)
@@ -570,8 +673,9 @@ func (q *Q) Balances(today model.Day) (model.Balances, error) {
 		coalesce(sum(CASE WHEN kind = 'coins' THEN amount END), 0),
 		coalesce(sum(CASE WHEN kind = 'joker' THEN amount END), 0),
 		coalesce(sum(CASE WHEN `+earnedFilter+` THEN amount END), 0),
-		coalesce(sum(CASE WHEN `+earnedFilter+` AND substr(at, 1, 10) = ? THEN amount END), 0)
-		FROM ledger WHERE user_id = ?`, today.String(), q.uid).Scan(&b.XP, &b.Coins, &b.Jokers, &b.CoinsEarned, &b.CoinsToday)
+		coalesce(sum(CASE WHEN `+earnedFilter+` AND substr(at, 1, 10) = ? THEN amount END), 0),
+		coalesce(sum(CASE WHEN kind = 'xp' AND substr(at, 1, 10) = ? THEN amount END), 0)
+		FROM ledger WHERE user_id = ?`, today.String(), today.String(), q.uid).Scan(&b.XP, &b.Coins, &b.Jokers, &b.CoinsEarned, &b.CoinsToday, &b.XPToday)
 	if err != nil {
 		return b, fmt.Errorf("balances: %w", err)
 	}
@@ -718,10 +822,10 @@ type ExportCheckin struct {
 
 // ExportEntry is the JSON form of a click on a counter or quantity habit.
 type ExportEntry struct {
-	HabitID   int64  `json:"habit_id"`
-	Date      string `json:"date"`
-	Amount    int    `json:"amount"`
-	CreatedAt string `json:"created_at"`
+	HabitID   int64   `json:"habit_id"`
+	Date      string  `json:"date"`
+	Amount    float64 `json:"amount"`
+	CreatedAt string  `json:"created_at"`
 }
 
 // ExportRelapse is the JSON form of a relapse.
@@ -733,7 +837,9 @@ type ExportRelapse struct {
 // privateSettings never leave the instance; old exports may still carry them.
 var privateSettings = []string{"password_hash", "admin_user", "vapid_private", "vapid_public"}
 
-func isPrivateSetting(key string) bool { return slices.Contains(privateSettings, key) }
+func isPrivateSetting(key string) bool {
+	return slices.Contains(privateSettings, key) || strings.HasPrefix(key, habitViewPrefix)
+}
 
 // DumpAll reads all exportable data of the current user.
 func (q *Q) DumpAll() (*Export, error) {
@@ -843,7 +949,7 @@ func (q *Q) each(query string, fn func(scanner) error) error {
 // of this instance; ledger references follow them.
 func (q *Q) RestoreAll(e *Export) error {
 	for _, table := range []string{"celebrations", "badges_unlocked", "ledger", "redemptions", "rewards", "relapses",
-		"habit_entries", "checkins", "habits", "areas", "user_settings"} {
+		"habit_entries", "checkins", "habits", "areas", "user_settings", "user_quests"} {
 		if err := q.exec(`DELETE FROM `+table+` WHERE user_id = ?`, q.uid); err != nil {
 			return err
 		}
@@ -899,18 +1005,16 @@ func (q *Q) RestoreAll(e *Export) error {
 		}
 	}
 	for _, r := range e.Rewards {
-		res, err := q.r.ExecContext(q.ctx, `INSERT INTO rewards (user_id, title, mode, price, habit_id, streak_target, reset_on_relapse, repeatable, archived)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, q.uid, r.Title, r.Mode, r.Price, nullable(habits[r.HabitID]), r.StreakTarget,
-			b2i(r.ResetOnRelapse), b2i(r.Repeatable), b2i(r.Archived))
+		id := r.ID
+		r.HabitID = habits[r.HabitID]
+		fresh, err := q.insertReward(r)
 		if err != nil {
-			return fmt.Errorf("restore reward: %w", err)
-		}
-		if rewards[r.ID], err = res.LastInsertId(); err != nil {
 			return err
 		}
+		rewards[id] = fresh
 	}
 	for _, r := range e.Redemptions {
-		if err := q.AddRedemption(rewards[r.RewardID], r.RedeemedAt, r.PricePaid); err != nil {
+		if _, err := q.AddRedemption(rewards[r.RewardID], r.RedeemedAt, r.PricePaid, ""); err != nil {
 			return err
 		}
 	}

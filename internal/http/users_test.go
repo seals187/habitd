@@ -67,7 +67,10 @@ func TestUsersCannotReachEachOthersData(t *testing.T) {
 		fmt.Sprintf("/habits/%d/delete", habit),
 		fmt.Sprintf("/habits/%d/archive", habit),
 		fmt.Sprintf("/rewards/%d/redeem", reward),
-		fmt.Sprintf("/rewards/%d/archive", reward),
+		fmt.Sprintf("/rewards/%d/delete", reward),
+		fmt.Sprintf("/rewards/%d/pause", reward),
+		fmt.Sprintf("/rewards/%d/duplicate", reward),
+		fmt.Sprintf("/rewards/%d/free", reward),
 	} {
 		if resp, _ := b.post(path, false); resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("POST %s: %s", path, resp.Status)

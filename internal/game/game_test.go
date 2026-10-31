@@ -271,14 +271,14 @@ func facts(w *World) *Facts {
 	return BuildFacts(w)
 }
 
-func TestThereAre95BadgesIn16Categories(t *testing.T) {
-	if len(Badges) != 95 {
+func TestThereAre96BadgesIn16Categories(t *testing.T) {
+	if len(Badges) != 96 {
 		t.Fatalf("got %d badges", len(Badges))
 	}
 	if len(Categories) != 16 {
 		t.Fatalf("got %d categories", len(Categories))
 	}
-	want := map[string]int{"serien": 10, "meilensteine": 11, "vermeiden": 5, "comeback": 4, "zeit": 6, "bereiche": 8,
+	want := map[string]int{"serien": 10, "meilensteine": 12, "vermeiden": 5, "comeback": 4, "zeit": 6, "bereiche": 8,
 		"gute-taten": 5, "familie": 5, "freunde": 5, "arbeit": 7, "digital": 5, "geld": 5, "umwelt": 5, "goenn-dir": 5, "level": 4, "geheim": 5}
 	got := map[string]int{}
 	seen := map[string]bool{}

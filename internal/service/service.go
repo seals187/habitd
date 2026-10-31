@@ -57,11 +57,13 @@ type Service struct {
 	Now     func() time.Time
 	settled sync.Map // user id to the day settled last
 	rules   atomic.Pointer[game.Rules]
+	Pick    func(n int) int // random number below n, replaced in tests
 }
 
 // New creates a service using the wall clock.
 func New(store *db.Store, loc *time.Location) *Service {
 	s := &Service{Store: store, Loc: loc, Now: func() time.Time { return time.Now().In(loc) }}
+	s.Pick = s.pickDefault
 	s.rules.Store(game.DefaultRules())
 	return s
 }
@@ -77,8 +79,14 @@ func (s *Service) LoadRules(ctx context.Context) error {
 		if err := q.SeedRules(game.DefaultRules()); err != nil {
 			return err
 		}
+		if err := q.SeedQuests(game.DefaultQuests(), game.DefaultQuestConfig()); err != nil {
+			return err
+		}
 		var err error
-		rules, err = q.LoadRules()
+		if rules, err = q.LoadRules(); err != nil {
+			return err
+		}
+		rules.Quests, rules.QuestConfig, err = q.LoadQuests()
 		return err
 	})
 	if err != nil {
@@ -126,7 +134,11 @@ func (s *Service) World(q *db.Q) (*game.World, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &game.World{Today: today, Installed: installedDay, Habits: habits, Redemptions: reds, Balances: bal,
+	questDays, err := q.QuestDays()
+	if err != nil {
+		return nil, err
+	}
+	return &game.World{Today: today, Installed: installedDay, Habits: habits, Redemptions: reds, Balances: bal, QuestStreak: QuestStreakAt(questDays, s.QuestDay()),
 		Level: s.levelOf(bal.XP, level), LastJoker: lastJoker, Holiday: holiday}, nil
 }
 
@@ -246,7 +258,7 @@ func (s *Service) fillDay(q *db.Q, h *game.HabitData, d model.Day) error {
 	if err != nil {
 		return err
 	}
-	if missing := h.Target - totals[h.ID]; missing > 0 {
+	if missing := model.RoundAmount(h.Target - totals[h.ID]); missing > 0 {
 		return q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: missing, CreatedAt: s.atDay(d)})
 	}
 	return nil
@@ -454,22 +466,6 @@ func (s *Service) reverse(q *db.Q, ref string) error {
 	return nil
 }
 
-func (s *Service) updateQuest(q *db.Q, w *game.World) error {
-	ref := questRef(w.Today)
-	sums, err := q.LedgerSum(ref)
-	if err != nil {
-		return err
-	}
-	complete := game.QuestFor(w.Habits, w.Today).Complete
-	switch {
-	case complete && sums[model.LedgerCoins] == 0:
-		return q.AddLedger(s.Now(), model.LedgerCoins, game.QuestCoins, "quest", ref)
-	case !complete && sums[model.LedgerCoins] != 0:
-		return s.reverse(q, ref)
-	}
-	return nil
-}
-
 // Relapse toggles a relapse of an avoid habit. XP are never taken away.
 func (s *Service) Relapse(ctx context.Context, habitID int64, d model.Day) error {
 	if err := s.inRange(d); err != nil {
@@ -594,6 +590,9 @@ func (s *Service) Settle(ctx context.Context) error {
 		}
 		for d := lastDay + 1; d < today; d++ {
 			if err := s.settleDay(q, w, d, mode); err != nil {
+				return err
+			}
+			if err := s.bookQuests(q, w, d, func(def game.QuestDef) bool { return def.Kind == game.QuestAvoid }); err != nil {
 				return err
 			}
 		}
@@ -803,11 +802,14 @@ func (s *Service) RecalculateLevels(ctx context.Context) error {
 // RewardState is a reward with its derived availability.
 type RewardState struct {
 	model.Reward
-	Habit     string
-	Available bool // can be redeemed now
-	Missing   int  // Taler missing, for coin rewards
-	Progress  int  // streak days, for streak rewards
-	Redeemed  bool
+	Habit      string
+	Available  bool // can be redeemed now
+	Missing    int  // Taler missing, for coin rewards
+	Progress   int  // streak days, for streak rewards
+	Redeemed   bool
+	Count      int // how often it was redeemed
+	Last       model.Day
+	WeekLocked bool // a weekly reward that was already redeemed this week
 }
 
 // RewardStates derives the state of all rewards.
@@ -829,25 +831,36 @@ func (s *Service) rewardState(w *game.World, r model.Reward) RewardState {
 	for _, red := range w.Redemptions {
 		if red.RewardID == r.ID {
 			st.Redeemed = true
+			st.Count++
 			last = max(last, model.DayOf(red.RedeemedAt, s.Loc))
 		}
 	}
+	st.Last = last
+	st.WeekLocked = r.Weekly && last >= w.Today.WeekStart()
 	if r.Mode == model.RewardCoins {
-		st.Available = w.Balances.Coins >= r.Price
+		st.Available = w.Balances.Coins >= r.Price && !st.WeekLocked && !r.Paused
 		st.Missing = max(r.Price-w.Balances.Coins, 0)
 		return st
 	}
 	if h := Find(w, r.HabitID); h != nil {
 		st.Habit = h.Name
 		st.Progress = game.RewardProgress(h, w.Today, last, r.ResetOnRelapse)
-		st.Available = st.Progress >= r.StreakTarget
+		st.Available = st.Progress >= r.StreakTarget && !st.WeekLocked && !r.Paused
 	}
 	return st
 }
 
 // Redeem spends a reward.
 func (s *Service) Redeem(ctx context.Context, rewardID int64) error {
-	return s.Store.Tx(ctx, func(q *db.Q) error {
+	_, err := s.Spend(ctx, rewardID, false)
+	return err
+}
+
+// Spend redeems a reward. With free it counts as enjoyed without any Taler or
+// without the streak it asks for.
+func (s *Service) Spend(ctx context.Context, rewardID int64, free bool) (model.Redemption, error) {
+	var red model.Redemption
+	err := s.Store.Tx(ctx, func(q *db.Q) error {
 		w, err := s.World(q)
 		if err != nil {
 			return err
@@ -857,10 +870,10 @@ func (s *Service) Redeem(ctx context.Context, rewardID int64) error {
 			return err
 		}
 		st := s.rewardState(w, r)
-		if r.Archived || (st.Redeemed && !r.Repeatable) {
+		if r.Archived || r.Paused || st.WeekLocked || (st.Redeemed && !r.Repeatable) {
 			return ErrNotAllowed
 		}
-		if !st.Available {
+		if !st.Available && !free {
 			if r.Mode == model.RewardCoins {
 				return ErrInsufficient
 			}
@@ -868,15 +881,39 @@ func (s *Service) Redeem(ctx context.Context, rewardID int64) error {
 		}
 		price := 0
 		now := s.Now()
-		if r.Mode == model.RewardCoins {
+		ref := ""
+		if r.Mode == model.RewardCoins && !free {
 			price = r.Price
-			ref := fmt.Sprintf("redeem:%d:%d", r.ID, now.UnixNano())
+			ref = fmt.Sprintf("redeem:%d:%d", r.ID, now.UnixNano())
 			if err := q.AddLedger(now, model.LedgerCoins, -price, "redeem", ref); err != nil {
 				return err
 			}
 		}
-		if err := q.AddRedemption(r.ID, now, price); err != nil {
+		id, err := q.AddRedemption(r.ID, now, price, ref)
+		if err != nil {
 			return err
+		}
+		red = model.Redemption{ID: id, RewardID: r.ID, Title: r.Title, RedeemedAt: now, PricePaid: price}
+		return s.evaluate(q, nil, false)
+	})
+	return red, err
+}
+
+// UndoRedemption takes a redemption back and refunds its Taler. The refund keeps
+// the reason of the spending, so it does not count as newly earned.
+func (s *Service) UndoRedemption(ctx context.Context, id int64) error {
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		red, ref, err := q.Redemption(id)
+		if err != nil {
+			return err
+		}
+		if err := q.DeleteRedemption(id); err != nil {
+			return err
+		}
+		if red.PricePaid > 0 {
+			if err := q.AddLedger(s.Now(), model.LedgerCoins, red.PricePaid, "redeem", ref); err != nil {
+				return err
+			}
 		}
 		return s.evaluate(q, nil, false)
 	})

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -18,9 +19,47 @@ import (
 
 const estimateDays = 14
 
+// rewardIcon is an icon offered for rewards, each with its own colour.
+type rewardIcon struct {
+	Name  string
+	Color string
+}
+
+var rewardIcons = []rewardIcon{{"moon", "#C79BF2"}, {"cup", "#F2994A"}, {"eye", "#7FB8F0"}, {"meal", "#F2C14E"},
+	{"book", "#F28BB0"}, {"gift", "#C79BF2"}, {"trophy", "#8C8CF5"}, {"globe", "#4FB283"}}
+
+func rewardColor(icon string) string {
+	for _, i := range rewardIcons {
+		if i.Name == icon {
+			return i.Color
+		}
+	}
+	return "#F2C14E"
+}
+
+// rewardIdea is a suggestion that becomes a reward with one tap.
+type rewardIdea struct {
+	Key   string
+	Title string
+	Icon  string
+	Color string
+	Price int
+}
+
+func idea(key, title, icon string, price int) rewardIdea {
+	return rewardIdea{Key: key, Title: title, Icon: icon, Color: rewardColor(icon), Price: price}
+}
+
+var rewardIdeas = []rewardIdea{idea("kaffee", "Lieblingskaffee", "cup", 80), idea("ausschlafen", "Ausschlafen", "moon", 150),
+	idea("buch", "Neues Buch", "book", 300), idea("essen", "Essen gehen", "meal", 400),
+	idea("geschenk", "Kleines Geschenk", "gift", 200), idea("ausflug", "Ausflug", "globe", 500)}
+
 type rewardRow struct {
 	service.RewardState
 	Percent int
+	Color   string
+	Rhythm  string
+	Note    string // what is missing
 }
 
 type historyRow struct {
@@ -29,16 +68,69 @@ type historyRow struct {
 	Price int
 }
 
+// undoToast offers to take back the redemption that just happened.
+type undoToast struct {
+	ID   int64
+	Text string
+	From string
+}
+
 type rewardsData struct {
 	Tab        string
 	Bal        model.Balances
-	Rows       []rewardRow
+	Rate       int
+	Afford     []rewardRow
+	Goals      []rewardRow
+	Streaks    []rewardRow
+	Paused     []rewardRow
+	Ideas      []rewardIdea
 	History    []historyRow
 	JokerPrice int
 	MaxJokers  int
 	CanBuy     bool
 	AtLimit    bool
 	Missing    int
+	Undo       *undoToast
+}
+
+func rewardRhythm(rw model.Reward) string {
+	switch {
+	case rw.Weekly:
+		return "1× pro Woche"
+	case rw.Repeatable:
+		return "mehrfach"
+	}
+	return "einmalig"
+}
+
+// savingNote estimates when a coin reward comes into reach.
+func savingNote(missing, rate int) string {
+	note := "noch " + view.Number(missing)
+	if rate <= 0 {
+		return note
+	}
+	switch days := int(math.Ceil(float64(missing) / float64(rate))); days {
+	case 1:
+		return note + " · ca. morgen"
+	default:
+		return fmt.Sprintf("%s · ca. %d Tage", note, days)
+	}
+}
+
+// coinRate is the average income per day; without any income yet it is estimated
+// from the active habits.
+func (s *Server) coinRate(q *db.Q, w *game.World) (int, error) {
+	today := s.svc.Today()
+	rate, err := q.AverageDailyCoins(today-estimateDays+1, today)
+	if err != nil || rate > 0 {
+		return rate, err
+	}
+	for _, h := range w.Habits {
+		if !h.Archived {
+			rate += game.CoinsFor(game.BaseXP(h.Habit))
+		}
+	}
+	return rate, nil
 }
 
 func (s *Server) rewardsData(r *http.Request) (*rewardsData, error) {
@@ -51,7 +143,11 @@ func (s *Server) rewardsData(r *http.Request) (*rewardsData, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &rewardsData{Tab: r.FormValue("tab"), Bal: w.Balances, JokerPrice: game.JokerPrice, MaxJokers: game.MaxJokers}
+	rate, err := s.coinRate(q, w)
+	if err != nil {
+		return nil, err
+	}
+	d := &rewardsData{Tab: r.FormValue("tab"), Bal: w.Balances, Rate: rate, JokerPrice: game.JokerPrice, MaxJokers: game.MaxJokers}
 	if d.Tab != "joker" && d.Tab != "history" {
 		d.Tab = "rewards"
 	}
@@ -59,7 +155,23 @@ func (s *Server) rewardsData(r *http.Request) (*rewardsData, error) {
 		if st.Archived || (st.Redeemed && !st.Repeatable) {
 			continue
 		}
-		d.Rows = append(d.Rows, rewardRow{RewardState: st, Percent: percent(st.Progress, st.StreakTarget)})
+		row := rewardRow{RewardState: st, Color: rewardColor(st.Icon), Rhythm: rewardRhythm(st.Reward)}
+		switch {
+		case st.Paused:
+			d.Paused = append(d.Paused, row)
+		case st.Available || st.WeekLocked:
+			d.Afford = append(d.Afford, row)
+		case st.Mode == model.RewardCoins:
+			row.Percent = percent(w.Balances.Coins, st.Price)
+			row.Note = savingNote(st.Missing, rate)
+			d.Goals = append(d.Goals, row)
+		default:
+			row.Percent = percent(st.Progress, st.StreakTarget)
+			d.Streaks = append(d.Streaks, row)
+		}
+	}
+	if len(d.Afford)+len(d.Goals)+len(d.Streaks)+len(d.Paused) == 0 {
+		d.Ideas = rewardIdeas
 	}
 	for _, red := range w.Redemptions {
 		d.History = append(d.History, historyRow{Title: red.Title, Date: view.ShortDate(red.RedeemedAt), Price: red.PricePaid})
@@ -78,7 +190,8 @@ func (s *Server) rewards(w http.ResponseWriter, r *http.Request) error {
 	return s.view.Render(w, http.StatusOK, "rewards", s.page(r, "Gönn dir", "rewards", d))
 }
 
-func (s *Server) afterShop(w http.ResponseWriter, r *http.Request) error {
+// afterShop answers a change on a reward, on the screen it came from.
+func (s *Server) afterShop(w http.ResponseWriter, r *http.Request, undo *undoToast) error {
 	waiting, err := s.svc.Store.Q(r.Context()).HasCelebration()
 	if err != nil {
 		return err
@@ -89,29 +202,113 @@ func (s *Server) afterShop(w http.ResponseWriter, r *http.Request) error {
 	if !isHTMX(r) {
 		return redirect(w, r, "/rewards")
 	}
+	if r.FormValue("from") == "today" {
+		d, err := s.todayData(r)
+		if err != nil {
+			return err
+		}
+		d.Undo = undo
+		return s.view.Fragment(w, "today", "today-body", s.page(r, "Heute", "today", d))
+	}
 	d, err := s.rewardsData(r)
 	if err != nil {
 		return err
 	}
+	d.Undo = undo
 	return s.view.Fragment(w, "rewards", "rewards-body", s.page(r, "Gönn dir", "rewards", d))
 }
 
-func (s *Server) rewardRedeem(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) spend(w http.ResponseWriter, r *http.Request, free bool) error {
 	id, err := pathID(r)
 	if err != nil {
 		return err
 	}
-	if err := s.svc.Redeem(r.Context(), id); err != nil {
+	red, err := s.svc.Spend(r.Context(), id, free)
+	if err != nil {
 		return err
 	}
-	return s.afterShop(w, r)
+	text := fmt.Sprintf("„%s“ eingelöst", red.Title)
+	if red.PricePaid > 0 {
+		text += fmt.Sprintf(" · −%s Taler", view.Number(red.PricePaid))
+	}
+	return s.afterShop(w, r, &undoToast{ID: red.ID, Text: text, From: r.FormValue("from")})
+}
+
+func (s *Server) rewardRedeem(w http.ResponseWriter, r *http.Request) error {
+	return s.spend(w, r, false)
+}
+
+// rewardFree records a reward that was enjoyed without paying for it.
+func (s *Server) rewardFree(w http.ResponseWriter, r *http.Request) error { return s.spend(w, r, true) }
+
+func (s *Server) redemptionUndo(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	if err := s.svc.UndoRedemption(r.Context(), id); err != nil {
+		return err
+	}
+	return s.afterShop(w, r, nil)
 }
 
 func (s *Server) jokerBuy(w http.ResponseWriter, r *http.Request) error {
 	if err := s.svc.BuyJoker(r.Context()); err != nil {
 		return err
 	}
-	return s.afterShop(w, r)
+	return s.afterShop(w, r, nil)
+}
+
+func (s *Server) rewardDuplicate(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	q := s.svc.Store.Q(r.Context())
+	rw, err := q.Reward(id)
+	if err != nil {
+		return err
+	}
+	rw.ID, rw.Title, rw.Paused = 0, rw.Title+" (Kopie)", false
+	if err := q.SaveReward(rw); err != nil {
+		return err
+	}
+	return s.afterShop(w, r, nil)
+}
+
+func (s *Server) rewardPause(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	if err := s.svc.Store.Q(r.Context()).SetRewardPaused(id, r.FormValue("paused") == "on"); err != nil {
+		return err
+	}
+	return s.afterShop(w, r, nil)
+}
+
+func (s *Server) rewardDelete(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	if err := s.svc.Store.Q(r.Context()).DeleteReward(id); err != nil {
+		return err
+	}
+	return s.afterShop(w, r, nil)
+}
+
+func (s *Server) rewardIdeaAdd(w http.ResponseWriter, r *http.Request) error {
+	i := slices.IndexFunc(rewardIdeas, func(x rewardIdea) bool { return x.Key == r.PathValue("key") })
+	if i < 0 {
+		return notFound()
+	}
+	x := rewardIdeas[i]
+	rw := model.Reward{Title: x.Title, Icon: x.Icon, Mode: model.RewardCoins, Price: x.Price, Repeatable: true}
+	if err := s.svc.Store.Q(r.Context()).SaveReward(rw); err != nil {
+		return err
+	}
+	return s.afterShop(w, r, nil)
 }
 
 type habitOption struct {
@@ -121,33 +318,55 @@ type habitOption struct {
 }
 
 type rewardFormData struct {
-	Reward  model.Reward
-	New     bool
-	Habits  []habitOption
-	Presets []int
-	Error   string
-	Config  string
+	Reward model.Reward
+	New    bool
+	Habits []habitOption
+	Icons  []rewardIcon
+	Rhythm string
+	Used   string // how often it was redeemed
+	Error  string
+	Config string
+}
+
+// usedLabel sums up the redemptions of a reward.
+func usedLabel(st service.RewardState) string {
+	if st.Count == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d× eingelöst · zuletzt %s", st.Count, view.LongDateShort(st.Last))
 }
 
 func (s *Server) rewardForm(w http.ResponseWriter, r *http.Request, rw model.Reward, status int, message string) error {
+	// The fields of the other mode stay in the form, hidden. Their browser
+	// validation must not block saving, so they get usable start values.
+	if rw.StreakTarget < 1 {
+		rw.StreakTarget = 30
+	}
+	if rw.Price < 1 {
+		rw.Price = 250
+	}
 	q := s.svc.Store.Q(r.Context())
 	world, err := s.svc.World(q)
 	if err != nil {
 		return err
 	}
 	today := s.svc.Today()
-	rate, err := q.AverageDailyCoins(today-estimateDays+1, today)
+	rate, err := s.coinRate(q, world)
 	if err != nil {
 		return err
 	}
-	if rate == 0 { // nothing earned yet: estimate from the active habits
-		for _, h := range world.Habits {
-			if !h.Archived {
-				rate += game.CoinsFor(game.BaseXP(h.Habit))
+	d := rewardFormData{Reward: rw, New: rw.ID == 0, Icons: rewardIcons, Rhythm: rhythmValue(rw), Error: message}
+	if !d.New {
+		states, err := s.svc.RewardStates(q, world)
+		if err != nil {
+			return err
+		}
+		for _, st := range states {
+			if st.ID == rw.ID {
+				d.Used = usedLabel(st)
 			}
 		}
 	}
-	d := rewardFormData{Reward: rw, New: rw.ID == 0, Presets: []int{50, 100, 250, 500}, Error: message}
 	days := map[string]int{}
 	for _, h := range world.Habits {
 		if !h.Archived {
@@ -169,8 +388,18 @@ func (s *Server) rewardForm(w http.ResponseWriter, r *http.Request, rw model.Rew
 	return s.view.Render(w, status, "reward_form", s.page(r, title, "", d))
 }
 
+func rhythmValue(rw model.Reward) string {
+	switch {
+	case rw.Weekly:
+		return "weekly"
+	case rw.Repeatable:
+		return "always"
+	}
+	return "once"
+}
+
 func (s *Server) rewardNew(w http.ResponseWriter, r *http.Request) error {
-	return s.rewardForm(w, r, model.Reward{Mode: model.RewardCoins, Price: 250, StreakTarget: 30, Repeatable: true}, http.StatusOK, "")
+	return s.rewardForm(w, r, model.Reward{Mode: model.RewardCoins, Price: 250, StreakTarget: 30, Repeatable: true, Icon: "gift"}, http.StatusOK, "")
 }
 
 func (s *Server) rewardEdit(w http.ResponseWriter, r *http.Request) error {
@@ -186,7 +415,7 @@ func (s *Server) rewardEdit(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) rewardSave(w http.ResponseWriter, r *http.Request) error {
-	var rw model.Reward
+	rw := model.Reward{Icon: "gift"}
 	q := s.svc.Store.Q(r.Context())
 	if r.PathValue("id") != "" {
 		id, err := pathID(r)
@@ -199,8 +428,13 @@ func (s *Server) rewardSave(w http.ResponseWriter, r *http.Request) error {
 	}
 	rw.Title = strings.TrimSpace(r.FormValue("title"))
 	rw.Mode = r.FormValue("mode")
-	rw.Repeatable = r.FormValue("repeatable") == "on"
+	rhythm := r.FormValue("rhythm")
+	rw.Repeatable, rw.Weekly = rhythm == "always" || rhythm == "weekly", rhythm == "weekly"
+	rw.ShowToday = r.FormValue("show_today") == "on"
 	rw.ResetOnRelapse = r.FormValue("reset") == "on"
+	if icon := r.FormValue("icon"); slices.ContainsFunc(rewardIcons, func(i rewardIcon) bool { return i.Name == icon }) {
+		rw.Icon = icon
+	}
 	rw.Price, _ = strconv.Atoi(r.FormValue("price"))
 	rw.StreakTarget, _ = strconv.Atoi(r.FormValue("target"))
 	rw.HabitID, _ = strconv.ParseInt(r.FormValue("habit"), 10, 64)
@@ -234,23 +468,6 @@ func (s *Server) rewardSave(w http.ResponseWriter, r *http.Request) error {
 func ownsHabit(q *db.Q, id int64) bool {
 	_, err := q.Habit(id)
 	return err == nil
-}
-
-func (s *Server) rewardArchive(w http.ResponseWriter, r *http.Request) error {
-	id, err := pathID(r)
-	if err != nil {
-		return err
-	}
-	q := s.svc.Store.Q(r.Context())
-	rw, err := q.Reward(id)
-	if err != nil {
-		return err
-	}
-	rw.Archived = true
-	if err := q.SaveReward(rw); err != nil {
-		return err
-	}
-	return redirect(w, r, "/rewards")
 }
 
 type badgeView struct {
@@ -290,6 +507,9 @@ type badgesData struct {
 const overviewBadges = 8
 
 func (s *Server) badges(w http.ResponseWriter, r *http.Request) error {
+	if s.svc.Rules().BadgesOff {
+		return notFound()
+	}
 	q := s.svc.Store.Q(r.Context())
 	world, err := s.svc.World(q)
 	if err != nil {

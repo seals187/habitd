@@ -6,6 +6,9 @@
 <a class="admin-btn light" href="/admin/badges/new">{{icon "plus" 18}}Neues Abzeichen</a>
 </div>
 </header>
+<form class="card admin-card feature-switch" method="post" action="/admin/badges/feature"><input type="hidden" name="csrf" value="{{.CSRF}}">
+<label class="toggle plain"><span><b>Abzeichen aktiv</b><small>Aus: kein Eintrag mehr im Menü unten, es wird nichts mehr vergeben. Bereits erhaltene bleiben gespeichert.</small></span><input type="checkbox" name="enabled" {{if $d.Enabled}}checked{{end}} data-submit><i></i></label>
+</form>
 <div class="admin-badges">
 <nav class="card cat-list" aria-label="Kategorien">
 <a href="/admin/badges" {{if eq $d.Category ""}}class="on"{{end}}><i class="dot"></i><span>Alle</span><em>{{$d.Total}}</em></a>

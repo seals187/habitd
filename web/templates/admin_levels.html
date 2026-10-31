@@ -1,7 +1,7 @@
 {{define "content"}}{{$d := .Data}}<header class="admin-head">
 <div><h1>Levels</h1><p class="muted">{{len $d.Rows | add $d.Hidden}} Stufen · Titel, XP-Schwellen und Belohnungen anpassen</p></div>
 <div class="admin-actions">
-<form method="post" action="/admin/levels/reset" hx-confirm="Alle Levels auf die Standardwerte zurücksetzen? Eigene Titel und Schwellen gehen verloren."><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="admin-btn" type="submit">Zurücksetzen</button></form>
+<form method="post" action="/admin/levels/reset" data-yes="Zurücksetzen" hx-confirm="Alle Levels auf die Standardwerte zurücksetzen? Eigene Titel und Schwellen gehen verloren."><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="admin-btn" type="submit">Zurücksetzen</button></form>
 <button class="admin-btn light" type="submit" form="levels-form">Speichern</button>
 </div>
 </header>

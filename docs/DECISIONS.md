@@ -113,10 +113,10 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   unverändert. Fällt die Summe unter das Ziel, wird der Check-in zurückgebucht. Teil-XP und ein
   abschaltbares 100-%-Ziel gibt es nicht. Klicks laufen durch eine eigene Warteschlange in
   `app.js`, weil jede Antwort die Knöpfe ersetzt und htmx ihre Warteschlange sonst verwirft.
-- **Heute-Screen:** Das Design mit Wochenstreifen ersetzt Level-Karte und Quest-Banner. Das Level
-  steht im Profil, die Tagesquest läuft unsichtbar weiter und zahlt ihre Taler. Das „−“ sitzt
-  abweichend vom Entwurf an der Ecke des „+“, sonst bleibt kein Platz für den Streifen. Teilweise
-  gefüllte vergangene Tage zählen wie im Entwurf nicht als erreicht.
+- **Heute-Screen:** Karten nach `Karte-B-Chips.png`, darüber Level-Karte und Tagesquest. Der Ring
+  ist bei Abhak- und Vermeiden-Habits der Knopf, weil der Entwurf dafür keinen eigenen zeigt: Abhaken
+  beziehungsweise Rückfall melden. Das „−“ sitzt an der Ecke des „+“, sonst bleibt kein Platz für
+  den Streifen. Teilweise gefüllte vergangene Tage zählen nicht als erreicht.
 - **Habits löschen:** Der Verlauf verschwindet, das Ledger bleibt, verdiente XP und Taler also
   auch. Serien-Belohnungen des Habits werden archiviert. `AUTOINCREMENT` verhindert, dass ein
   neues Habit die ID und damit die Ledger-Referenzen eines gelöschten erbt.
@@ -142,6 +142,24 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Tempo** skaliert die Basis: gemütlich 0,7, normal 1, ehrgeizig 1,4.
 - **Einladungen** liegen nur als Hash in der Datenbank, der Link ist einmal sichtbar.
 - **Automatische Backups** entstehen vor jeder Migration einer bestehenden Datenbank.
+- **Gönn dir:** „1× / Woche“ ist `weekly` zusätzlich zu `repeatable`, die Woche beginnt montags.
+  Eine Einlösung lässt sich über den Toast zurücknehmen; die Rückbuchung trägt den Grund `redeem`,
+  zählt also nicht als neu verdient. Einmal freigeschaltete Abzeichen bleiben dabei erhalten.
+  Löschen entfernt auch den Verlauf der Belohnung, das Ledger bleibt. Ideen legen die Belohnung
+  direkt an.
+- **Tagesquests:** Pool, Plan und Ziehung sind global, gezogen wird pro Benutzer beim ersten Zugriff
+  des Tages und nur einmal. Der Quest-Tag beginnt mit „Neue Quest ab“. Geplante Quests, die
+  Wochenend-Regel und Events gehen vor, der Rest kommt aus dem Pool. „Vermeiden“ entscheidet sich
+  erst, wenn der Tag vorbei ist. Die erste Quest eines Tages nutzt weiter die Ledger-Referenz
+  `quest:<datum>`, damit eine alte Auszahlung vom selben Tag nicht doppelt bezahlt wird.
+- **Mengen** sind Dezimalzahlen, Summen werden auf drei Stellen gerundet, damit 30 × 0,1 das Ziel 3
+  erreicht. Die Spalten mussten dafür nicht geändert werden, SQLite speichert sie als REAL.
+- **Alles zurücksetzen** löscht inzwischen auch die Belohnungen. Sie stammten bei frischen
+  Installationen nur aus den Demo-Daten.
+- **Rückfragen** laufen über einen eigenen Dialog statt `window.confirm`. Der erste Satz von
+  `hx-confirm` wird zum Titel, `data-yes` beschriftet den Knopf, Standard ist „Löschen“.
+- **Abgelehnte Formulare** antworten mit der ganzen Seite. Fehlerantworten mit `text/html` werden
+  deshalb eingesetzt, reiner Text bleibt ein kurzer Hinweis.
 - **Komprimierung:** Nur CSS, JS und das Sprite werden mit gzip ausgeliefert. Seiten bleiben
   unkomprimiert, weil das CSRF-Token dort neben reflektierten Eingaben steht (BREACH).
 - **Migrationen** laufen mit deaktivierten Foreign Keys auf einer eigenen Verbindung, weil

@@ -158,12 +158,18 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("GET /rewards/{id}/edit", s.rewardEdit)
 	handle("POST /rewards/{id}/edit", s.rewardSave)
 	handle("POST /rewards/{id}/redeem", s.rewardRedeem)
-	handle("POST /rewards/{id}/archive", s.rewardArchive)
+	handle("POST /rewards/{id}/free", s.rewardFree)
+	handle("POST /rewards/{id}/duplicate", s.rewardDuplicate)
+	handle("POST /rewards/{id}/pause", s.rewardPause)
+	handle("POST /rewards/{id}/delete", s.rewardDelete)
+	handle("POST /rewards/redemptions/{id}/undo", s.redemptionUndo)
+	handle("POST /reward-ideas/{key}", s.rewardIdeaAdd)
 	handle("POST /joker/buy", s.jokerBuy)
 
 	handle("GET /celebrate", s.celebrate)
 	handle("POST /celebrate", s.celebrateNext)
 
+	handle("GET /quest", s.questDetail)
 	handle("GET /profile", s.profile)
 	handle("GET /settings/areas", s.areas)
 	handle("POST /settings/areas", s.areaSave)
@@ -188,6 +194,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	admin("POST /admin/levels/reset", s.adminLevelsReset)
 	admin("POST /admin/levels/{level}/formula", s.adminLevelFormula)
 	admin("GET /admin/badges", s.adminBadges)
+	admin("POST /admin/badges/feature", s.adminBadgesFeature)
 	admin("GET /admin/badges/new", s.adminBadgeNew)
 	admin("POST /admin/badges/new", s.adminBadgeSave)
 	admin("GET /admin/badges/{key}/edit", s.adminBadgeEdit)
@@ -210,6 +217,19 @@ func (s *Server) routes(mux *http.ServeMux) {
 	admin("POST /admin/invites/{token}/delete", s.adminInviteDelete)
 	admin("GET /admin/system", s.adminSystem)
 	admin("GET /admin/system/backup", s.adminBackup)
+	admin("GET /admin/quests", s.adminQuests)
+	admin("POST /admin/quests/settings", s.adminQuestsSettings)
+	admin("GET /admin/quests/new", s.adminQuestNew)
+	admin("POST /admin/quests/new", s.adminQuestSave)
+	admin("GET /admin/quests/{id}/edit", s.adminQuestEdit)
+	admin("POST /admin/quests/{id}/edit", s.adminQuestSave)
+	admin("POST /admin/quests/{id}/active", s.adminQuestActive)
+	admin("POST /admin/quests/{id}/delete", s.adminQuestDelete)
+	admin("GET /admin/quests/plan", s.adminQuestPlan)
+	admin("POST /admin/quests/plan", s.adminPlanChange)
+	admin("POST /admin/quests/rules", s.adminPlanRules)
+	admin("POST /admin/quests/events", s.adminEventAdd)
+	admin("POST /admin/quests/events/{id}/delete", s.adminEventDelete)
 	admin("GET /admin/areas", s.adminPlaceholder("Bereiche", "areas", "Die Standardwerte der Bereiche sind vorerst fest. Jeder Benutzer verwaltet seine eigene Kopie im Profil."))
 	admin("GET /admin/templates", s.adminPlaceholder("Vorlagen", "templates", "Die Vorlagen sind vorerst fest eingebaut."))
 	admin("GET /admin/economy", s.adminPlaceholder("Taler & Joker", "economy", "Preise und Grenzen sind vorerst fest eingebaut."))
@@ -389,5 +409,5 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) error {
 }
 
 func (s *Server) page(r *http.Request, title, tab string, data any) view.Page {
-	return view.Page{Title: title, Tab: tab, CSRF: csrfFrom(r), Admin: currentUser(r).IsAdmin(), Data: data}
+	return view.Page{Title: title, Tab: tab, CSRF: csrfFrom(r), Admin: currentUser(r).IsAdmin(), NoBadges: s.svc.Rules().BadgesOff, Data: data}
 }

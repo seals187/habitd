@@ -26,9 +26,9 @@
 <div class="only-measure">
 <div class="measure-fields">
 <div><label class="field-label" for="target">Tagesziel</label>
-<div class="num-step"><button type="button" class="step" @click="decTarget" aria-label="Tagesziel verringern">{{icon "minus" 18}}</button><input id="target" name="target" type="number" min="1" max="1000000" inputmode="numeric" x-model="target"><button type="button" class="step" @click="incTarget" aria-label="Tagesziel erhöhen">{{icon "plus" 18}}</button></div></div>
+<div class="num-step"><button type="button" class="step" @click="decTarget" aria-label="Tagesziel verringern">{{icon "minus" 18}}</button><input id="target" name="target" type="number" min="0.001" max="1000000" step="any" inputmode="decimal" x-model="target"><button type="button" class="step" @click="incTarget" aria-label="Tagesziel erhöhen">{{icon "plus" 18}}</button></div></div>
 <div><label class="field-label" for="step">Pro Klick</label>
-<div class="num-step"><button type="button" class="step" @click="decStep" aria-label="Pro Klick verringern">{{icon "minus" 18}}</button><input id="step" name="step" type="number" min="1" max="1000000" inputmode="numeric" x-model="step"><button type="button" class="step" @click="incStep" aria-label="Pro Klick erhöhen">{{icon "plus" 18}}</button></div></div>
+<div class="num-step"><button type="button" class="step" @click="decStep" aria-label="Pro Klick verringern">{{icon "minus" 18}}</button><input id="step" name="step" type="number" min="0.001" max="1000000" step="any" inputmode="decimal" x-model="step"><button type="button" class="step" @click="incStep" aria-label="Pro Klick erhöhen">{{icon "plus" 18}}</button></div></div>
 </div>
 <label class="field-label" for="unit">Einheit</label>
 <input class="input" id="unit" name="unit" value="{{$d.Habit.Unit}}" placeholder="Gläser, Schritte oder Min." maxlength="16" autocomplete="off">

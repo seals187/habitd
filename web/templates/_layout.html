@@ -21,12 +21,17 @@
 </div>{{end}}
 {{if .Tab}}{{template "tabbar" .}}{{end}}
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
+<h2 id="confirm-title"></h2>
+<p class="muted"></p>
+<form method="dialog" hx-boost="false"><button class="confirm-btn" value="no">Abbrechen</button><button class="confirm-btn danger" value="yes"></button></form>
+</dialog>
 </body>
 </html>{{end}}
 
 {{define "tabbar"}}<nav class="tabbar" aria-label="Hauptnavigation">
 <a href="/" {{if eq .Tab "today"}}class="on" aria-current="page"{{end}}>{{icon "house" 26}}<span>Heute</span></a>
-<a href="/badges" {{if eq .Tab "badges"}}class="on" aria-current="page"{{end}}>{{icon "award" 26}}<span>Abzeichen</span></a>
+{{if not .NoBadges}}<a href="/badges" {{if eq .Tab "badges"}}class="on" aria-current="page"{{end}}>{{icon "award" 26}}<span>Abzeichen</span></a>{{end}}
 <a href="/rewards" {{if eq .Tab "rewards"}}class="on" aria-current="page"{{end}}>{{icon "gift" 26}}<span>Gönn dir</span></a>
 <a href="/profile" {{if eq .Tab "profile"}}class="on" aria-current="page"{{end}}>{{icon "user" 26}}<span>Profil</span></a>
 </nav>{{end}}
@@ -35,6 +40,8 @@
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <button class="link-btn danger" type="submit" aria-label="{{.Name}} löschen">{{icon "trash-2" 18}}Endgültig löschen</button>
 </form>{{end}}
+
+{{define "undo-toast"}}{{with .}}<div id="toast" class="toast undo" role="status" aria-live="polite" data-timeout hx-swap-oob="true"><span>{{.Text}}</span><button hx-post="/rewards/redemptions/{{.ID}}/undo?from={{.From}}" hx-target="#page">Rückgängig</button></div>{{end}}{{end}}
 
 {{define "back"}}<a class="round" href="{{.}}" aria-label="Zurück">{{icon "chevron-left" 22}}</a>{{end}}
 

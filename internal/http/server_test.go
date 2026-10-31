@@ -42,8 +42,18 @@ func newApp(t *testing.T, cfg Config) *client {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	svc := service.New(store, time.UTC)
+	svc.Pick = func(int) int { return 0 }
 	app, err := New(cfg, svc, web.FS)
 	if err != nil {
+		t.Fatal(err)
+	}
+	// The tests run on the real calendar: weekends and first days must not change the quest.
+	quests := svc.Rules().QuestConfig
+	quests.WeekendRule, quests.FirstRule = false, false
+	if err := store.Q(ctx).SaveQuestConfig(quests); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.LoadRules(ctx); err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(app.Handler())
@@ -294,7 +304,7 @@ func TestDetailViews(t *testing.T) {
 	if err := c.svc.Seed(c.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	cases := map[string]string{"month": "Tage erledigt", "year": "Bester Wochentag", "week": "Serie"}
+	cases := map[string]string{"month": "cal-head", "year": "Quote pro Monat", "week": "Ziel erreicht"}
 	for view, want := range cases {
 		for id := 1; id <= 5; id++ {
 			resp, html := c.get(fmt.Sprintf("/habits/%d?view=%s", id, view))
@@ -304,7 +314,7 @@ func TestDetailViews(t *testing.T) {
 		}
 	}
 	resp, html := c.get("/habits/1?view=year")
-	if resp.StatusCode != 200 || !strings.Contains(html, "212 Tage erledigt") || !strings.Contains(html, "86%") {
+	if resp.StatusCode != 200 || !strings.Contains(html, "212 Tage erledigt") {
 		t.Fatalf("year view: %s", html)
 	}
 	for _, m := range []string{"2026-02", "2024-02", "2020-12"} {
@@ -417,7 +427,7 @@ func TestBearerAPI(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &stats); err != nil {
 		t.Fatal(err)
 	}
-	if stats["badges_total"] != float64(95) {
+	if stats["badges_total"] != float64(96) {
 		t.Fatalf("stats %v", stats)
 	}
 	_, body = anon.do("GET", "/api/v1/habits", nil, auth)
@@ -837,8 +847,7 @@ func TestResetStartsOver(t *testing.T) {
 	if left, _ := q.Areas(); len(left) != len(areas) {
 		t.Fatalf("areas: %d of %d", len(left), len(areas))
 	}
-	rewards, _ := q.Rewards()
-	if len(rewards) != 2 || rewards[0].Archived == rewards[1].Archived {
+	if rewards, _ := q.Rewards(); len(rewards) != 0 {
 		t.Fatalf("rewards: %+v", rewards)
 	}
 	if resp, _ := c.get("/"); resp.Header.Get("Location") != "/onboarding" {
@@ -870,5 +879,167 @@ func TestWeekStrip(t *testing.T) {
 	_, html = c.get("/")
 	if !strings.Contains(html, "wd done today") || !strings.Contains(html, `Diese Woche: 1 von 7 erreicht`) {
 		t.Fatalf("reached day: %s", html)
+	}
+}
+
+func TestMonthCountsAFinishedToday(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Lesen", "amount", "5", "5", "Min.")
+	stat := func() string {
+		_, html := c.get(fmt.Sprintf("/habits/%d?view=week", id))
+		return regexp.MustCompile(`(\d+/\d+)</b><span>Ziel erreicht`).FindStringSubmatch(html)[1]
+	}
+	if got := stat(); got != "0/0" {
+		t.Fatalf("an open first day is not missed: %s", got)
+	}
+	c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	if got := stat(); got != "1/1" {
+		t.Fatalf("finished today: %s", got)
+	}
+	avoid := c.habit("Kein Zucker", "avoid")
+	c.post(fmt.Sprintf("/habits/%d/relapse", avoid), true)
+	_, html := c.get(fmt.Sprintf("/habits/%d?view=week", avoid))
+	if !strings.Contains(html, "0/1</b>") {
+		t.Fatal("a relapse today counts as a missed day")
+	}
+}
+
+func TestDetailRemembersTheViewPerHabit(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	one := c.habit("Eins", "build")
+	two := c.habit("Zwei", "build")
+	on := func(id int64, query string) string {
+		_, html := c.get(fmt.Sprintf("/habits/%d%s", id, query))
+		return regexp.MustCompile(`class="on">(Woche|Monat|Jahr)<`).FindStringSubmatch(html)[1]
+	}
+	if got := on(one, ""); got != "Monat" {
+		t.Fatalf("default: %s", got)
+	}
+	if got := on(one, "?view=year"); got != "Jahr" {
+		t.Fatalf("chosen: %s", got)
+	}
+	on(two, "?view=week")
+	if got := on(one, ""); got != "Jahr" {
+		t.Fatalf("first habit: %s", got)
+	}
+	if got := on(two, ""); got != "Woche" {
+		t.Fatalf("second habit: %s", got)
+	}
+	// A check-in in the calendar keeps it as well.
+	c.do("POST", fmt.Sprintf("/habits/%d/check?from=detail&view=week", two), url.Values{}, map[string]string{"X-CSRF-Token": c.csrf, "HX-Request": "true"})
+	if got := on(two, ""); got != "Woche" {
+		t.Fatalf("after a check-in: %s", got)
+	}
+	dump, err := c.q().DumpAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key := range dump.Settings {
+		if strings.HasPrefix(key, "habit_view") {
+			t.Fatalf("view in the export: %s", key)
+		}
+	}
+}
+
+func TestDetailChartsFollowTheEntries(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Lesen", "amount", "20", "5", "Min.")
+	add := fmt.Sprintf("/habits/%d/add", id)
+	c.post(add, true)
+	_, html := c.get(fmt.Sprintf("/habits/%d?view=week", id))
+	for _, want := range []string{"Ziel 20′", "5 Min. · Ø 5′", "<b class=\"\">5′</b>", "Rekord", "Quote 30 T.", "0/0</b><span>Ziel erreicht"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("week: missing %q", want)
+		}
+	}
+	_, html = c.get(fmt.Sprintf("/habits/%d?view=month", id))
+	if !strings.Contains(html, "--fill:25%") || !strings.Contains(html, "day part today") {
+		t.Fatal("month: a partly reached day needs its fill")
+	}
+	for range 3 {
+		c.post(add, true)
+	}
+	_, html = c.get(fmt.Sprintf("/habits/%d?view=year", id))
+	for _, want := range []string{"1 Tage erledigt", "20 Min.</b><span>insgesamt", "100%", "Quote pro Monat"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("year: missing %q", want)
+		}
+	}
+	check := c.habit("Abhaken", "build")
+	_, html = c.get(fmt.Sprintf("/habits/%d?view=week", check))
+	if !strings.Contains(html, "0 von 1 Tagen") || strings.Contains(html, "goal-line") {
+		t.Fatal("a tick habit has no goal line")
+	}
+}
+
+func TestStepsBelowOne(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "amount", "3", "0,1", "L")
+	add := fmt.Sprintf("/habits/%d/add", id)
+	h, _ := c.q().Habit(id)
+	if h.Step != 0.1 || h.Target != 3 {
+		t.Fatalf("habit: %+v", h)
+	}
+	var html string
+	for range 3 {
+		_, html = c.post(add, true)
+	}
+	if !strings.Contains(html, "<b>0,3</b>") || !strings.Contains(html, ">&#43;0,1<") {
+		t.Fatalf("0,1 × 3 must not show rounding noise: %s", html)
+	}
+	for range 27 {
+		c.post(add, true)
+	}
+	if c.xp() == 0 {
+		t.Fatal("30 × 0,1 must reach the goal of 3")
+	}
+	form := url.Values{"csrf": {c.csrf}, "name": {"Falsch"}, "kind": {"build"}, "freq": {"daily"}, "icon": {"drop"}, "area": {c.area()}, "measure": {"amount"}, "target": {"1"}, "step": {"0"}}
+	if resp, _ := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("step 0: %s", resp.Status)
+	}
+}
+
+func TestResetRemovesRewards(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	if err := c.q().SaveReward(model.Reward{Title: "Kino", Mode: model.RewardCoins, Price: 10}); err != nil {
+		t.Fatal(err)
+	}
+	c.post("/settings/reset", false)
+	if rewards, _ := c.q().Rewards(); len(rewards) != 0 {
+		t.Fatalf("rewards left: %+v", rewards)
+	}
+	if _, html := c.get("/rewards"); !strings.Contains(html, "Noch keine Belohnungen") {
+		t.Fatal("no empty state")
+	}
+}
+
+func TestBadgesCanBeSwitchedOff(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	if _, html := c.get("/profile"); !strings.Contains(html, `href="/badges"`) {
+		t.Fatal("tab missing")
+	}
+	if resp, _ := c.do("POST", "/admin/badges/feature", url.Values{"csrf": {c.csrf}}, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("switch: %s", resp.Status)
+	}
+	if _, html := c.get("/profile"); strings.Contains(html, `href="/badges"`) {
+		t.Fatal("tab still shown")
+	}
+	if resp, _ := c.get("/badges"); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("page: %s", resp.Status)
+	}
+	id := c.habit("Lesen", "build")
+	c.post(fmt.Sprintf("/habits/%d/check", id), false)
+	if badges, _ := c.q().UnlockedBadges(); len(badges) != 0 {
+		t.Fatalf("awarded while off: %v", badges)
+	}
+	c.do("POST", "/admin/badges/feature", url.Values{"csrf": {c.csrf}, "enabled": {"on"}}, nil)
+	if _, html := c.get("/profile"); !strings.Contains(html, `href="/badges"`) {
+		t.Fatal("tab not back")
 	}
 }

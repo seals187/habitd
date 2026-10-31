@@ -35,6 +35,7 @@ var badgeRules = map[string]string{
 	"jongleur":        "Habe gleichzeitig 5 aktive Habits. Archivierte zählen nicht.",
 	"perfekte-woche":  "Erledige an 7 Tagen in Folge alle geplanten Habits, ohne Rückfall und mit erreichten Wochenzielen. Du brauchst dafür mindestens 2 Habits.",
 	"perfekter-monat": "Erledige an 30 Tagen in Folge alle geplanten Habits, ohne Rückfall und mit erreichten Wochenzielen. Du brauchst dafür mindestens 2 Habits.",
+	"questmeister":    "Schaffe 30 Tage in Folge deine Tagesquest.",
 
 	"standhaft":    "Bleibe bei einem Vermeiden-Habit 7 Tage am Stück ohne Rückfall.",
 	"fest":         "Bleibe bei einem Vermeiden-Habit 30 Tage am Stück ohne Rückfall.",

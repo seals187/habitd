@@ -17,12 +17,13 @@ type HabitData struct {
 	Done     map[model.Day]time.Time // real check-ins with their creation time
 	Joker    map[model.Day]bool      // days bridged by a joker
 	Relapses []model.Day             // sorted
-	Amount   int                     // sum of all entries of counter and quantity habits
+	Amount   float64                 // sum of all entries of counter and quantity habits
+	Entries  map[model.Day]float64   // sum of the entries per day
 }
 
 // NewHabitData returns an empty history.
 func NewHabitData(h model.Habit, start model.Day) *HabitData {
-	return &HabitData{Habit: h, Start: start, Done: map[model.Day]time.Time{}, Joker: map[model.Day]bool{}}
+	return &HabitData{Habit: h, Start: start, Done: map[model.Day]time.Time{}, Joker: map[model.Day]bool{}, Entries: map[model.Day]float64{}}
 }
 
 // Run is a stretch of an unbroken streak.

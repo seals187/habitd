@@ -131,7 +131,7 @@ var (
 	reachLevel = field(func(f *Facts) int { return f.Level })
 )
 
-// Badges lists all 95 badges with their start values.
+// Badges lists all 96 badges with their start values.
 var Badges = []Badge{
 	{Key: "funke", Name: "Funke", Hint: "3 Tage", Category: "serien", Icon: "flame", Target: 3, Metric: streak},
 	{Key: "erste-woche", Name: "Erste Woche", Hint: "7 Tage", Category: "serien", Icon: "flame", Target: 7, Metric: streak},
@@ -155,6 +155,7 @@ var Badges = []Badge{
 	{Key: "jongleur", Name: "Jongleur", Hint: "5 Habits aktiv", Category: "meilensteine", Icon: "layers", Target: 5, Metric: field(func(f *Facts) int { return f.ActiveHabits })},
 	{Key: "perfekte-woche", Name: "Perfekte Woche", Hint: "alles 7 Tage", Category: "meilensteine", Icon: "star", Target: 7, Metric: perfect},
 	{Key: "perfekter-monat", Name: "Perfekter Monat", Hint: "alles 30 Tage", Category: "meilensteine", Icon: "crown", Target: 30, Metric: perfect},
+	{Key: "questmeister", Name: "Questmeister", Hint: "30 Quests in Folge", Category: "meilensteine", Icon: "target", Target: 30, Metric: field(func(f *Facts) int { return f.QuestStreak })},
 
 	{Key: "standhaft", Name: "Standhaft", Hint: "7 Tage clean", Category: "vermeiden", Icon: "shield-check", Target: 7, Metric: clean},
 	{Key: "fest", Name: "Fest", Hint: "30 Tage clean", Category: "vermeiden", Icon: "shield-check", Target: 30, Metric: clean},

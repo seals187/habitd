@@ -30,6 +30,10 @@ func setup(t *testing.T) *env {
 	e := &env{t: t, ctx: ctx, now: time.Date(2026, 10, 30, 19, 0, 0, 0, time.UTC)}
 	e.s = New(store, time.UTC)
 	e.s.Now = func() time.Time { return e.now }
+	e.s.Pick = func(int) int { return 0 }
+	if err := e.s.LoadRules(ctx); err != nil {
+		t.Fatal(err)
+	}
 	id, err := e.s.CreateUser(ctx, "test", "test-password", model.RoleAdmin)
 	if err != nil {
 		t.Fatal(err)

@@ -1,21 +1,48 @@
 {{define "content"}}<main id="page" class="page">{{template "rewards-body" .}}</main>{{end}}
 
 {{define "rewards-body"}}{{$d := .Data}}<header class="rewards-head"><h1>Gönn dir</h1><a class="round light" href="/rewards/new" aria-label="Neue Belohnung">{{icon "plus" 22}}</a></header>
-<section class="purse"><span class="gold">{{icon "coin" 28}}</span><b>{{num $d.Bal.Coins}}</b><p>Taler · +{{$d.Bal.CoinsToday}} heute verdient</p></section>
-<nav class="filters" aria-label="Bereiche">
-<a href="/rewards" {{if eq $d.Tab "rewards"}}class="on"{{end}}>Belohnungen</a>
-<a href="/rewards?tab=joker" {{if eq $d.Tab "joker"}}class="on"{{end}}><span class="blue">{{icon "shield" 16}}</span>Joker · {{$d.JokerPrice}}</a>
-<a href="/rewards?tab=history" {{if eq $d.Tab "history"}}class="on"{{end}}>Verlauf</a>
-</nav>
-{{if eq $d.Tab "rewards"}}<h2 class="section">Wofür sparst du?</h2>
-{{range $d.Rows}}<article class="card reward">
-<a class="reward-text" href="/rewards/{{.ID}}/edit"><strong>{{.Title}}</strong>
-{{if eq .Mode "coins"}}<small class="gold">{{icon "coin" 14}}{{num .Price}}</small>{{else}}<small class="orange">{{icon "flame" 14}}{{.Progress}} / {{.StreakTarget}} Tage · {{.Habit}}</small>{{end}}</a>
-{{if .Available}}<button class="pill-btn light" hx-post="/rewards/{{.ID}}/redeem" hx-target="#page" hx-confirm="„{{.Title}}“ einlösen?">Einlösen</button>
-{{else if eq .Mode "coins"}}<span class="muted">noch {{num .Missing}}</span>
-{{else}}<span class="muted">noch {{sub .StreakTarget .Progress}} Tage</span>{{end}}
-</article>{{else}}<section class="empty"><p class="muted">Noch keine Belohnungen. Was gönnst du dir?</p></section>{{end}}{{end}}
-{{if eq $d.Tab "joker"}}<h2 class="section">Serien-Joker</h2>
+<section class="card purse">
+<span class="purse-coin">{{icon "coin" 26}}</span>
+<div class="purse-text"><p><b>{{num $d.Bal.Coins}}</b> <em class="gold">Taler</em></p><small>+{{$d.Bal.CoinsToday}} heute · Ø {{$d.Rate}} pro Tag</small></div>
+<span class="purse-joker blue" aria-label="{{$d.Bal.Jokers}} Joker">{{icon "shield" 20}}<b>{{$d.Bal.Jokers}}</b></span>
+</section>
+{{if eq $d.Tab "rewards"}}{{if $d.Ideas}}<section class="reward-empty">
+<span class="reward-empty-icon">{{icon "gift" 30}}</span>
+<h2>Noch keine Belohnungen</h2>
+<p class="muted">Leg fest, womit du dich belohnst. Du verdienst Taler mit jedem erledigten Habit.</p>
+<a class="reward-first" href="/rewards/new">{{icon "plus" 18}}Erste Belohnung anlegen</a>
+</section>
+<h2 class="section">Ideen – tippen zum Übernehmen</h2>
+<div class="reward-ideas">{{range $d.Ideas}}<button class="idea" style="--c:{{.Color}}" hx-post="/reward-ideas/{{.Key}}" hx-target="#page">{{icon .Icon 18}}{{.Title}}</button>{{end}}</div>
+{{else}}{{template "reward-tabs" $d}}
+{{if $d.Afford}}<h2 class="section with-count">Kannst du dir leisten<em>{{len $d.Afford}}</em></h2>
+<section class="reward-list">{{range $d.Afford}}<article class="reward-row" style="--c:{{.Color}}">
+<a class="reward-tile" href="/rewards/{{.ID}}/edit">{{icon .Icon 22}}</a>
+<div class="reward-text"><strong>{{.Title}}</strong><small>{{template "reward-price" .}} · {{.Rhythm}}</small></div>
+{{if .WeekLocked}}<span class="muted reward-wait">nächste Woche wieder</span>{{else}}<button class="pill-btn light" hx-post="/rewards/{{.ID}}/redeem" hx-target="#page">Einlösen</button>{{end}}
+{{template "reward-menu" dict "R" . "CSRF" $.CSRF}}
+</article>{{end}}</section>{{end}}
+{{if $d.Goals}}<h2 class="section with-count">Sparziele<em>{{len $d.Goals}}</em></h2>
+<section class="reward-list">{{range $d.Goals}}<article class="reward-row" style="--c:{{.Color}}">
+<a class="reward-tile" href="/rewards/{{.ID}}/edit">{{icon .Icon 22}}</a>
+<div class="reward-text"><div class="reward-goal"><strong>{{.Title}}</strong><b class="gold">{{num $d.Bal.Coins}}/{{num .Price}}</b></div>
+<div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div><small>{{.Note}}</small></div>
+{{template "reward-menu" dict "R" . "CSRF" $.CSRF}}
+</article>{{end}}</section>{{end}}
+{{if $d.Streaks}}<h2 class="section with-count">Für Serien<em>{{len $d.Streaks}}</em></h2>
+<section class="reward-list">{{range $d.Streaks}}<article class="reward-row" style="--c:{{.Color}}">
+<a class="reward-tile" href="/rewards/{{.ID}}/edit">{{icon .Icon 22}}</a>
+<div class="reward-text"><div class="reward-goal"><strong>{{.Title}}</strong><b class="orange">{{.Progress}}/{{.StreakTarget}} Tage</b></div>
+<div class="bar streak-bar"><i style="width:{{.Percent}}%"></i></div><small>Serie · {{.Habit}}</small></div>
+{{template "reward-menu" dict "R" . "CSRF" $.CSRF}}
+</article>{{end}}</section>{{end}}
+{{if $d.Paused}}<h2 class="section with-count">Pausiert<em>{{len $d.Paused}}</em></h2>
+<section class="reward-list">{{range $d.Paused}}<article class="reward-row paused" style="--c:{{.Color}}">
+<a class="reward-tile" href="/rewards/{{.ID}}/edit">{{icon .Icon 22}}</a>
+<div class="reward-text"><strong>{{.Title}}</strong><small>{{template "reward-price" .}} · {{.Rhythm}}</small></div>
+{{template "reward-menu" dict "R" . "CSRF" $.CSRF}}
+</article>{{end}}</section>{{end}}{{end}}{{end}}
+{{if eq $d.Tab "joker"}}{{template "reward-tabs" $d}}<h2 class="section">Serien-Joker</h2>
 <article class="card reward">
 <div class="reward-text"><strong>Joker kaufen</strong><small class="gold">{{icon "coin" 14}}{{$d.JokerPrice}}</small></div>
 {{if $d.CanBuy}}<button class="pill-btn light" hx-post="/joker/buy?tab=joker" hx-target="#page">Kaufen</button>
@@ -23,5 +50,26 @@
 {{else}}<span class="muted">noch {{num $d.Missing}}</span>{{end}}
 </article>
 <p class="hint">Du hast {{$d.Bal.Jokers}} von {{$d.MaxJokers}} Jokern. Ein Joker überbrückt einen verpassten Tag, ohne dass die Serie bricht.</p>{{end}}
-{{if eq $d.Tab "history"}}<h2 class="section">Eingelöst</h2>
-<section class="list">{{range $d.History}}<div class="row"><span class="row-text"><strong>{{.Title}}</strong><small>{{.Date}}</small></span><span class="gold">{{if .Price}}−{{num .Price}}{{else}}Serie{{end}}</span></div>{{else}}<p class="row muted">Noch nichts eingelöst.</p>{{end}}</section>{{end}}{{end}}
+{{if eq $d.Tab "history"}}{{template "reward-tabs" $d}}<h2 class="section">Eingelöst</h2>
+<section class="list">{{range $d.History}}<div class="row"><span class="row-text"><strong>{{.Title}}</strong><small>{{.Date}}</small></span><span class="gold">{{if .Price}}−{{num .Price}}{{else}}ohne Taler{{end}}</span></div>{{else}}<p class="row muted">Noch nichts eingelöst.</p>{{end}}</section>{{end}}
+{{template "undo-toast" $d.Undo}}{{end}}
+
+{{define "reward-tabs"}}<nav class="filters" aria-label="Bereiche">
+<a href="/rewards" {{if eq .Tab "rewards"}}class="on"{{end}}>Belohnungen</a>
+<a href="/rewards?tab=joker" {{if eq .Tab "joker"}}class="on"{{end}}>Joker</a>
+<a href="/rewards?tab=history" {{if eq .Tab "history"}}class="on"{{end}}>Verlauf</a>
+</nav>{{end}}
+
+{{define "reward-price"}}{{if eq .Mode "coins"}}<span class="gold price">{{icon "coin" 14}}{{num .Price}}</span>{{else}}<span class="orange price">{{icon "flame" 14}}{{.StreakTarget}} Tage</span>{{end}}{{end}}
+
+{{define "reward-menu"}}{{$r := .R}}<details class="row-menu">
+<summary aria-label="Aktionen für {{$r.Title}}"><span>•••</span></summary>
+<div class="row-menu-panel">
+<a href="/rewards/{{$r.ID}}/edit">{{icon "pencil" 18}}Bearbeiten</a>
+<button hx-post="/rewards/{{$r.ID}}/duplicate" hx-target="#page">{{icon "layers" 18}}Duplizieren</button>
+{{if $r.Paused}}<button hx-post="/rewards/{{$r.ID}}/pause" hx-target="#page">{{icon "undo-2" 18}}Fortsetzen</button>
+{{else}}<button hx-post="/rewards/{{$r.ID}}/pause?paused=on" hx-target="#page">{{icon "pause" 18}}Pausieren</button>
+{{if not $r.WeekLocked}}<button hx-post="/rewards/{{$r.ID}}/free" hx-target="#page">{{icon "circle-check" 18}}Ohne Taler abhaken</button>{{end}}{{end}}
+<button class="danger" hx-post="/rewards/{{$r.ID}}/delete" hx-target="#page" hx-confirm="„{{$r.Title}}“ löschen? Auch ihr Verlauf verschwindet.">{{icon "trash-2" 18}}Löschen</button>
+</div>
+</details>{{end}}

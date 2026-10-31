@@ -22,13 +22,14 @@ import (
 
 // Page is the data every template receives.
 type Page struct {
-	Nav     string // active entry of the admin navigation, empty outside of it
-	Admin   bool   // the signed-in user is an admin
-	Title   string
-	Tab     string
-	CSRF    string
-	Version string // cache buster of the static assets
-	Data    any
+	NoBadges bool   // the badge feature is switched off
+	Nav      string // active entry of the admin navigation, empty outside of it
+	Admin    bool   // the signed-in user is an admin
+	Title    string
+	Tab      string
+	CSRF     string
+	Version  string // cache buster of the static assets
+	Data     any
 }
 
 // Renderer holds the parsed templates, one set per page.
@@ -38,6 +39,11 @@ type Renderer struct {
 }
 
 var weekdays = []string{"Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"}
+
+var weekdaysShort = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
+
+// ShortMonths are the abbreviated German month names.
+var ShortMonths = []string{"Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sep.", "Okt.", "Nov.", "Dez."}
 
 // Months are the German month names, January first.
 var Months = []string{"Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"}
@@ -163,6 +169,21 @@ func IsMinutes(unit string) bool {
 	return false
 }
 
+// Decimal formats an amount the German way: 6.400 or 0,25.
+func Decimal(v float64) string {
+	v = model.RoundAmount(v)
+	whole := math.Trunc(v)
+	text := Number(int(whole))
+	if whole == 0 && v < 0 {
+		text = "-0"
+	}
+	frac := strings.TrimRight(strconv.FormatFloat(math.Abs(v-whole), 'f', 3, 64)[2:], "0")
+	if frac == "" {
+		return text
+	}
+	return text + "," + frac
+}
+
 // dash renders stroke-dasharray for a ring of the given radius.
 func dash(radius float64, percent int) string {
 	circumference := 2 * math.Pi * radius
@@ -209,6 +230,11 @@ func MultiplierLabel(m float64) string {
 // LongDate formats "Freitag, 30. Oktober".
 func LongDate(d model.Day) string {
 	return fmt.Sprintf("%s, %d. %s", weekdays[d.WeekdayIndex()], d.Dom(), Months[d.Month()-1])
+}
+
+// LongDateShort formats "Sa, 24. Okt."
+func LongDateShort(d model.Day) string {
+	return fmt.Sprintf("%s, %d. %s", weekdaysShort[d.WeekdayIndex()], d.Dom(), ShortMonths[d.Month()-1])
 }
 
 // ShortDate formats "30.10.2026".

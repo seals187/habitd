@@ -4,7 +4,8 @@ const readConfig = (el) => JSON.parse(el.dataset.config || "{}");
 document.addEventListener("alpine:init", () => {
   const multipliers = { easy: 10, medium: 15, hard: 25 };
   const measureDefaults = { count: { target: "8", step: "1" }, amount: { target: "10000", step: "1000" } };
-  const stepSize = (n) => 10 ** Math.floor(Math.log10(Math.max(n, 1)));
+  const stepSize = (n) => 10 ** Math.floor(Math.log10(n) + 1e-9);
+  const tidy = (n) => Math.round(n * 1000) / 1000;
 
   Alpine.data("habitForm", () => ({
     kind: "build",
@@ -21,8 +22,8 @@ document.addEventListener("alpine:init", () => {
     },
     setGoal(target, step) {
       this.edited = true;
-      this.step = String(step);
-      this.target = String(Math.max(target, step));
+      this.step = String(tidy(step));
+      this.target = String(tidy(Math.max(target, step)));
     },
     incTarget() {
       this.setGoal(Number(this.target) + Number(this.step), Number(this.step));
@@ -36,7 +37,8 @@ document.addEventListener("alpine:init", () => {
     },
     decStep() {
       const step = Number(this.step);
-      this.setGoal(Number(this.target), Math.max(step - stepSize(step - 1), 1));
+      const size = stepSize(step);
+      this.setGoal(Number(this.target), Math.max(step - (step === size ? size / 10 : size), 0.001));
     },
     get xp() {
       return this.kind === "avoid" ? 20 : multipliers[this.difficulty];
@@ -114,6 +116,54 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Live preview of the quest form.
+  Alpine.data("questEditor", () => ({
+    name: "",
+    text: "",
+    icon: "sun",
+    color: "#F2C14E",
+    kind: "until",
+    count: "3",
+    until: "12:00",
+    percent: "120",
+    rewardKind: "coins",
+    reward: "30",
+    sprite: "",
+    init() {
+      Object.assign(this, readConfig(this.$el));
+    },
+    get accent() {
+      return "--c:" + this.color;
+    },
+    get iconRef() {
+      return this.sprite + "#" + this.icon;
+    },
+    get label() {
+      const count = Number(this.count) > 0 ? this.count : "alle";
+      return this.text.replaceAll("{{anzahl}}", count).replaceAll("{{uhrzeit}}", this.until).replaceAll("{{prozent}}", this.percent);
+    },
+    get rewardLabel() {
+      const unit = { coins: "Taler", xp: "XP", joker: "Joker" }[this.rewardKind];
+      return "+" + this.reward + " " + unit;
+    },
+    get formula() {
+      const need = Number(this.count) > 0 ? this.count : "all";
+      switch (this.kind) {
+        case "until":
+          return "count(checkins where time < " + this.until + ") >= " + need;
+        case "area":
+          return "count(checkins where area) >= " + need;
+        case "counter":
+          return "any(counter >= " + this.percent + "%)";
+        case "catchup":
+          return "any(checkin where missed yesterday)";
+        case "avoid":
+          return "count(relapses) = 0";
+      }
+      return "count(checkins) >= all";
+    },
+  }));
+
   Alpine.data("rewardForm", () => ({
     mode: "coins",
     price: "250",
@@ -161,9 +211,46 @@ function showToast(text) {
   setTimeout(() => (toast.hidden = true), 3000);
 }
 
-// Server errors of HTMX requests arrive as short plain text.
+// Questions before a risky action open in our own dialog. The first sentence is
+// the title, the button says data-yes on the asking element or "Löschen".
+document.addEventListener("htmx:confirm", (e) => {
+  if (!e.detail.question) return;
+  e.preventDefault();
+  const dialog = document.getElementById("confirm");
+  const [title, ...rest] = e.detail.question.split(/(?<=\?) /);
+  dialog.querySelector("h2").textContent = title;
+  dialog.querySelector("p").textContent = rest.join(" ");
+  dialog.querySelector("[value=yes]").textContent = e.detail.elt.closest("[hx-confirm]")?.dataset.yes || "Löschen";
+  dialog.returnValue = "";
+  dialog.addEventListener("close", () => {
+    if (dialog.returnValue === "yes") e.detail.issueRequest(true);
+  }, { once: true });
+  dialog.showModal();
+});
+document.addEventListener("click", (e) => {
+  if (e.target.id === "confirm") e.target.close();
+});
+
+// A rejected form comes back as the whole page with its message on it.
+document.addEventListener("htmx:beforeSwap", (e) => {
+  const type = e.detail.xhr.getResponseHeader("Content-Type") || "";
+  if (e.detail.xhr.status >= 400 && type.startsWith("text/html")) {
+    e.detail.shouldSwap = true;
+    e.detail.isError = false;
+  }
+});
+
+// Other server errors of HTMX requests arrive as short plain text.
 document.addEventListener("htmx:responseError", (e) => {
   showToast(e.detail.xhr.responseText || "Das hat nicht geklappt.");
+});
+
+// A toast with an undo button stays longer than a plain message.
+document.addEventListener("htmx:afterSettle", () => {
+  const toast = document.querySelector("#toast[data-timeout]");
+  if (!toast) return;
+  toast.removeAttribute("data-timeout");
+  setTimeout(() => (toast.hidden = true), 8000);
 });
 
 // Boosted links bypass the offline page of the service worker.
@@ -181,7 +268,13 @@ document.addEventListener("click", (e) => {
 
 // Role select of the user list.
 document.addEventListener("change", (e) => {
-  if (e.target.matches("select[data-submit]")) e.target.form.requestSubmit();
+  if (e.target.matches("[data-submit]")) e.target.form.requestSubmit();
+});
+
+// Taking a redemption back also dismisses its toast.
+document.addEventListener("click", (e) => {
+  const toast = e.target.closest(".toast.undo");
+  if (toast && e.target.closest("button")) toast.hidden = true;
 });
 
 // Copies a one-time secret; plain HTTP has no clipboard, the text stays selected.

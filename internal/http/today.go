@@ -22,6 +22,9 @@ type habitCard struct {
 	Relapsed    bool
 	Streak      game.Streak
 	StreakLabel string
+	XP          int
+	Ring        int    // fill of the ring in percent
+	RingLabel   string // text in the ring, empty shows an icon
 	Meter       *meter // set for counter and quantity habits
 	Week        []weekDay
 	Reached     int // days reached this week
@@ -36,19 +39,19 @@ type meter struct {
 	CanUndo   bool
 }
 
-func newMeter(h model.Habit, total int, done bool) *meter {
+func newMeter(h model.Habit, total float64, done bool) *meter {
 	value := total
 	if done { // e.g. ticked before the habit became a counter
 		value = max(value, h.Target)
 	}
-	m := &meter{AddLabel: "+" + view.Number(h.Step), RingLabel: view.Number(value), CanUndo: total > 0,
-		Percent: min(value*100/h.Target, 100)}
+	m := &meter{AddLabel: "+" + view.Decimal(h.Step), RingLabel: view.Decimal(value), CanUndo: total > 0,
+		Percent: min(int(value*100/h.Target), 100)}
 	switch {
 	case view.IsMinutes(h.Unit):
 		m.AddLabel += "′"
 		m.RingLabel += "′"
 	case h.Measure == model.MeasureCount:
-		m.RingLabel += "/" + view.Number(h.Target)
+		m.RingLabel += "/" + view.Decimal(h.Target)
 	}
 	return m
 }
@@ -64,7 +67,7 @@ type weekDay struct {
 var weekLetters = [7]string{"M", "D", "M", "D", "F", "S", "S"}
 
 // dayTotals holds the entry sums of the days of a week.
-type dayTotals map[model.Day]map[int64]int
+type dayTotals map[model.Day]map[int64]float64
 
 func (s *Server) weekTotals(q *db.Q, today model.Day) (dayTotals, error) {
 	out := dayTotals{}
@@ -92,14 +95,14 @@ func weekStrip(h *game.HabitData, today model.Day, totals dayTotals) ([]weekDay,
 		case "joker":
 			day.Fill = 100
 		case "part":
-			day.Fill = min(totals[d][h.ID]*100/h.Target, 99)
+			day.Fill = min(int(totals[d][h.ID]*100/h.Target), 99)
 		}
 		days = append(days, day)
 	}
 	return days, reached
 }
 
-func dayState(h *game.HabitData, d, today model.Day, total int) string {
+func dayState(h *game.HabitData, d, today model.Day, total float64) string {
 	if _, done := h.Done[d]; done {
 		return "done"
 	}
@@ -151,12 +154,56 @@ type bridgeOffer struct {
 	Label   string
 }
 
+// levelSegments is the length of the level bar on the Today screen.
+const levelSegments = 12
+
+// todayReward is a reward that wants to show up on the Today screen.
+type todayReward struct {
+	ID    int64
+	Title string
+	Icon  string
+	Color string
+	Price int
+	Mode  string
+}
+
 type todayData struct {
-	Date    string
-	Bal     model.Balances
-	Build   []habitCard
-	Avoid   []habitCard
-	Bridges []bridgeOffer
+	Date     string
+	Bal      model.Balances
+	Level    game.Progress
+	Title    string
+	Segments []bool
+	Quests   []questCard
+	Build    []habitCard
+	Avoid    []habitCard
+	Bridges  []bridgeOffer
+	Treats   []todayReward
+	Undo     *undoToast
+}
+
+// fillToday adds the level card and the rewards to the Today screen.
+func (s *Server) fillToday(q *db.Q, d *todayData, w *game.World) error {
+	rules := s.svc.Rules()
+	d.Level = rules.ProgressFor(w.Balances.XP, w.Level)
+	d.Title = rules.Title(d.Level.Level)
+	filled := (d.Level.Percent*levelSegments + 99) / 100
+	for i := range levelSegments {
+		d.Segments = append(d.Segments, i < filled)
+	}
+	var err error
+	if d.Quests, err = s.questCards(q, w); err != nil {
+		return err
+	}
+	states, err := s.svc.RewardStates(q, w)
+	if err != nil {
+		return err
+	}
+	for _, st := range states {
+		if st.ShowToday && st.Available && !st.Archived && !(st.Redeemed && !st.Repeatable) {
+			d.Treats = append(d.Treats, todayReward{ID: st.ID, Title: st.Title, Icon: st.Icon, Color: rewardColor(st.Icon), Price: st.Price, Mode: st.Mode})
+		}
+	}
+	return nil
 }
 
 func areaMap(areas []model.Area) map[int64]model.Area {
@@ -168,6 +215,9 @@ func areaMap(areas []model.Area) map[int64]model.Area {
 }
 
 func (s *Server) todayData(r *http.Request) (*todayData, error) {
+	if err := s.svc.EnsureQuests(r.Context()); err != nil {
+		return nil, err
+	}
 	q := s.svc.Store.Q(r.Context())
 	w, err := s.svc.World(q)
 	if err != nil {
@@ -189,11 +239,16 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 			continue
 		}
 		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], Streak: h.StreakAt(w.Today), Goal: weekGoal(h)}
-		card.StreakLabel = streakLabel(card.Streak)
+		card.StreakLabel, card.XP = streakLabel(card.Streak), game.BaseXP(h.Habit)
 		card.Week, card.Reached = weekStrip(h, w.Today, totals)
 		if h.Kind == model.KindAvoid {
 			for _, relapse := range h.Relapses {
 				card.Relapsed = card.Relapsed || relapse == w.Today
+			}
+			if card.Relapsed {
+				card.Ring = 0
+			} else {
+				card.Ring, card.RingLabel = 100, view.Number(card.Streak.Days)
 			}
 			d.Avoid = append(d.Avoid, card)
 			continue
@@ -201,10 +256,16 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 		_, card.Done = h.Done[w.Today]
 		if h.Measured() {
 			card.Meter = newMeter(h.Habit, totals[w.Today][h.ID], card.Done)
+			card.Ring, card.RingLabel = card.Meter.Percent, card.Meter.RingLabel
+		} else if card.Done {
+			card.Ring = 100
 		}
 		if h.Frequency != model.FreqCustom || h.Scheduled(w.Today) || card.Done {
 			d.Build = append(d.Build, card)
 		}
+	}
+	if err := s.fillToday(q, d, w); err != nil {
+		return nil, err
 	}
 	mode, err := q.Setting(service.KeyJokerMode, service.JokerAuto)
 	if err != nil {

@@ -30,7 +30,7 @@ func TestStoredRulesEqualTheDefaults(t *testing.T) {
 	e := setup(t)
 	e.loadRules()
 	stored, want := e.s.Rules(), game.DefaultRules()
-	if len(stored.Badges) != 95 || len(stored.Categories) != 16 || len(stored.Levels) != game.LevelCount {
+	if len(stored.Badges) != 96 || len(stored.Categories) != 16 || len(stored.Levels) != game.LevelCount {
 		t.Fatalf("%d badges, %d categories, %d levels", len(stored.Badges), len(stored.Categories), len(stored.Levels))
 	}
 	for i, b := range want.Badges {

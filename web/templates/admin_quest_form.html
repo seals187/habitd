@@ -1,0 +1,76 @@
+{{define "content"}}{{$d := .Data}}{{$q := $d.Quest}}<div x-data="questEditor" data-config='{{$d.Config}}'>
+<p class="muted admin-crumb"><a href="/admin/quests">Tagesquests</a></p>
+<header class="admin-head">
+<h1>{{.Title}}</h1>
+<div class="admin-actions">
+{{if not $d.New}}<form method="post" action="/admin/quests/{{$q.ID}}/delete" hx-confirm="„{{$q.Name}}“ endgültig löschen? Auch ihre Statistik verschwindet."><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="admin-btn danger" type="submit">Löschen</button></form>{{end}}
+<a class="admin-btn" href="/admin/quests">Abbrechen</a>
+<button class="admin-btn light" type="submit" form="quest-form">Speichern</button>
+</div>
+</header>
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form id="quest-form" method="post" class="admin-split wide" {{if $d.New}}action="/admin/quests/new"{{else}}action="/admin/quests/{{$q.ID}}/edit"{{end}}>
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<div class="admin-column">
+<section class="card admin-card">
+<label class="admin-label" for="name">Name</label>
+<input class="admin-input" id="name" name="name" value="{{$q.Name}}" x-model="name" maxlength="60" required>
+<label class="admin-label spaced" for="text">Text in der App</label>
+<input class="admin-input" id="text" name="text" value="{{$q.Text}}" x-model="text" maxlength="160" required>
+<p class="muted admin-sub tiny">Platzhalter: {{"{{anzahl}}"}}, {{"{{uhrzeit}}"}}, {{"{{prozent}}"}}</p>
+<p class="admin-label spaced">Icon</p>
+<div class="icons admin-icons">{{range $d.Icons}}<label class="icon-pick"><input type="radio" name="icon" value="{{.}}" x-model="icon" {{if eq . $q.Icon}}checked{{end}} aria-label="Icon {{.}}"><span>{{icon . 22}}</span></label>{{end}}</div>
+<p class="admin-label spaced">Farbe</p>
+<div class="color-pick">{{range $d.Colors}}<label><input type="radio" name="color" value="{{.}}" x-model="color" {{if eq . $q.Color}}checked{{end}} aria-label="Farbe {{.}}"><i style="background:{{.}}"></i></label>{{end}}</div>
+</section>
+<section class="card admin-card">
+<h2 class="admin-title">Aufgabe</h2>
+<div class="quest-kinds">{{range $d.Kinds}}<label><input type="radio" name="kind" value="{{.Key}}" x-model="kind" {{if eq .Key $q.Kind}}checked{{end}}><span>{{icon .Icon 22}}{{.Label}}</span></label>{{end}}</div>
+<div class="rule-grid">
+<div class="for-count"><label class="admin-label" for="count">Anzahl Habits</label><div class="admin-affix wide"><input class="admin-input" id="count" name="count" type="number" min="0" value="{{$q.Count}}" x-model="count"><span>0 = alle</span></div></div>
+<div class="for-until"><label class="admin-label" for="until">Bis Uhrzeit</label><input class="admin-input" id="until" name="until" type="time" value="{{$q.Until}}" x-model="until"></div>
+<div class="for-percent"><label class="admin-label" for="percent">Prozent vom Ziel</label><input class="admin-input" id="percent" name="percent" type="number" min="1" value="{{$q.Percent}}" x-model="percent"></div>
+<div class="for-area"><label class="admin-label" for="area">Bereich</label><select class="admin-input" id="area" name="area"><option value="">Schwächster der Woche</option>{{range $d.Areas}}<option value="{{.Key}}" {{if eq .Key $q.Area}}selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+</div>
+<p class="rule-code"><code x-text="formula"></code></p>
+</section>
+<section class="card admin-card">
+<div class="rule-grid">
+<div><p class="admin-label">Belohnung</p><div class="seg seg-3 tight">
+<label><input type="radio" name="reward_kind" value="coins" x-model="rewardKind" {{if eq $q.RewardKind "coins"}}checked{{end}}><span>Taler</span></label>
+<label><input type="radio" name="reward_kind" value="xp" x-model="rewardKind" {{if eq $q.RewardKind "xp"}}checked{{end}}><span>XP</span></label>
+<label><input type="radio" name="reward_kind" value="joker" x-model="rewardKind" {{if eq $q.RewardKind "joker"}}checked{{end}}><span>Joker</span></label>
+</div></div>
+<div><label class="admin-label" for="reward">Menge</label><input class="admin-input" id="reward" name="reward" type="number" min="1" value="{{$q.Reward}}" x-model="reward"></div>
+<div><p class="admin-label">Gewicht</p><div class="seg seg-3 tight">
+<label><input type="radio" name="weight" value="1" {{if eq $q.Weight 1}}checked{{end}}><span>selten</span></label>
+<label><input type="radio" name="weight" value="2" {{if eq $q.Weight 2}}checked{{end}}><span>normal</span></label>
+<label><input type="radio" name="weight" value="3" {{if eq $q.Weight 3}}checked{{end}}><span>oft</span></label>
+</div></div>
+</div>
+<p class="admin-label spaced">An welchen Tagen</p>
+<div class="quest-days">{{range $d.Days}}<label><input type="checkbox" name="days" value="{{.Bit}}" {{if .On}}checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+<p class="admin-label spaced">Nur anbieten, wenn</p>
+<div class="quest-needs">
+<div><label class="toggle plain row-toggle"><input type="checkbox" name="need_habits" {{if $q.MinHabits}}checked{{end}}><i></i><span>mind. Habits aktiv</span></label><input class="admin-input tiny" name="min_habits" type="number" min="1" value="{{if $q.MinHabits}}{{$q.MinHabits}}{{else}}3{{end}}" aria-label="Mindestzahl Habits"></div>
+<div><label class="toggle plain row-toggle"><input type="checkbox" name="need_level" {{if $q.MinLevel}}checked{{end}}><i></i><span>ab Level</span></label><input class="admin-input tiny" name="min_level" type="number" min="1" value="{{if $q.MinLevel}}{{$q.MinLevel}}{{else}}5{{end}}" aria-label="Mindestlevel"></div>
+<div><label class="toggle plain row-toggle"><input type="checkbox" name="need_area" {{if $q.OnlyArea}}checked{{end}}><i></i><span>nur mit Bereich</span></label><select class="admin-input" name="only_area" aria-label="Bereich">{{range $d.Areas}}<option value="{{.Key}}" {{if eq .Key $q.OnlyArea}}selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+</div>
+</section>
+</div>
+<div class="admin-column">
+<section class="card admin-card">
+<p class="admin-label">Vorschau in der App</p>
+<div class="quest-preview" :style="accent">
+<div class="quest-preview-top"><svg class="i" width="22" height="22" aria-hidden="true"><use :href="iconRef"/></svg><strong x-text="name"></strong><b x-text="rewardLabel"></b></div>
+<p class="muted" x-text="label"></p>
+</div>
+</section>
+{{if not $d.New}}<section class="card admin-card">
+<p class="admin-label">Statistik · letzte 30 Tage</p>
+<div class="admin-grid-2"><div class="admin-stat flat"><b>{{$d.Drawn}}×</b><span>gezogen</span></div><div class="admin-stat flat"><b class="orange">{{$d.Quote}}%</b><span>geschafft</span></div></div>
+<p class="muted admin-sub">Tipp: Zwischen 40 und 70 % ist eine Quest gut ausbalanciert. Darunter ist sie eher zu schwer.</p>
+</section>{{end}}
+</div>
+</form>
+</div>{{end}}

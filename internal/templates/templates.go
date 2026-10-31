@@ -24,10 +24,10 @@ type Frequency struct {
 
 // Measure turns a template into a counter or quantity habit.
 type Measure struct {
-	Type   string `json:"type"`
-	Target int    `json:"target"`
-	Step   int    `json:"step"`
-	Unit   string `json:"unit"`
+	Type   string  `json:"type"`
+	Target float64 `json:"target"`
+	Step   float64 `json:"step"`
+	Unit   string  `json:"unit"`
 }
 
 // Template is a habit suggestion.

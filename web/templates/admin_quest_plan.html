@@ -1,0 +1,44 @@
+{{define "content"}}{{$d := .Data}}<header class="admin-head">
+<div><h1>Wochenplan</h1><p class="muted">Feste Quests für bestimmte Tage · leere Tage ziehen zufällig aus dem Pool</p></div>
+<div class="admin-actions plan-nav">
+<a class="round" href="/admin/quests/plan?week={{$d.Prev}}" aria-label="Vorige Woche">{{icon "chevron-left" 20}}</a>
+<strong>{{$d.Title}}</strong>
+<a class="round" href="/admin/quests/plan?week={{$d.Next}}" aria-label="Nächste Woche">{{icon "chevron-right" 20}}</a>
+<a class="admin-btn light" href="#event-form">{{icon "plus" 18}}Event planen</a>
+</div>
+</header>
+<div class="plan-week">{{range $d.Days}}{{$day := .}}<section class="card plan-day">
+<strong>{{.Title}}</strong>
+{{range .Quests}}<form class="plan-quest" style="--c:{{.Color}}" method="post" action="/admin/quests/plan"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="date" value="{{$day.Date}}"><input type="hidden" name="quest" value="{{.ID}}"><input type="hidden" name="remove" value="1"><input type="hidden" name="week" value="{{$d.Week}}">
+<span class="accent">{{icon .Icon 16}}</span><b>{{.Name}}</b><small class="muted">fest geplant</small><button class="plan-remove" aria-label="{{.Name}} entfernen">{{icon "trash-2" 14}}</button></form>{{else}}<div class="plan-random">{{icon "loader" 18}}<span>Zufall aus Pool</span></div>{{end}}
+<form class="plan-add" method="post" action="/admin/quests/plan"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="week" value="{{$d.Week}}"><input type="hidden" name="date" value="{{.Date}}">
+<select class="admin-input" name="quest" aria-label="Quest hinzufügen" data-submit><option value="">+ Quest</option>{{range $d.Pool}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></form>
+</section>{{end}}</div>
+{{range $d.Events}}<section class="card plan-event">
+<span class="reward-tile plan-gift">{{icon "gift" 22}}</span>
+<div><strong>Event: {{.Name}}</strong><small class="muted">{{.Text}}</small></div>
+<span class="cat-chip plan-status">{{.Status}}</span>
+<form method="post" action="/admin/quests/events/{{.ID}}/delete" hx-confirm="Event „{{.Name}}“ löschen?"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="week" value="{{$d.Week}}"><button class="lvl-undo muted" aria-label="{{.Name}} löschen">{{icon "trash-2" 18}}</button></form>
+</section>{{end}}
+<section class="card admin-card plan-rules">
+<h2 class="admin-title">Wiederkehrende Regeln</h2>
+<form method="post" action="/admin/quests/rules"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="week" value="{{$d.Week}}">
+<label class="toggle plain row-toggle"><input type="checkbox" name="weekend_rule" {{if $d.Config.WeekendRule}}checked{{end}} data-submit><i></i><span>Jeden Samstag und Sonntag: Wochenend-Held</span><em>wöchentlich</em></label>
+<label class="toggle plain row-toggle"><input type="checkbox" name="first_rule" {{if $d.Config.FirstRule}}checked{{end}} data-submit><i></i><span>Am Monatsersten: Doppelte Quest-Belohnung</span><em>monatlich</em></label>
+</form>
+</section>
+<section class="card admin-card" id="event-form">
+<h2 class="admin-title">Event planen</h2>
+<form method="post" action="/admin/quests/events">
+<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="week" value="{{$d.Week}}">
+<div class="rule-grid">
+<div><label class="admin-label" for="ev-name">Name</label><input class="admin-input" id="ev-name" name="name" maxlength="60" required></div>
+<div><label class="admin-label" for="ev-start">Von</label><input class="admin-input" id="ev-start" type="date" name="start" required></div>
+<div><label class="admin-label" for="ev-end">Bis</label><input class="admin-input" id="ev-end" type="date" name="end" required></div>
+<div><label class="admin-label" for="ev-quest">Täglich zusätzlich</label><select class="admin-input" id="ev-quest" name="quest"><option value="0">Keine Quest</option>{{range $d.Pool}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></div>
+<div><label class="admin-label" for="ev-mult">Belohnung</label><select class="admin-input" id="ev-mult" name="multiplier"><option value="1">normal</option><option value="2">doppelt</option><option value="3">dreifach</option></select></div>
+</div>
+<button class="admin-btn light plan-save" type="submit">Event anlegen</button>
+</form>
+</section>
+{{end}}

@@ -11,8 +11,8 @@
 </form>
 <p class="hint">Achtung: Der Import ersetzt alle aktuellen Daten.</p>
 <h2 class="section">Neu anfangen</h2>
-<p class="reset-note">Setzt alles auf null: Habits, Verlauf, XP, Level, Taler, Joker, Abzeichen und eingelöste Belohnungen. Deine Bereiche, Einstellungen und Taler-Belohnungen bleiben, Serien-Belohnungen werden archiviert. Das lässt sich nicht rückgängig machen, exportiere deine Daten also vorher.</p>
-<form method="post" action="/settings/reset" class="form-footer" hx-confirm="Wirklich alles zurücksetzen? Habits, XP, Level, Taler, Joker und Abzeichen werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.">
+<p class="reset-note">Setzt alles auf null: Habits, Verlauf, Belohnungen, XP, Level, Taler, Joker und Abzeichen. Deine Bereiche und Einstellungen bleiben. Das lässt sich nicht rückgängig machen, exportiere deine Daten also vorher.</p>
+<form method="post" action="/settings/reset" class="form-footer" data-yes="Alles zurücksetzen" hx-confirm="Wirklich alles zurücksetzen? Habits, Belohnungen, XP, Level, Taler, Joker und Abzeichen werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <button class="link-btn danger" type="submit">{{icon "trash-2" 18}}Alles zurücksetzen</button>
 </form>

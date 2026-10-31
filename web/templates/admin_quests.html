@@ -1,0 +1,41 @@
+{{define "content"}}{{$d := .Data}}<header class="admin-head">
+<div><h1>Tagesquests</h1><p class="muted">{{$d.Total}} Quests im Pool · {{$d.Active}} aktiv · jeden Morgen wird eine pro Benutzer gezogen</p></div>
+<div class="admin-actions">
+<a class="admin-btn" href="/admin/quests/plan">Wochenplan</a>
+<a class="admin-btn light" href="/admin/quests/new">{{icon "plus" 18}}Neue Quest</a>
+</div>
+</header>
+<div class="admin-split wide">
+<section class="card admin-table-card"><div class="admin-scroll"><table class="admin-table">
+<thead><tr><th>Quest</th><th>Belohnung</th><th>Wann</th><th>Gewicht</th><th>Geschafft</th><th>Aktiv</th><th></th></tr></thead>
+<tbody>{{range $d.Rows}}<tr class="badge-row{{if not .Active}} off{{end}}" style="--c:{{.Color}}">
+<td><div class="badge-cell"><span class="reward-tile">{{icon .Icon 20}}</span><span><strong>{{.Name}}</strong><small>{{.Label}}</small></span></div></td>
+<td class="{{if eq .RewardKind "joker"}}blue{{else if eq .RewardKind "xp"}}green{{else}}gold{{end}} nowrap">{{.Reward}}</td>
+<td class="muted">{{.When}}</td>
+<td><span class="quest-weight">{{range .Weight}}<i{{if .}} class="on"{{end}}></i>{{end}}</span></td>
+<td><div class="quest-rate"><div class="bar{{if .Low}} low{{end}}"><i style="width:{{.Percent}}%"></i></div><small>{{.Percent}}%</small></div></td>
+<td><label class="toggle plain slim"><input type="checkbox" name="active" {{if .Active}}checked{{end}} hx-post="/admin/quests/{{.ID}}/active" hx-trigger="change" hx-swap="none" aria-label="{{.Name}} aktiv"><i></i></label></td>
+<td><a class="lvl-undo muted" href="/admin/quests/{{.ID}}/edit" aria-label="{{.Name}} bearbeiten">{{icon "pencil" 18}}</a></td>
+</tr>{{end}}</tbody>
+</table></div></section>
+<form class="admin-column" method="post" action="/admin/quests/settings">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<section class="card admin-card">
+<h2 class="admin-title">Ziehung</h2>
+<p class="admin-label spaced">Quests pro Tag</p>
+<div class="seg seg-3 tight">{{range $d.PerDay}}<label><input type="radio" name="per_day" value="{{.}}" {{if eq . $d.Config.PerDay}}checked{{end}} data-submit><span>{{.}}</span></label>{{end}}</div>
+<label class="admin-label spaced" for="rollover">Neue Quest ab</label>
+<input class="admin-input" id="rollover" type="time" name="rollover" value="{{$d.Config.Rollover}}" data-submit>
+<label class="admin-label spaced" for="mode">Auswahl</label>
+<select class="admin-input" id="mode" name="mode" data-submit><option value="weighted" {{if $d.Config.Weighted}}selected{{end}}>Zufällig, gewichtet</option><option value="equal" {{if not $d.Config.Weighted}}selected{{end}}>Zufällig, gleich oft</option></select>
+<label class="toggle plain"><span>Nicht 2× hintereinander</span><input type="checkbox" name="no_repeat" {{if $d.Config.NoRepeat}}checked{{end}} data-submit><i></i></label>
+<label class="toggle plain"><span>Nur passende Quests</span><input type="checkbox" name="matching" {{if $d.Config.Matching}}checked{{end}} data-submit><i></i></label>
+</section>
+<section class="card admin-card">
+<h2 class="admin-title">Bonus</h2>
+<label class="toggle plain"><span>Quest-Serie belohnen</span><input type="checkbox" name="streak_bonus" {{if $d.Config.StreakBonus}}checked{{end}} data-submit><i></i></label>
+<p class="muted admin-sub">7 Quests in Folge geschafft: <b>+1 Joker</b><br>30 in Folge: Abzeichen <b>„Questmeister“</b></p>
+</section>
+</form>
+</div>
+{{end}}

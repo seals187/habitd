@@ -16,6 +16,7 @@ type World struct {
 	Balances    model.Balances
 	Level       int
 	LastJoker   model.Day // last day a joker was used, 0 if never
+	QuestStreak int       // finished daily quests in a row
 	Holiday     func(model.Day) bool
 }
 
@@ -57,6 +58,7 @@ type Facts struct {
 	Palindrome      bool // streak of exactly 111 or 222
 	DaysInstalled   int
 	Blitz           bool
+	QuestStreak     int
 	Habits          []habitFact // the base of the rules built in the admin area
 }
 
@@ -68,7 +70,7 @@ type habitFact struct {
 	active          int // days with a real check-in inside the streak
 	done            int
 	jokers          int
-	amount          int
+	amount          float64
 }
 
 func (h habitFact) matches(m Metric) bool {
@@ -118,13 +120,13 @@ func (f *Facts) count(m Metric) int {
 
 // amount sums what counter and quantity habits have recorded.
 func (f *Facts) amount(m Metric) int {
-	sum := 0
+	sum := 0.0
 	for _, h := range f.Habits {
 		if h.matches(m) {
 			sum += h.amount
 		}
 	}
-	return sum
+	return int(sum)
 }
 
 // BuildFacts derives all facts from the world.
@@ -134,7 +136,7 @@ func BuildFacts(w *World) *Facts {
 		TagCount: map[string]int{}, TagStreak: map[string]int{}, TagDays: map[string]int{}, AreaDays: map[string]int{},
 		AvoidAreaStreak: map[string]int{},
 		Jokers:          w.Balances.Jokers, Coins: w.Balances.Coins, CoinsEarned: w.Balances.CoinsEarned,
-		Level: w.Level, Redeemed: len(w.Redemptions), DaysInstalled: int(w.Today - w.Installed),
+		Level: w.Level, Redeemed: len(w.Redemptions), DaysInstalled: int(w.Today - w.Installed), QuestStreak: w.QuestStreak,
 	}
 	for _, r := range w.Redemptions {
 		f.MaxRedeemPrice = max(f.MaxRedeemPrice, r.PricePaid)

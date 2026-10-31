@@ -14,7 +14,7 @@
 <td>{{.Level}}</td><td>{{.Habits}}</td><td>{{num .XP}}</td><td class="muted">{{.LastSeen}}</td>
 <td>{{if .Disabled}}<span class="red-text">Deaktiviert</span>{{else}}<span class="green">Aktiv</span>{{end}}</td>
 <td><details class="user-actions"><summary>Aktionen</summary><div>
-<form method="post" action="/admin/users/{{.ID}}/password" hx-confirm="Neues Passwort für {{.Username}} erzeugen? Bestehende Anmeldungen enden."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="admin-btn" type="submit">Passwort zurücksetzen</button></form>
+<form method="post" action="/admin/users/{{.ID}}/password" data-yes="Passwort erzeugen" hx-confirm="Neues Passwort für {{.Username}} erzeugen? Bestehende Anmeldungen enden."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="admin-btn" type="submit">Passwort zurücksetzen</button></form>
 <form method="post" action="/admin/users/{{.ID}}/disabled"><input type="hidden" name="csrf" value="{{$.CSRF}}">{{if not .Disabled}}<input type="hidden" name="disabled" value="on">{{end}}<button class="admin-btn" type="submit">{{if .Disabled}}Aktivieren{{else}}Deaktivieren{{end}}</button></form>
 <form class="delete-user" method="post" action="/admin/users/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input class="admin-input" name="confirm" placeholder="{{.Username}}" aria-label="Benutzername zur Bestätigung" autocomplete="off" required><button class="admin-btn danger" type="submit">Mit allen Daten löschen</button></form>
 </div></details></td>
