@@ -7,10 +7,12 @@ services:
     environment:
       - TZ=Europe/Zurich
       - HABITD_PORT=${HABITD_PORT:-8080}
-      # Login name, applied on every start.
-      - HABITD_USER=${HABITD_USER:-admin}
-      # Only used on the very first start. Set your own in .env, see .env.example.
-      - HABITD_PASSWORD=${HABITD_PASSWORD:-changeme}
+      # Only used on the very first start, see "Erster Start und Admin" in the README.
+      - HABITD_ADMIN_USER=${HABITD_ADMIN_USER:-${HABITD_USER:-}}
+      - HABITD_ADMIN_PASSWORD=${HABITD_ADMIN_PASSWORD:-}
+      - HABITD_PASSWORD=${HABITD_PASSWORD:-} # deprecated
+      - HABITD_ALLOW_SIGNUP=${HABITD_ALLOW_SIGNUP:-false}
+      - HABITD_INSECURE_COOKIES=${HABITD_INSECURE_COOKIES:-false}
       # Plain HTTP for local use. Set to true behind HTTPS.
       - HABITD_COOKIE_SECURE=${HABITD_COOKIE_SECURE:-false}
       - HABITD_API_TOKEN=${HABITD_API_TOKEN:-}

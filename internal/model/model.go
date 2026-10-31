@@ -89,6 +89,27 @@ const (
 	LedgerJoker = "joker"
 )
 
+// User roles.
+const (
+	RoleAdmin = "admin"
+	RoleUser  = "user"
+)
+
+// User is an account. All personal data hangs on its id.
+type User struct {
+	ID           int64
+	Username     string
+	DisplayName  string
+	PasswordHash string
+	Role         string
+	CreatedAt    time.Time
+	LastLogin    time.Time
+	Disabled     bool
+}
+
+// IsAdmin reports the admin role.
+func (u User) IsAdmin() bool { return u.Role == RoleAdmin }
+
 // Area is a life area ("Bereich") a habit belongs to.
 type Area struct {
 	ID    int64  `json:"id"`

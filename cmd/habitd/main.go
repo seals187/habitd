@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 	_ "time/tzdata" // the scratch image has no zone files
@@ -70,12 +69,7 @@ func open(ctx context.Context) (*service.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	svc := service.New(store, loc)
-	if err := svc.Init(ctx); err != nil {
-		_ = store.Close()
-		return nil, err
-	}
-	return svc, nil
+	return service.New(store, loc), nil
 }
 
 func serve() error {
@@ -88,13 +82,14 @@ func serve() error {
 	}
 	defer svc.Store.Close()
 
-	if err := initialCredentials(ctx, svc); err != nil {
+	if err := bootstrap(ctx, svc); err != nil {
 		return err
 	}
 	cfg := server.Config{
 		Version:      version,
 		Runtime:      env("HABITD_RUNTIME", "Binary"),
-		CookieSecure: env("HABITD_COOKIE_SECURE", "true") != "false",
+		CookieSecure: env("HABITD_COOKIE_SECURE", "true") != "false" && env("HABITD_INSECURE_COOKIES", "false") != "true",
+		AllowSignup:  env("HABITD_ALLOW_SIGNUP", "false") == "true",
 		APIToken:     os.Getenv("HABITD_API_TOKEN"),
 	}
 	app, err := server.New(cfg, svc, web.FS)
@@ -127,26 +122,15 @@ func serve() error {
 	return srv.Shutdown(shutdown)
 }
 
-// initialCredentials applies HABITD_USER on every start and HABITD_PASSWORD only
-// once; later password changes happen in the app.
-func initialCredentials(ctx context.Context, svc *service.Service) error {
-	if user := strings.TrimSpace(os.Getenv("HABITD_USER")); user != "" {
-		if err := svc.Store.Q(ctx).SetSetting(service.KeyAdminUser, user); err != nil {
-			return err
-		}
-	}
-	password := os.Getenv("HABITD_PASSWORD")
-	if password == "" {
-		return nil
-	}
-	hash, err := svc.Store.Q(ctx).Setting(service.KeyPasswordHash, "")
-	if err != nil || hash != "" {
-		return err
-	}
+// bootstrap creates the admin from the environment on the very first start.
+// HABITD_USER and HABITD_PASSWORD are the deprecated names.
+func bootstrap(ctx context.Context, svc *service.Service) error {
+	user := env("HABITD_ADMIN_USER", os.Getenv("HABITD_USER"))
+	password := env("HABITD_ADMIN_PASSWORD", os.Getenv("HABITD_PASSWORD"))
 	if password == "changeme" {
-		slog.Warn("HABITD_PASSWORD is still the default: change it before exposing habitd")
+		slog.Warn("the admin password is still the default: change it before exposing habitd")
 	}
-	return server.SetPassword(ctx, svc.Store, password)
+	return svc.Bootstrap(ctx, service.BootstrapOptions{AdminUser: user, Password: password})
 }
 
 func seed() error {
@@ -156,7 +140,17 @@ func seed() error {
 		return err
 	}
 	defer svc.Store.Close()
-	if err := svc.Seed(ctx); err != nil {
+	if err := bootstrap(ctx, svc); err != nil {
+		return err
+	}
+	users, err := svc.Store.Q(ctx).Users()
+	if err != nil {
+		return err
+	}
+	if len(users) == 0 {
+		return errors.New("no user yet: start habitd once and create the first account")
+	}
+	if err := svc.Seed(db.WithUser(ctx, users[0].ID)); err != nil {
 		return err
 	}
 	fmt.Println("demo data created")

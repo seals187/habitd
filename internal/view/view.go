@@ -22,6 +22,7 @@ import (
 
 // Page is the data every template receives.
 type Page struct {
+	Admin   bool // the signed-in user is an admin
 	Title   string
 	Tab     string
 	CSRF    string

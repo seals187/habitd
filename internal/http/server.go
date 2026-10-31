@@ -27,6 +27,7 @@ type Config struct {
 	Version      string
 	Runtime      string // shown on the server page, e.g. "Docker"
 	CookieSecure bool
+	AllowSignup  bool
 	APIToken     string // optional bearer token of the JSON API
 }
 
@@ -115,6 +116,10 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("GET /login", s.loginForm)
 	handle("POST /login", s.login)
 	handle("POST /logout", s.logout)
+	handle("GET /signup", s.signupForm)
+	handle("POST /signup", s.signup)
+	handle("GET /invite/{token}", s.inviteForm)
+	handle("POST /invite/{token}", s.inviteAccept)
 
 	handle("GET /{$}", s.today)
 	handle("GET /onboarding", s.onboarding)
@@ -221,6 +226,8 @@ func classify(err error) (int, string) {
 		return http.StatusConflict, "Noch nicht freigeschaltet"
 	case errors.Is(err, service.ErrJokerLimit):
 		return http.StatusConflict, "Joker-Grenze erreicht"
+	case errors.Is(err, service.ErrLastAdmin):
+		return http.StatusConflict, "Der letzte aktive Admin muss erhalten bleiben"
 	case errors.Is(err, service.ErrNotAllowed):
 		return http.StatusConflict, "Nicht möglich"
 	case errors.Is(err, context.Canceled):
@@ -345,5 +352,5 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) error {
 }
 
 func (s *Server) page(r *http.Request, title, tab string, data any) view.Page {
-	return view.Page{Title: title, Tab: tab, CSRF: csrfFrom(r), Data: data}
+	return view.Page{Title: title, Tab: tab, CSRF: csrfFrom(r), Admin: currentUser(r).IsAdmin(), Data: data}
 }

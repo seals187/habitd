@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/url"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite" // database driver
 
@@ -19,7 +22,8 @@ import (
 
 // Store is the open database.
 type Store struct {
-	sql *sql.DB
+	sql  *sql.DB
+	path string
 }
 
 // runner is the part of database/sql shared by *sql.DB and *sql.Tx.
@@ -33,6 +37,20 @@ type runner interface {
 type Q struct {
 	r   runner
 	ctx context.Context
+	uid int64 // the user all user data queries are limited to, 0 matches nothing
+}
+
+type userKey struct{}
+
+// WithUser limits every query that runs under ctx to the data of one user.
+func WithUser(ctx context.Context, id int64) context.Context {
+	return context.WithValue(ctx, userKey{}, id)
+}
+
+// UserID returns the user set with WithUser, 0 if there is none.
+func UserID(ctx context.Context) int64 {
+	id, _ := ctx.Value(userKey{}).(int64)
+	return id
 }
 
 // Open opens the database at path, enables WAL and applies migrations.
@@ -49,13 +67,16 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	}
 	conn.SetMaxOpenConns(4)
 	conn.SetMaxIdleConns(1) // keeps idle memory low
-	s := &Store{sql: conn}
+	s := &Store{sql: conn, path: path}
 	if err := s.migrate(ctx); err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
 	return s, nil
 }
+
+// As returns the same runner limited to another user.
+func (q *Q) As(id int64) *Q { return &Q{r: q.r, ctx: q.ctx, uid: id} }
 
 // Close closes the database.
 func (s *Store) Close() error { return s.sql.Close() }
@@ -64,7 +85,7 @@ func (s *Store) Close() error { return s.sql.Close() }
 func (s *Store) Ping(ctx context.Context) error { return s.sql.PingContext(ctx) }
 
 // Q returns a query runner outside of any transaction.
-func (s *Store) Q(ctx context.Context) *Q { return &Q{r: s.sql, ctx: ctx} }
+func (s *Store) Q(ctx context.Context) *Q { return &Q{r: s.sql, ctx: ctx, uid: UserID(ctx)} }
 
 // Tx runs fn in a write transaction.
 func (s *Store) Tx(ctx context.Context, fn func(q *Q) error) error {
@@ -73,7 +94,7 @@ func (s *Store) Tx(ctx context.Context, fn func(q *Q) error) error {
 		return fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := fn(&Q{r: tx, ctx: ctx}); err != nil {
+	if err := fn(&Q{r: tx, ctx: ctx, uid: UserID(ctx)}); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -109,6 +130,11 @@ func (s *Store) migrate(ctx context.Context) error {
 		}
 	}
 	slices.Sort(names)
+	var applied int
+	if err := conn.QueryRowContext(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&applied); err != nil {
+		return fmt.Errorf("count migrations: %w", err)
+	}
+	backedUp := false
 	for _, name := range names {
 		version, err := strconv.Atoi(strings.SplitN(name, "_", 2)[0])
 		if err != nil {
@@ -121,6 +147,12 @@ func (s *Store) migrate(ctx context.Context) error {
 		if done > 0 {
 			continue
 		}
+		if applied > 0 && !backedUp {
+			if err := s.backup(ctx, conn); err != nil {
+				return err
+			}
+			backedUp = true
+		}
 		body, err := migrations.FS.ReadFile(name)
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", name, err)
@@ -130,6 +162,33 @@ func (s *Store) migrate(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// backup copies an existing database before migrations change it.
+func (s *Store) backup(ctx context.Context, conn *sql.Conn) error {
+	target := s.path + ".bak-" + time.Now().UTC().Format("20060102-150405")
+	if _, err := conn.ExecContext(ctx, `VACUUM INTO ?`, target); err != nil {
+		return fmt.Errorf("back up database: %w", err)
+	}
+	slog.Info("database backed up before migration", "file", target)
+	return nil
+}
+
+// BackupTo writes a consistent copy of the database to path.
+func (s *Store) BackupTo(ctx context.Context, path string) error {
+	if _, err := s.sql.ExecContext(ctx, `VACUUM INTO ?`, path); err != nil {
+		return fmt.Errorf("back up database: %w", err)
+	}
+	return nil
+}
+
+// Size returns the size of the database file in bytes.
+func (s *Store) Size() (int64, error) {
+	info, err := os.Stat(s.path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
 }
 
 func applyMigration(ctx context.Context, conn *sql.Conn, body string, version int) error {
@@ -161,6 +220,23 @@ func applyMigration(ctx context.Context, conn *sql.Conn, body string, version in
 func (q *Q) exec(query string, args ...any) error {
 	if _, err := q.r.ExecContext(q.ctx, query, args...); err != nil {
 		return fmt.Errorf("exec %q: %w", firstLine(query), err)
+	}
+	return nil
+}
+
+// execOne runs a write that must hit a row of the current user: a foreign id
+// ends as ErrNotFound, not as a silent success.
+func (q *Q) execOne(query string, args ...any) error {
+	res, err := q.r.ExecContext(q.ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("exec %q: %w", firstLine(query), err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

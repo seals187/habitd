@@ -25,6 +25,7 @@ import (
 const password = "correct-horse"
 
 type client struct {
+	uid  int64
 	t    *testing.T
 	base string
 	http *http.Client
@@ -41,9 +42,6 @@ func newApp(t *testing.T, cfg Config) *client {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	svc := service.New(store, time.UTC)
-	if err := svc.Init(ctx); err != nil {
-		t.Fatal(err)
-	}
 	app, err := New(cfg, svc, web.FS)
 	if err != nil {
 		t.Fatal(err)
@@ -81,6 +79,21 @@ func (c *client) do(method, path string, form url.Values, headers map[string]str
 	return resp, string(data)
 }
 
+// ctx is the view of the database as the signed-in user.
+func (c *client) ctx() context.Context { return db.WithUser(context.Background(), c.uid) }
+
+func (c *client) q() *db.Q { return c.svc.Store.Q(c.ctx()) }
+
+// area returns the id of the second area of the user.
+func (c *client) area() string {
+	c.t.Helper()
+	areas, err := c.q().Areas()
+	if err != nil || len(areas) < 2 {
+		c.t.Fatalf("areas: %v %v", areas, err)
+	}
+	return fmt.Sprint(areas[1].ID)
+}
+
 func (c *client) get(path string) (*http.Response, string) { return c.do("GET", path, nil, nil) }
 
 var csrfPattern = regexp.MustCompile(`X-CSRF-Token&#34;:&#34;([0-9a-f]+)|X-CSRF-Token":"([0-9a-f]+)`)
@@ -98,6 +111,7 @@ func (c *client) signIn() {
 		c.t.Fatal("no csrf token in page")
 	}
 	c.csrf = m[1] + m[2]
+	c.uid = 1
 }
 
 func (c *client) post(path string, htmx bool) (*http.Response, string) {
@@ -111,12 +125,12 @@ func (c *client) post(path string, htmx bool) (*http.Response, string) {
 
 func (c *client) habit(name, kind string) int64 {
 	c.t.Helper()
-	form := url.Values{"csrf": {c.csrf}, "name": {name}, "kind": {kind}, "freq": {"daily"}, "difficulty": {"medium"}, "icon": {"book"}, "area": {"2"}}
+	form := url.Values{"csrf": {c.csrf}, "name": {name}, "kind": {kind}, "freq": {"daily"}, "difficulty": {"medium"}, "icon": {"book"}, "area": {c.area()}}
 	resp, body := c.do("POST", "/habits/new", form, nil)
 	if resp.StatusCode != http.StatusSeeOther {
 		c.t.Fatalf("create habit: %s %s", resp.Status, body)
 	}
-	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	habits, err := c.q().Habits()
 	if err != nil {
 		c.t.Fatal(err)
 	}
@@ -162,8 +176,11 @@ func TestSetupOnlyOnce(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
 	resp, _ := c.do("POST", "/setup", url.Values{"password": {"another-password"}}, nil)
-	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("got %s", resp.Status)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("post: %s", resp.Status)
+	}
+	if resp, _ := c.get("/setup"); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("get: %s", resp.Status)
 	}
 }
 
@@ -274,7 +291,7 @@ func TestCheckFlowHTMX(t *testing.T) {
 func TestDetailViews(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
-	if err := c.svc.Seed(context.Background()); err != nil {
+	if err := c.svc.Seed(c.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	cases := map[string]string{"month": "Tage erledigt", "year": "Bester Wochentag", "week": "Serie"}
@@ -306,7 +323,7 @@ func TestDetailViews(t *testing.T) {
 func TestAllPagesRender(t *testing.T) {
 	c := newApp(t, Config{Version: "1.0", Runtime: "Test"})
 	c.signIn()
-	if err := c.svc.Seed(context.Background()); err != nil {
+	if err := c.svc.Seed(c.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"/", "/habits", "/habits/new", "/habits/1/edit", "/habits/1", "/habits/1?view=year", "/habits/2?view=week", "/badges", "/badges?cat=geheim", "/rewards", "/rewards?tab=joker",
@@ -338,8 +355,7 @@ func TestRelapseFlow(t *testing.T) {
 func TestRedeemFlow(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
-	ctx := context.Background()
-	if err := c.svc.Seed(ctx); err != nil {
+	if err := c.svc.Seed(c.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	resp, html := c.post("/rewards/1/redeem", true)
@@ -466,7 +482,7 @@ func TestFreshInstallGoesThroughOnboarding(t *testing.T) {
 	if resp.Header.Get("Location") != "/onboarding?step=3" {
 		t.Fatalf("location %q", resp.Header.Get("Location"))
 	}
-	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	habits, err := c.q().Habits()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,7 +496,7 @@ func TestFreshInstallGoesThroughOnboarding(t *testing.T) {
 	if resp, _ := c.do("POST", "/onboarding", form, nil); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("again: %s", resp.Status)
 	}
-	habits, _ = c.svc.Store.Q(context.Background()).Habits()
+	habits, _ = c.q().Habits()
 	if len(habits) != 3 {
 		t.Fatalf("duplicated: %d", len(habits))
 	}
@@ -581,7 +597,7 @@ func TestLibraryAddAndActive(t *testing.T) {
 		t.Fatalf("%s %s", resp.Status, html)
 	}
 	_, _ = c.post("/templates/joggen/add", true)
-	habits, _ := c.svc.Store.Q(context.Background()).Habits()
+	habits, _ := c.q().Habits()
 	if len(habits) != 1 || habits[0].Tag != "sport" {
 		t.Fatalf("habits %+v", habits)
 	}
@@ -590,11 +606,11 @@ func TestLibraryAddAndActive(t *testing.T) {
 func TestTemplateTagSurvivesForm(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
-	form := url.Values{"csrf": {c.csrf}, "name": {"Weniger scrollen"}, "kind": {"avoid"}, "template": {"doomscrolling"}, "icon": {"heart"}, "area": {"8"}, "difficulty": {"easy"}, "freq": {"daily"}}
+	form := url.Values{"csrf": {c.csrf}, "name": {"Weniger scrollen"}, "kind": {"avoid"}, "template": {"doomscrolling"}, "icon": {"heart"}, "area": {c.area()}, "difficulty": {"easy"}, "freq": {"daily"}}
 	if resp, _ := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("got %s", resp.Status)
 	}
-	habits, _ := c.svc.Store.Q(context.Background()).Habits()
+	habits, _ := c.q().Habits()
 	if habits[0].Tag != "doomscroll" || habits[0].TemplateID != "doomscrolling" {
 		t.Fatalf("habit %+v", habits[0])
 	}
@@ -615,13 +631,13 @@ func TestBadgeRules(t *testing.T) {
 
 func (c *client) meterHabit(name, measure, target, step, unit string) int64 {
 	c.t.Helper()
-	form := url.Values{"csrf": {c.csrf}, "name": {name}, "kind": {"build"}, "freq": {"daily"}, "difficulty": {"easy"}, "icon": {"drop"}, "area": {"2"},
+	form := url.Values{"csrf": {c.csrf}, "name": {name}, "kind": {"build"}, "freq": {"daily"}, "difficulty": {"easy"}, "icon": {"drop"}, "area": {c.area()},
 		"measure": {measure}, "target": {target}, "step": {step}, "unit": {unit}}
 	resp, body := c.do("POST", "/habits/new", form, nil)
 	if resp.StatusCode != http.StatusSeeOther {
 		c.t.Fatalf("create habit: %s %s", resp.Status, body)
 	}
-	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	habits, err := c.q().Habits()
 	if err != nil {
 		c.t.Fatal(err)
 	}
@@ -630,7 +646,7 @@ func (c *client) meterHabit(name, measure, target, step, unit string) int64 {
 
 func (c *client) xp() int {
 	c.t.Helper()
-	bal, err := c.svc.Store.Q(context.Background()).Balances(c.svc.Today())
+	bal, err := c.q().Balances(c.svc.Today())
 	if err != nil {
 		c.t.Fatal(err)
 	}
@@ -691,7 +707,7 @@ func TestQuantityCardAndValidation(t *testing.T) {
 	if !strings.Contains(html, "&#43;5′") || !strings.Contains(html, "5′") {
 		t.Fatalf("minutes: %s", html)
 	}
-	form := url.Values{"csrf": {c.csrf}, "name": {"Falsch"}, "kind": {"build"}, "freq": {"daily"}, "icon": {"drop"}, "area": {"2"},
+	form := url.Values{"csrf": {c.csrf}, "name": {"Falsch"}, "kind": {"build"}, "freq": {"daily"}, "icon": {"drop"}, "area": {c.area()},
 		"measure": {"count"}, "target": {"2"}, "step": {"5"}}
 	if resp, _ := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("step above goal: %s", resp.Status)
@@ -720,7 +736,7 @@ func TestDeleteHabit(t *testing.T) {
 	id := c.habit("Lesen", "build")
 	c.post(fmt.Sprintf("/habits/%d/check", id), false)
 	earned := c.xp()
-	if err := c.svc.Store.Q(context.Background()).SaveReward(model.Reward{Title: "Buch", Mode: model.RewardStreak, HabitID: id, StreakTarget: 3}); err != nil {
+	if err := c.q().SaveReward(model.Reward{Title: "Buch", Mode: model.RewardStreak, HabitID: id, StreakTarget: 3}); err != nil {
 		t.Fatal(err)
 	}
 	if resp, _ := c.post(fmt.Sprintf("/habits/%d/delete", id), false); resp.StatusCode != http.StatusSeeOther {
@@ -732,7 +748,7 @@ func TestDeleteHabit(t *testing.T) {
 	if c.xp() < earned {
 		t.Fatalf("earned xp lost: %d of %d", c.xp(), earned)
 	}
-	rewards, err := c.svc.Store.Q(context.Background()).Rewards()
+	rewards, err := c.q().Rewards()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -759,7 +775,7 @@ func TestDeleteAllHabits(t *testing.T) {
 	if resp, _ := c.post("/habits/delete", false); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("delete all: %s", resp.Status)
 	}
-	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	habits, err := c.q().Habits()
 	if err != nil || len(habits) != 0 {
 		t.Fatalf("left: %v %v", habits, err)
 	}
@@ -780,7 +796,7 @@ func TestResetStartsOver(t *testing.T) {
 	c.signIn()
 	id := c.habit("Lesen", "build")
 	c.post(fmt.Sprintf("/habits/%d/check", id), false)
-	q := c.svc.Store.Q(context.Background())
+	q := c.q()
 	if err := q.SaveReward(model.Reward{Title: "Kino", Mode: model.RewardCoins, Price: 10}); err != nil {
 		t.Fatal(err)
 	}

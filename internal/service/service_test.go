@@ -30,9 +30,11 @@ func setup(t *testing.T) *env {
 	e := &env{t: t, ctx: ctx, now: time.Date(2026, 10, 30, 19, 0, 0, 0, time.UTC)}
 	e.s = New(store, time.UTC)
 	e.s.Now = func() time.Time { return e.now }
-	if err := e.s.Init(ctx); err != nil {
+	id, err := e.s.CreateUser(ctx, "test", "test-password", model.RoleAdmin)
+	if err != nil {
 		t.Fatal(err)
 	}
+	e.ctx = db.WithUser(ctx, id)
 	return e
 }
 
@@ -556,25 +558,16 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if err := e.s.Seed(e.ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.q().SetSetting(KeyPasswordHash, "secret-hash"); err != nil {
-		t.Fatal(err)
-	}
 	before := e.bal()
 	dump, err := e.q().DumpAll()
 	if err != nil {
 		t.Fatal(err)
-	}
-	if _, leaked := dump.Settings[KeyPasswordHash]; leaked {
-		t.Fatal("password hash in export")
 	}
 	if err := e.s.Import(e.ctx, dump); err != nil {
 		t.Fatal(err)
 	}
 	if after := e.bal(); after != before {
 		t.Fatalf("before %+v after %+v", before, after)
-	}
-	if hash, _ := e.q().Setting(KeyPasswordHash, ""); hash != "secret-hash" {
-		t.Fatal("import must keep the password")
 	}
 	habits, _ := e.q().Habits()
 	if len(habits) != 5 {

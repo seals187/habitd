@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/seals187/habitd/internal/db"
@@ -19,20 +19,19 @@ import (
 
 // Setting keys.
 const (
-	KeyPasswordHash = "password_hash"
-	KeyAdminUser    = "admin_user"
-	KeyInstalledOn  = "installed_on"
-	KeyOnboarded    = "onboarded"
-	KeyLevel        = "level"
-	KeyLastSettled  = "last_settled"
-	KeyJokerMode    = "joker_mode"
-	KeyReminderOn   = "reminder_enabled"
-	KeyReminderTime = "reminder_time"
-	KeyReminderSent = "reminder_sent"
-	KeyHolidaysOn   = "holidays_enabled"
-	KeyHolidayExtra = "holidays_extra"
-	KeyVAPIDPublic  = "vapid_public"
-	KeyVAPIDPrivate = "vapid_private"
+	KeyLegacyUnnamed = "legacy_admin_unnamed"
+	KeyInstalledOn   = "installed_on"
+	KeyOnboarded     = "onboarded"
+	KeyLevel         = "level"
+	KeyLastSettled   = "last_settled"
+	KeyJokerMode     = "joker_mode"
+	KeyReminderOn    = "reminder_enabled"
+	KeyReminderTime  = "reminder_time"
+	KeyReminderSent  = "reminder_sent"
+	KeyHolidaysOn    = "holidays_enabled"
+	KeyHolidayExtra  = "holidays_extra"
+	KeyVAPIDPublic   = "vapid_public"
+	KeyVAPIDPrivate  = "vapid_private"
 )
 
 // Joker modes.
@@ -55,7 +54,7 @@ type Service struct {
 	Store   *db.Store
 	Loc     *time.Location
 	Now     func() time.Time
-	settled atomic.Int64
+	settled sync.Map // user id to the day settled last
 }
 
 // New creates a service using the wall clock.
@@ -65,20 +64,6 @@ func New(store *db.Store, loc *time.Location) *Service {
 
 // Today is the current local day; it changes at 00:00 local time.
 func (s *Service) Today() model.Day { return model.DayOf(s.Now(), s.Loc) }
-
-// Init records the first start.
-func (s *Service) Init(ctx context.Context) error {
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		installed, err := q.Setting(KeyInstalledOn, "")
-		if err != nil || installed != "" {
-			return err
-		}
-		if err := q.SetSetting(KeyInstalledOn, s.Today().String()); err != nil {
-			return err
-		}
-		return q.SetSetting(KeyLastSettled, (s.Today() - 1).String())
-	})
-}
 
 // World loads everything the game rules look at.
 func (s *Service) World(q *db.Q) (*game.World, error) {
@@ -545,7 +530,11 @@ func Bridgeable(w *game.World) []Bridge {
 // call on every request: the work runs once per local day.
 func (s *Service) Settle(ctx context.Context) error {
 	today := s.Today()
-	if s.settled.Load() == int64(today) {
+	uid := db.UserID(ctx)
+	if uid == 0 {
+		return nil
+	}
+	if last, ok := s.settled.Load(uid); ok && last == today {
 		return nil
 	}
 	err := s.Store.Tx(ctx, func(q *db.Q) error {
@@ -581,7 +570,7 @@ func (s *Service) Settle(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.settled.Store(int64(today))
+	s.settled.Store(uid, today)
 	return nil
 }
 

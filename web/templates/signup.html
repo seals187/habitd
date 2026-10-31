@@ -1,0 +1,13 @@
+{{define "content"}}<main class="auth">
+<div class="auth-mark">{{icon "flame" 34}}</div>
+<h1>habitd</h1>
+<p class="muted">{{.Data.Intro}}</p>
+<form method="post" hx-boost="false">
+<label class="field-label" for="username">Benutzername</label>
+<input class="input" id="username" name="username" value="{{.Data.User}}" autocomplete="username" autocapitalize="none" maxlength="40" required autofocus>
+<label class="field-label" for="password">Passwort (mindestens 8 Zeichen)</label>
+<input class="input" id="password" type="password" name="password" autocomplete="new-password" minlength="8" required>
+{{with .Data.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<button class="btn-primary" type="submit">Konto anlegen</button>
+</form>
+</main>{{end}}

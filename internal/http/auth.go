@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/seals187/habitd/internal/db"
+	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
 )
 
@@ -23,18 +24,35 @@ const (
 	sessionCookie   = "habitd_session"
 	sessionLifetime = 30 * 24 * time.Hour
 	defaultUser     = "admin"
-	minPasswordLen  = 8
 	maxLoginFails   = 5
 	loginLockout    = 15 * time.Minute
 )
 
+// dummyHash keeps a sign-in with an unknown name as slow as a wrong password.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("habitd"), bcrypt.DefaultCost)
+
 type ctxKey int
 
-const csrfKey ctxKey = 1
+const (
+	csrfKey ctxKey = 1
+	userKey ctxKey = 2
+)
 
 func csrfFrom(r *http.Request) string {
 	v, _ := r.Context().Value(csrfKey).(string)
 	return v
+}
+
+// currentUser returns the signed-in user; the zero value on public pages.
+func currentUser(r *http.Request) model.User {
+	u, _ := r.Context().Value(userKey).(model.User)
+	return u
+}
+
+func withUser(r *http.Request, u model.User, csrf string) *http.Request {
+	ctx := db.WithUser(r.Context(), u.ID)
+	ctx = context.WithValue(ctx, userKey, u)
+	return r.WithContext(context.WithValue(ctx, csrfKey, csrf))
 }
 
 func hashToken(token string) string {
@@ -51,29 +69,32 @@ func randomToken() string {
 // publicPath lists what works without a session.
 func publicPath(p string) bool {
 	switch p {
-	case "/healthz", "/login", "/setup", "/sw.js", "/manifest.webmanifest", "/offline":
+	case "/healthz", "/login", "/setup", "/signup", "/sw.js", "/manifest.webmanifest", "/offline":
 		return true
 	}
-	return strings.HasPrefix(p, "/static/")
+	return strings.HasPrefix(p, "/static/") || strings.HasPrefix(p, "/invite/")
 }
 
-func (s *Server) passwordSet(ctx context.Context) (bool, error) {
-	hash, err := s.svc.Store.Q(ctx).Setting(service.KeyPasswordHash, "")
-	return hash != "", err
+func (s *Server) hasUsers(ctx context.Context) (bool, error) {
+	n, err := s.svc.Store.Q(ctx).CountUsers()
+	return n > 0, err
 }
 
 // authenticate enforces login and CSRF tokens.
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if u, ok := s.bearerUser(r); ok {
+			next.ServeHTTP(w, withUser(r, u, ""))
+			return
+		}
+		u, csrf, ok := s.session(r)
 		if publicPath(r.URL.Path) {
+			if ok {
+				r = withUser(r, u, csrf)
+			}
 			next.ServeHTTP(w, r)
 			return
 		}
-		if s.validBearer(r) {
-			next.ServeHTTP(w, r)
-			return
-		}
-		csrf, ok := s.session(r)
 		if !ok {
 			s.rejectAnonymous(w, r)
 			return
@@ -88,23 +109,37 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 				return
 			}
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), csrfKey, csrf)))
+		next.ServeHTTP(w, withUser(r, u, csrf))
 	})
 }
 
-func (s *Server) validBearer(r *http.Request) bool {
+// bearerUser maps the API token to the first active admin: the JSON API stems
+// from the single-user time and has one token per instance.
+func (s *Server) bearerUser(r *http.Request) (model.User, bool) {
 	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	return ok && s.cfg.APIToken != "" && strings.HasPrefix(r.URL.Path, "/api/") &&
-		subtle.ConstantTimeCompare([]byte(token), []byte(s.cfg.APIToken)) == 1
+	if !ok || s.cfg.APIToken == "" || !strings.HasPrefix(r.URL.Path, "/api/") ||
+		subtle.ConstantTimeCompare([]byte(token), []byte(s.cfg.APIToken)) != 1 {
+		return model.User{}, false
+	}
+	users, err := s.svc.Store.Q(r.Context()).Users()
+	if err != nil {
+		return model.User{}, false
+	}
+	for _, u := range users {
+		if u.IsAdmin() && !u.Disabled {
+			return u, true
+		}
+	}
+	return model.User{}, false
 }
 
-func (s *Server) session(r *http.Request) (string, bool) {
+func (s *Server) session(r *http.Request) (model.User, string, bool) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
-		return "", false
+		return model.User{}, "", false
 	}
-	csrf, err := s.svc.Store.Q(r.Context()).Session(hashToken(c.Value), time.Now())
-	return csrf, err == nil
+	u, csrf, err := s.svc.Store.Q(r.Context()).Session(hashToken(c.Value), time.Now())
+	return u, csrf, err == nil
 }
 
 func (s *Server) rejectAnonymous(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +148,7 @@ func (s *Server) rejectAnonymous(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := "/login"
-	if set, err := s.passwordSet(r.Context()); err == nil && !set {
+	if exists, err := s.hasUsers(r.Context()); err == nil && !exists {
 		target = "/setup"
 	}
 	_ = redirect(w, r, target)
@@ -124,10 +159,14 @@ func (s *Server) setCookie(w http.ResponseWriter, value string, maxAge int) {
 		HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode})
 }
 
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID int64) error {
 	token := randomToken()
 	expires := time.Now().Add(sessionLifetime)
-	if err := s.svc.Store.Q(r.Context()).CreateSession(hashToken(token), randomToken(), expires); err != nil {
+	q := s.svc.Store.Q(r.Context())
+	if err := q.CreateSession(userID, hashToken(token), randomToken(), expires); err != nil {
+		return err
+	}
+	if err := q.TouchLogin(userID, time.Now()); err != nil {
 		return err
 	}
 	s.setCookie(w, token, int(sessionLifetime.Seconds()))
@@ -135,74 +174,77 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request) error {
 }
 
 type authForm struct {
-	Error string
-	User  string
+	Error  string
+	User   string
+	Intro  string
+	Signup bool
 }
 
+// credentialError turns a validation error into text for the form.
+func credentialError(err error) (string, bool) {
+	switch {
+	case errors.Is(err, service.ErrBadUsername):
+		return "Der Benutzername darf nur Buchstaben, Zahlen und . _ @ - enthalten", true
+	case errors.Is(err, service.ErrBadPassword):
+		return "Mindestens 8 Zeichen", true
+	case errors.Is(err, db.ErrUserExists):
+		return "Dieser Benutzername ist vergeben", true
+	}
+	return "", false
+}
+
+func notFound() error { return httpError{http.StatusNotFound, "Nicht gefunden"} }
+
 func (s *Server) setupForm(w http.ResponseWriter, r *http.Request) error {
-	set, err := s.passwordSet(r.Context())
+	done, err := s.hasUsers(r.Context())
 	if err != nil {
 		return err
 	}
-	if set {
-		return redirect(w, r, "/login")
+	if done {
+		return notFound()
 	}
-	user, err := s.svc.Store.Q(r.Context()).Setting(service.KeyAdminUser, defaultUser)
-	if err != nil {
-		return err
-	}
-	return s.view.Render(w, http.StatusOK, "setup", s.page(r, "Einrichten", "", authForm{User: user}))
+	return s.view.Render(w, http.StatusOK, "setup", s.page(r, "Einrichten", "", authForm{User: defaultUser}))
 }
 
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) error {
-	set, err := s.passwordSet(r.Context())
-	if err != nil {
-		return err
-	}
-	if set {
-		return httpError{http.StatusForbidden, "Passwort ist bereits gesetzt"}
+	ip := clientIP(r)
+	if s.limiter.blocked(ip) {
+		return httpError{http.StatusTooManyRequests, "Zu viele Versuche. Bitte in 15 Minuten erneut."}
 	}
 	user := strings.TrimSpace(r.FormValue("username"))
 	if user == "" {
 		user = defaultUser
 	}
-	password := r.FormValue("password")
-	if len(password) < minPasswordLen {
-		return s.view.Render(w, http.StatusUnprocessableEntity, "setup", s.page(r, "Einrichten", "", authForm{Error: "Mindestens 8 Zeichen", User: user}))
+	id, err := s.svc.SetupFirstAdmin(r.Context(), user, r.FormValue("password"))
+	if errors.Is(err, service.ErrSetupDone) {
+		s.limiter.fail(ip)
+		return notFound()
 	}
-	if err := s.svc.Store.Q(r.Context()).SetSetting(service.KeyAdminUser, user); err != nil {
+	if message, ok := credentialError(err); ok {
+		s.limiter.fail(ip)
+		return s.view.Render(w, http.StatusUnprocessableEntity, "setup", s.page(r, "Einrichten", "", authForm{Error: message, User: user}))
+	}
+	if err != nil {
 		return err
 	}
-	if err := SetPassword(r.Context(), s.svc.Store, password); err != nil {
-		return err
-	}
-	if err := s.startSession(w, r); err != nil {
+	if err := s.startSession(w, r, id); err != nil {
 		return err
 	}
 	return redirect(w, r, "/")
 }
 
-// SetPassword stores the bcrypt hash of a password.
-func SetPassword(ctx context.Context, store *db.Store, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-	return store.Q(ctx).SetSetting(service.KeyPasswordHash, string(hash))
-}
-
 func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) error {
-	set, err := s.passwordSet(r.Context())
+	exists, err := s.hasUsers(r.Context())
 	if err != nil {
 		return err
 	}
-	if !set {
+	if !exists {
 		return redirect(w, r, "/setup")
 	}
-	if _, ok := s.session(r); ok {
+	if currentUser(r).ID != 0 {
 		return redirect(w, r, "/")
 	}
-	return s.view.Render(w, http.StatusOK, "login", s.page(r, "Anmelden", "", authForm{}))
+	return s.view.Render(w, http.StatusOK, "login", s.page(r, "Anmelden", "", authForm{Signup: s.cfg.AllowSignup}))
 }
 
 func clientIP(r *http.Request) string {
@@ -215,32 +257,31 @@ func clientIP(r *http.Request) string {
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
 	ip := clientIP(r)
+	name := strings.TrimSpace(r.FormValue("username"))
 	if s.limiter.blocked(ip) {
 		w.Header().Set("Retry-After", "900")
-		return s.view.Render(w, http.StatusTooManyRequests, "login", s.page(r, "Anmelden", "", authForm{Error: "Zu viele Versuche. Bitte in 15 Minuten erneut.", User: r.FormValue("username")}))
+		return s.view.Render(w, http.StatusTooManyRequests, "login", s.page(r, "Anmelden", "", authForm{Error: "Zu viele Versuche. Bitte in 15 Minuten erneut.", User: name}))
 	}
-	q := s.svc.Store.Q(r.Context())
-	hash, err := q.Setting(service.KeyPasswordHash, "")
-	if err != nil {
-		return err
-	}
-	user, err := q.Setting(service.KeyAdminUser, defaultUser)
-	if err != nil {
+	u, err := s.svc.Store.Q(r.Context()).UserByName(name)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		return err
 	}
 	// The password is always checked, so a wrong name takes just as long.
-	name := r.FormValue("username")
-	nameOK := subtle.ConstantTimeCompare([]byte(name), []byte(user)) == 1
-	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.FormValue("password")))
-	if !nameOK || errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) || errors.Is(err, bcrypt.ErrHashTooShort) {
+	known := err == nil
+	hash := dummyHash
+	if known {
+		hash = []byte(u.PasswordHash)
+	}
+	err = bcrypt.CompareHashAndPassword(hash, []byte(r.FormValue("password")))
+	if !known || u.Disabled || errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) || errors.Is(err, bcrypt.ErrHashTooShort) {
 		s.limiter.fail(ip)
-		return s.view.Render(w, http.StatusUnauthorized, "login", s.page(r, "Anmelden", "", authForm{Error: "Benutzername oder Passwort falsch", User: name}))
+		return s.view.Render(w, http.StatusUnauthorized, "login", s.page(r, "Anmelden", "", authForm{Error: "Benutzername oder Passwort falsch", User: name, Signup: s.cfg.AllowSignup}))
 	}
 	if err != nil {
 		return err
 	}
 	s.limiter.reset(ip)
-	if err := s.startSession(w, r); err != nil {
+	if err := s.startSession(w, r, u.ID); err != nil {
 		return err
 	}
 	return redirect(w, r, "/")
@@ -257,32 +298,77 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) passwordChange(w http.ResponseWriter, r *http.Request) error {
-	q := s.svc.Store.Q(r.Context())
-	hash, err := q.Setting(service.KeyPasswordHash, "")
-	if err != nil {
-		return err
-	}
-	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.FormValue("current"))) != nil {
+	u := currentUser(r)
+	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(r.FormValue("current"))) != nil {
 		return httpError{http.StatusForbidden, "Aktuelles Passwort falsch"}
 	}
-	password := r.FormValue("password")
-	if len(password) < minPasswordLen {
-		return badRequest("Mindestens 8 Zeichen")
-	}
-	if err := SetPassword(r.Context(), s.svc.Store, password); err != nil {
+	if err := s.svc.ResetPassword(r.Context(), u.ID, r.FormValue("password")); err != nil {
+		if errors.Is(err, service.ErrBadPassword) {
+			return badRequest("Mindestens 8 Zeichen")
+		}
 		return err
 	}
-	if err := q.DeleteAllSessions(); err != nil {
-		return err
-	}
-	return s.startSessionAndGo(w, r)
-}
-
-func (s *Server) startSessionAndGo(w http.ResponseWriter, r *http.Request) error {
-	if err := s.startSession(w, r); err != nil {
+	if err := s.startSession(w, r, u.ID); err != nil {
 		return err
 	}
 	return redirect(w, r, "/settings/server")
+}
+
+func (s *Server) signupForm(w http.ResponseWriter, r *http.Request) error {
+	if !s.cfg.AllowSignup {
+		return notFound()
+	}
+	return s.view.Render(w, http.StatusOK, "signup", s.page(r, "Registrieren", "", authForm{Intro: "Leg dein Konto an."}))
+}
+
+func (s *Server) signup(w http.ResponseWriter, r *http.Request) error {
+	if !s.cfg.AllowSignup {
+		return notFound()
+	}
+	return s.register(w, r, "Leg dein Konto an.", func(user, password string) (int64, error) {
+		return s.svc.CreateUser(r.Context(), user, password, model.RoleUser)
+	})
+}
+
+func (s *Server) inviteForm(w http.ResponseWriter, r *http.Request) error {
+	if s.limiter.blocked(clientIP(r)) {
+		return httpError{http.StatusTooManyRequests, "Zu viele Versuche. Bitte in 15 Minuten erneut."}
+	}
+	if _, err := s.svc.Store.Q(r.Context()).OpenInvite(hashToken(r.PathValue("token")), s.svc.Now()); err != nil {
+		s.limiter.fail(clientIP(r))
+		return err
+	}
+	return s.view.Render(w, http.StatusOK, "signup", s.page(r, "Einladung", "", authForm{Intro: "Du wurdest eingeladen. Leg dein Konto an."}))
+}
+
+func (s *Server) inviteAccept(w http.ResponseWriter, r *http.Request) error {
+	return s.register(w, r, "Du wurdest eingeladen. Leg dein Konto an.", func(user, password string) (int64, error) {
+		return s.svc.RedeemInvite(r.Context(), hashToken(r.PathValue("token")), user, password)
+	})
+}
+
+// register runs the shared part of sign-up and invite.
+func (s *Server) register(w http.ResponseWriter, r *http.Request, intro string, create func(user, password string) (int64, error)) error {
+	ip := clientIP(r)
+	if s.limiter.blocked(ip) {
+		return httpError{http.StatusTooManyRequests, "Zu viele Versuche. Bitte in 15 Minuten erneut."}
+	}
+	user := strings.TrimSpace(r.FormValue("username"))
+	id, err := create(user, r.FormValue("password"))
+	if message, ok := credentialError(err); ok {
+		s.limiter.fail(ip)
+		return s.view.Render(w, http.StatusUnprocessableEntity, "signup", s.page(r, "Registrieren", "", authForm{Intro: intro, Error: message, User: user}))
+	}
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			s.limiter.fail(ip)
+		}
+		return err
+	}
+	if err := s.startSession(w, r, id); err != nil {
+		return err
+	}
+	return redirect(w, r, "/")
 }
 
 // loginLimiter locks an address after too many wrong passwords.

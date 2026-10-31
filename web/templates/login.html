@@ -10,4 +10,5 @@
 {{with .Data.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <button class="btn-primary" type="submit">Anmelden</button>
 </form>
+{{if .Data.Signup}}<p class="hint"><a class="green" href="/signup">Konto anlegen</a></p>{{end}}
 </main>{{end}}

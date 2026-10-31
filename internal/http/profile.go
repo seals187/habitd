@@ -105,6 +105,9 @@ func (s *Server) areaDelete(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if err := s.svc.Store.Q(r.Context()).DeleteArea(id); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return err
+		}
 		return httpError{http.StatusConflict, "Bereich enthält noch Habits"}
 	}
 	return redirect(w, r, "/settings/areas")
@@ -271,12 +274,8 @@ func (s *Server) serverInfo(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	user, err := q.Setting(service.KeyAdminUser, defaultUser)
-	if err != nil {
-		return err
-	}
 	return s.view.Render(w, http.StatusOK, "server", s.page(r, "Server", "profile", map[string]any{
-		"User":    user,
+		"User":    currentUser(r).Username,
 		"Version": s.cfg.Version, "Runtime": s.cfg.Runtime, "Go": runtime.Version(), "Zone": s.svc.Loc.String(),
 		"Holidays": on == "1", "Extra": extra, "API": s.cfg.APIToken != "",
 	}))

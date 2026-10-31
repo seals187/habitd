@@ -19,10 +19,10 @@ func (s *Service) PushKeys(ctx context.Context) (push.Keys, error) {
 	var keys push.Keys
 	err := s.Store.Tx(ctx, func(q *db.Q) error {
 		var err error
-		if keys.Public, err = q.Setting(KeyVAPIDPublic, ""); err != nil {
+		if keys.Public, err = q.GlobalSetting(KeyVAPIDPublic, ""); err != nil {
 			return err
 		}
-		if keys.Private, err = q.Setting(KeyVAPIDPrivate, ""); err != nil {
+		if keys.Private, err = q.GlobalSetting(KeyVAPIDPrivate, ""); err != nil {
 			return err
 		}
 		if keys.Public != "" && keys.Private != "" {
@@ -31,10 +31,10 @@ func (s *Service) PushKeys(ctx context.Context) (push.Keys, error) {
 		if keys, err = push.GenerateKeys(); err != nil {
 			return err
 		}
-		if err := q.SetSetting(KeyVAPIDPublic, keys.Public); err != nil {
+		if err := q.SetGlobalSetting(KeyVAPIDPublic, keys.Public); err != nil {
 			return err
 		}
-		return q.SetSetting(KeyVAPIDPrivate, keys.Private)
+		return q.SetGlobalSetting(KeyVAPIDPrivate, keys.Private)
 	})
 	return keys, err
 }
@@ -49,12 +49,28 @@ func (s *Service) RunBackground(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := s.Settle(ctx); err != nil {
-				slog.Error("settle failed", "err", err)
-			}
-			if err := s.remind(ctx, client); err != nil {
-				slog.Error("reminder failed", "err", err)
-			}
+			s.tick(ctx, client)
+		}
+	}
+}
+
+// tick does the periodic work for every active user.
+func (s *Service) tick(ctx context.Context, client *http.Client) {
+	users, err := s.Store.Q(ctx).Users()
+	if err != nil {
+		slog.Error("list users failed", "err", err)
+		return
+	}
+	for _, u := range users {
+		if u.Disabled {
+			continue
+		}
+		userCtx := db.WithUser(ctx, u.ID)
+		if err := s.Settle(userCtx); err != nil {
+			slog.Error("settle failed", "user", u.ID, "err", err)
+		}
+		if err := s.remind(userCtx, client); err != nil {
+			slog.Error("reminder failed", "user", u.ID, "err", err)
 		}
 	}
 }

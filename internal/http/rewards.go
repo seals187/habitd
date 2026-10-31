@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/seals187/habitd/internal/db"
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
@@ -215,7 +216,7 @@ func (s *Server) rewardSave(w http.ResponseWriter, r *http.Request) error {
 		message = "Bitte gib einen Titel ein"
 	case rw.Mode == model.RewardCoins && (rw.Price < 1 || rw.Price > math.MaxInt32):
 		message = "Bitte gib einen Preis ein"
-	case rw.Mode == model.RewardStreak && rw.HabitID == 0:
+	case rw.Mode == model.RewardStreak && !ownsHabit(q, rw.HabitID):
 		message = "Bitte wähle ein Habit"
 	case rw.Mode == model.RewardStreak && (rw.StreakTarget < 1 || rw.StreakTarget > 10000):
 		message = "Bitte gib eine Serienlänge ein"
@@ -227,6 +228,12 @@ func (s *Server) rewardSave(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return redirect(w, r, "/rewards")
+}
+
+// ownsHabit keeps rewards from pointing at the habit of another user.
+func ownsHabit(q *db.Q, id int64) bool {
+	_, err := q.Habit(id)
+	return err == nil
 }
 
 func (s *Server) rewardArchive(w http.ResponseWriter, r *http.Request) error {
