@@ -25,6 +25,7 @@ The screenshots are the design mockups. The UI language is German.
 - **Statistics:** week, month and year views with heatmap
 - **PWA:** installable, with offline shell and Web Push reminders
 - **JSON export and import**, plus a small JSON API
+- **Several users:** roles, invite links, private data per user and an admin area for levels and badges
 - **Private:** no external services, no tracking, all assets are embedded
 
 It ships as a 28 MB image and uses about 5 MB of RAM when idle.
@@ -34,19 +35,47 @@ It ships as a 28 MB image and uses about 5 MB of RAM when idle.
 ```sh
 git clone https://github.com/seals187/habitd.git
 cd habitd
-cp .env.example .env    # set your user, password and port
+cp .env.example .env    # set your port and, if you like, the first admin
+mkdir -p data && sudo chown -R 65532:65532 data    # Linux only
 docker compose pull
 docker compose up -d
 ```
 
 The image comes from `ghcr.io/seals187/habitd`. To build it from source instead, run `docker compose up -d --build`.
 
-Open <http://localhost:8080> (or your `HABITD_PORT`).
+Open <http://localhost:8080> (or your `HABITD_PORT`) and create the first account.
 
 To try it with demo data, seed an empty database:
 
 ```sh
 docker compose exec habitd /habitd seed
+```
+
+## First start and admin
+
+The first admin comes from one of these sources:
+
+1. **Environment.** If `HABITD_ADMIN_USER` and `HABITD_ADMIN_PASSWORD` are set and no user exists, this account is created on start and the setup page stays closed. The variables only count on the very first start. Change the password in the app afterwards.
+2. **Setup page.** Without those variables every page leads to `/setup`, and the first account created there becomes the admin. Afterwards `/setup` answers 404 for good.
+
+An older single-user installation becomes user 1 with the same login. All data stays with it, and habitd writes a copy to `/data/habitd.db.bak-<timestamp>` before it migrates.
+
+The container runs as user 65532. On Linux hosts the data folder must belong to it, otherwise habitd stops with `unable to open database file`:
+
+```sh
+chown -R 65532:65532 ./data
+```
+
+**More users:** admins create accounts or invite links (valid for 7 days, single use) under Profil → Administration → Benutzer. Open registration is off unless `HABITD_ALLOW_SIGNUP=true`. Everyone sees only their own data. Admins see figures of other users, never their habits.
+
+**Locked out?** These commands work on the database, also while the server runs:
+
+```sh
+docker compose exec habitd /habitd admin list
+docker compose exec habitd /habitd admin create <user> [--admin]
+docker compose exec habitd /habitd admin reset-password <user>    # prints a random password
+docker compose exec habitd /habitd admin promote <user>
+docker compose exec habitd /habitd admin demote <user>            # refused for the last admin
 ```
 
 ## Configuration
@@ -56,20 +85,17 @@ Set these in `.env`, Docker Compose picks them up.
 | Variable | Default | Purpose |
 |---|---|---|
 | `HABITD_PORT` | `8080` | Port the app listens on, in the container and on the host |
-| `HABITD_USER` | `admin` | Login name, applied on every start |
-| `HABITD_PASSWORD` | `changeme` in Compose | Password, used only on the very first start. Without it, habitd shows a setup page. Change it later under Profil → Server |
-| `HABITD_COOKIE_SECURE` | `true`, `false` in Compose | Set to `true` behind HTTPS |
-| `HABITD_API_TOKEN` | empty | Bearer token for `/api/v1` |
+| `HABITD_ADMIN_USER` | `admin` | Name of the first admin, first start only |
+| `HABITD_ADMIN_PASSWORD` | empty | Password of the first admin, first start only. Without it, habitd shows a setup page |
+| `HABITD_ALLOW_SIGNUP` | `false` | Open registration, new accounts get the role `user` |
+| `HABITD_INSECURE_COOKIES` | `false` | Set to `true` for plain HTTP, the session cookie then is not `Secure` |
+| `HABITD_API_TOKEN` | empty | Bearer token for `/api/v1`, it acts as the first active admin |
 | `HABITD_DB` | `/data/habitd.db` | Database path |
 | `TZ` | system | Time zone; the day changes at 00:00 local time |
+| `HABITD_PASSWORD`, `HABITD_USER` | empty | Deprecated names of the admin variables |
+| `HABITD_COOKIE_SECURE` | `true`, `false` in Compose | Deprecated, `false` works like `HABITD_INSECURE_COOKIES=true` |
 
-**Before exposing habitd:** set your own password and run it behind HTTPS with `HABITD_COOKIE_SECURE=true`. Service worker and Web Push need HTTPS or localhost. Everything else also works over plain HTTP.
-
-On Linux hosts the `./data` folder must be writable by the container user:
-
-```sh
-mkdir -p data && sudo chown 65532:65532 data
-```
+**Before exposing habitd:** run it behind HTTPS with `HABITD_COOKIE_SECURE=true` in `.env`, Compose defaults to plain HTTP. Service worker and Web Push need HTTPS or localhost. Everything else also works over plain HTTP.
 
 ## API
 

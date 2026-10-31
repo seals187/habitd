@@ -123,6 +123,25 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Neu anfangen** ist bewusst getrennt von „Alle Habits löschen“: Nur hier verschwinden Ledger,
   Abzeichen und eingelöste Belohnungen. Das Installationsdatum rückt auf heute, sonst wären
   zeitbasierte Abzeichen wie „1 Jahr dabei“ sofort wieder erreicht.
+- **Datentrennung:** Die Benutzer-ID steckt im Kontext, `db.Q` filtert jede Abfrage damit. Ohne
+  Benutzer liefert eine Abfrage nichts statt alles. Schreibzugriffe auf fremde Zeilen enden über
+  `execOne` als 404 statt als stiller Erfolg.
+- **Bereiche** sind pro Benutzer: `areas` ohne `user_id` sind die globalen Startwerte, neue
+  Benutzer bekommen eine Kopie. Sonst könnte ein Benutzer die Bereiche der anderen umbenennen.
+- **Export und Import** vergeben neue IDs und schreiben Ledger-Referenzen um, weil ein Export von
+  einem anderen Benutzer derselben Instanz stammen kann.
+- **API-Token** gibt es weiterhin nur einen pro Instanz. Er handelt als erster aktiver Admin.
+- **Startwerte der Levels** sind die bisherigen Werte, nicht die Beispielzahlen aus
+  `Admin-1-Levels.png`: Basis 21,57, Exponent 1,822, 100 Taler und 1 Joker pro Level. Andere Werte
+  hätten bestehenden Benutzern ihr Level oder ihre Belohnungen verändert.
+- **Abzeichen-Regeln:** Serien-Abzeichen beziehen sich auf „Nur Aufbauen-Habits“, nicht wie im Bild
+  auf „beliebiges Habit“, sonst zählten Vermeiden-Serien plötzlich mit. Der Bezug ersetzt auch
+  den Schalter „Nur Aufbauen-Habits“ aus dem Bild. Regeln, die der Baukasten nicht ausdrücken
+  kann (etwa Summen über mehrere Tags), bleiben `special` im Code. `hint` ist eine zusätzliche
+  Spalte für die Kurzbeschrift unter der Medaille, sie entsteht bei eigenen Abzeichen aus dem Ziel.
+- **Tempo** skaliert die Basis: gemütlich 0,7, normal 1, ehrgeizig 1,4.
+- **Einladungen** liegen nur als Hash in der Datenbank, der Link ist einmal sichtbar.
+- **Automatische Backups** entstehen vor jeder Migration einer bestehenden Datenbank.
 - **Komprimierung:** Nur CSS, JS und das Sprite werden mit gzip ausgeliefert. Seiten bleiben
   unkomprimiert, weil das CSRF-Token dort neben reflektierten Eingaben steht (BREACH).
 - **Migrationen** laufen mit deaktivierten Foreign Keys auf einer eigenen Verbindung, weil

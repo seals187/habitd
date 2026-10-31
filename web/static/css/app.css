@@ -843,11 +843,11 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
 .user-actions .admin-btn { width: 100%; justify-content: center; }
 .delete-user { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
 .invite-list { margin-top: 10px; }
-.admin-table-card, .admin-scroll { overflow: visible; }
+.admin-table-card:has(.users), .admin-scroll:has(.users) { overflow: visible; }
 @media (max-width: 860px) {
   .admin-split { grid-template-columns: minmax(0, 1fr); }
   .admin-split.even { grid-template-columns: minmax(0, 1fr); }
-  .admin-table-card, .admin-scroll { overflow-x: auto; }
+  .admin-table-card:has(.users), .admin-scroll:has(.users) { overflow-x: auto; }
   .admin-split.wide, .admin-badges, .rule-grid { grid-template-columns: minmax(0, 1fr); }
   .cat-list { flex-direction: row; overflow-x: auto; }
   .cat-list a { flex: none; }
