@@ -765,8 +765,10 @@ form:has(input[name="mode"][value="streak"]:checked) .only-coins { display: none
 .admin-table th:first-child, .admin-table td:first-child { padding-left: 16px; }
 .lvl-ring { width: 30px; height: 30px; display: grid; place-items: center; border: 2px solid var(--green); border-radius: 50%; font-size: 12.5px; font-weight: 700; }
 .lvl-reward { display: flex; align-items: center; gap: 6px; }
-.lvl-reward label:first-child { width: 96px; }
-.lvl-reward label:nth-child(2) { width: 84px; }
+.lvl-reward label:first-child { width: 92px; }
+.lvl-reward label:nth-child(2) { width: 78px; }
+.lvl-reward small { flex: 0 1 auto; }
+.admin-table input[name^="title_"] { min-width: 170px; }
 .lvl-undo { width: 30px; height: 30px; display: grid; place-items: center; color: var(--gold); }
 .lvl-more { padding: 12px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
 .curve { display: block; width: 100%; margin-top: 14px; }

@@ -43,8 +43,8 @@
 <line class="curve-axis" x1="0" y1="130" x2="300" y2="130"/>
 <polyline class="curve-compare" points="{{$d.Compare}}"/>
 <polyline class="curve-now" points="{{$d.Current}}"/>
-<text class="curve-label now" x="262" y="{{add $d.CurrentY 14}}">aktuell</text>
-<text class="curve-label compare" x="254" y="{{add $d.CompareY 14}}">{{$d.Label}}</text>
+<text class="curve-label now" x="222" y="{{add $d.CurrentY 12}}">aktuell</text>
+<text class="curve-label compare" x="256" y="{{add $d.CompareY 26}}">{{$d.Label}}</text>
 </svg>
 {{with $d.Estimate}}<p class="muted lvl-estimate">Ø Zeit bis Level 10 bei 5 Habits: <b>{{.}}</b></p>{{end}}
 </section>
