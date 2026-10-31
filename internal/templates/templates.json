@@ -66,6 +66,7 @@
   {
    "id": "8-glaser-wasser-trinken",
    "name": "8 Gläser Wasser trinken",
+   "measure": {"type":"count","target":8,"step":1,"unit":"Gläser"},
    "kind": "build",
    "area": "gesundheit",
    "icon": "drop",
@@ -79,6 +80,7 @@
   {
    "id": "10-000-schritte",
    "name": "10.000 Schritte",
+   "measure": {"type":"amount","target":10000,"step":1000,"unit":"Schritte"},
    "kind": "build",
    "area": "gesundheit",
    "icon": "run",
@@ -92,6 +94,7 @@
   {
    "id": "30-min-sport",
    "name": "30 Min. Sport",
+   "measure": {"type":"amount","target":30,"step":5,"unit":"Min."},
    "kind": "build",
    "area": "gesundheit",
    "icon": "dumb",
@@ -329,6 +332,7 @@
   {
    "id": "20-min-lesen",
    "name": "20 Min. lesen",
+   "measure": {"type":"amount","target":20,"step":5,"unit":"Min."},
    "kind": "build",
    "area": "lernen",
    "icon": "book",
@@ -643,6 +647,7 @@
   {
    "id": "10-min-aufraumen",
    "name": "10 Min. aufräumen",
+   "measure": {"type":"amount","target":10,"step":5,"unit":"Min."},
    "kind": "build",
    "area": "achtsamkeit",
    "icon": "lotus",
@@ -1184,6 +1189,7 @@
   {
    "id": "90-min-konzentriert-arbeiten",
    "name": "90 Min. konzentriert arbeiten",
+   "measure": {"type":"amount","target":90,"step":15,"unit":"Min."},
    "kind": "build",
    "area": "arbeit",
    "icon": "target",
@@ -1262,6 +1268,7 @@
   {
    "id": "30-min-weiterbildung",
    "name": "30 Min. Weiterbildung",
+   "measure": {"type":"amount","target":30,"step":5,"unit":"Min."},
    "kind": "build",
    "area": "arbeit",
    "icon": "teach",

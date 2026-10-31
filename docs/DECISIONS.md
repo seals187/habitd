@@ -104,6 +104,27 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   das Image bei jedem Tag `v*` und veröffentlicht es als `latest` und mit der Versionsnummer.
   `build: .` bleibt drin, damit `docker compose up --build` weiter aus dem Quellcode baut.
 - **Version:** Das erste Release heißt `0.0.1`, die Bilder zeigen beispielhaft „v1.0“.
+- **Seitenwechsel:** `hx-boost` auf `body` tauscht nur den Inhalt, damit nichts sichtbar neu lädt.
+  Login, Setup, Abmelden und Passwort bleiben normale Formulare, weil sich dort die Session und
+  mit ihr das CSRF-Token in `hx-headers` ändert. Export und Import brauchen ebenfalls den
+  normalen Weg.
+- **Zähler und Mengen:** Jeder Klick ist eine Zeile in `habit_entries`, „−“ löscht die letzte. Erst
+  das Tagesziel erzeugt den normalen Check-in, deshalb bleiben Serie, XP, Quest und Abzeichen
+  unverändert. Fällt die Summe unter das Ziel, wird der Check-in zurückgebucht. Teil-XP und ein
+  abschaltbares 100-%-Ziel gibt es nicht. Klicks laufen durch eine eigene Warteschlange in
+  `app.js`, weil jede Antwort die Knöpfe ersetzt und htmx ihre Warteschlange sonst verwirft.
+- **Heute-Screen:** Das Design mit Wochenstreifen ersetzt Level-Karte und Quest-Banner. Das Level
+  steht im Profil, die Tagesquest läuft unsichtbar weiter und zahlt ihre Taler. Das „−“ sitzt
+  abweichend vom Entwurf an der Ecke des „+“, sonst bleibt kein Platz für den Streifen. Teilweise
+  gefüllte vergangene Tage zählen wie im Entwurf nicht als erreicht.
+- **Habits löschen:** Der Verlauf verschwindet, das Ledger bleibt, verdiente XP und Taler also
+  auch. Serien-Belohnungen des Habits werden archiviert. `AUTOINCREMENT` verhindert, dass ein
+  neues Habit die ID und damit die Ledger-Referenzen eines gelöschten erbt.
+- **Neu anfangen** ist bewusst getrennt von „Alle Habits löschen“: Nur hier verschwinden Ledger,
+  Abzeichen und eingelöste Belohnungen. Das Installationsdatum rückt auf heute, sonst wären
+  zeitbasierte Abzeichen wie „1 Jahr dabei“ sofort wieder erreicht.
+- **Komprimierung:** Nur CSS, JS und das Sprite werden mit gzip ausgeliefert. Seiten bleiben
+  unkomprimiert, weil das CSRF-Token dort neben reflektierten Eingaben steht (BREACH).
 - **Migrationen** laufen mit deaktivierten Foreign Keys auf einer eigenen Verbindung, weil
   SQLite für eine neue CHECK-Regel die Tabelle neu aufbauen muss. Danach prüft
   `foreign_key_check` die Daten.

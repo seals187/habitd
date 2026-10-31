@@ -69,6 +69,13 @@ const (
 	Hard   = "hard"
 )
 
+// How a habit is recorded: ticked once, counted in clicks or added up as an amount.
+const (
+	MeasureCheck  = "check"
+	MeasureCount  = "count"
+	MeasureAmount = "amount"
+)
+
 // Reward modes.
 const (
 	RewardCoins  = "coins"
@@ -108,6 +115,30 @@ type Habit struct {
 	Archived     bool      `json:"archived"`
 	CreatedAt    time.Time `json:"created_at"`
 	Sort         int       `json:"sort"`
+	Measure      string    `json:"measure"`
+	Target       int       `json:"target"` // daily goal of counter and quantity habits
+	Step         int       `json:"step"`   // amount of one click
+	Unit         string    `json:"unit"`
+}
+
+// Measured reports whether the habit is filled up during the day.
+func (h Habit) Measured() bool { return h.Measure == MeasureCount || h.Measure == MeasureAmount }
+
+// Normalized fills in the plain tick-off defaults, also for older exports.
+func (h Habit) Normalized() Habit {
+	if !h.Measured() {
+		h.Measure, h.Target, h.Step, h.Unit = MeasureCheck, 1, 1, ""
+	}
+	return h
+}
+
+// Entry is one click on a counter or quantity habit.
+type Entry struct {
+	ID        int64
+	HabitID   int64
+	Date      Day
+	Amount    int
+	CreatedAt time.Time
 }
 
 // Checkin marks a build habit as done on a day. UsedJoker rows only bridge a

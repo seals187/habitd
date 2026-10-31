@@ -106,14 +106,14 @@ func (q *Q) DeleteArea(id int64) error {
 	return q.exec(`DELETE FROM areas WHERE id = ?`, id)
 }
 
-const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort`
+const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit`
 
 func scanHabit(s interface{ Scan(...any) error }) (model.Habit, error) {
 	var h model.Habit
 	var created string
 	var template sql.NullString
 	err := s.Scan(&h.ID, &template, &h.Name, &h.Kind, &h.Frequency, &h.WeeklyTarget, &h.DaysMask, &h.Icon, &h.Tag,
-		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort)
+		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort, &h.Measure, &h.Target, &h.Step, &h.Unit)
 	h.CreatedAt = parseTime(created)
 	h.TemplateID = template.String
 	return h, err
@@ -152,16 +152,19 @@ func (q *Q) Habits() ([]model.Habit, error) {
 
 // SaveHabit creates or updates a habit and returns its id.
 func (q *Q) SaveHabit(h model.Habit) (int64, error) {
+	h = h.Normalized()
 	if h.ID != 0 {
 		err := q.exec(`UPDATE habits SET template_id = ?, name = ?, kind = ?, frequency = ?, weekly_target = ?, days_mask = ?, icon = ?,
-			tag = ?, area_id = ?, difficulty = ?, archived = ? WHERE id = ?`,
-			nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), h.ID)
+			tag = ?, area_id = ?, difficulty = ?, archived = ?, measure = ?, target = ?, step = ?, unit = ? WHERE id = ?`,
+			nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived),
+			h.Measure, h.Target, h.Step, h.Unit, h.ID)
 		return h.ID, err
 	}
 	res, err := q.r.ExecContext(q.ctx, `INSERT INTO habits
-		(template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort), 0) + 1 FROM habits))`,
-		nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), formatTime(h.CreatedAt))
+		(template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, measure, target, step, unit, sort)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort), 0) + 1 FROM habits))`,
+		nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), formatTime(h.CreatedAt),
+		h.Measure, h.Target, h.Step, h.Unit)
 	if err != nil {
 		return 0, fmt.Errorf("insert habit: %w", err)
 	}
@@ -217,6 +220,74 @@ func (q *Q) Checkin(c model.Checkin) error {
 // DeleteCheckin removes a check-in.
 func (q *Q) DeleteCheckin(habitID int64, d model.Day) error {
 	return q.exec(`DELETE FROM checkins WHERE habit_id = ? AND date = ?`, habitID, d.String())
+}
+
+// DeleteHabit removes a habit with its history. The ledger stays: earned XP and
+// Taler are kept. Streak rewards of the habit could never unlock again.
+func (q *Q) DeleteHabit(id int64) error {
+	if err := q.exec(`UPDATE rewards SET archived = 1 WHERE habit_id = ? AND mode = ?`, id, model.RewardStreak); err != nil {
+		return err
+	}
+	return q.exec(`DELETE FROM habits WHERE id = ?`, id)
+}
+
+// ResetProgress removes habits and everything earned. Unlike DeleteHabit it also
+// clears the ledger. Areas, settings and coin rewards stay.
+func (q *Q) ResetProgress() error {
+	for _, stmt := range []string{
+		`DELETE FROM celebrations`, `DELETE FROM badges_unlocked`, `DELETE FROM ledger`, `DELETE FROM redemptions`,
+		`UPDATE rewards SET archived = 1 WHERE mode = '` + model.RewardStreak + `'`, `DELETE FROM habits`,
+	} {
+		if err := q.exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddEntry records one click.
+func (q *Q) AddEntry(e model.Entry) error {
+	return q.exec(`INSERT INTO habit_entries (habit_id, date, amount, created_at) VALUES (?, ?, ?, ?)`,
+		e.HabitID, e.Date.String(), e.Amount, formatTime(e.CreatedAt))
+}
+
+// DeleteLastEntry removes the newest entry of a day. It returns ErrNotFound if
+// there is none.
+func (q *Q) DeleteLastEntry(habitID int64, d model.Day) error {
+	var id int64
+	err := q.r.QueryRowContext(q.ctx, `SELECT id FROM habit_entries WHERE habit_id = ? AND date = ? ORDER BY id DESC LIMIT 1`,
+		habitID, d.String()).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("last entry: %w", err)
+	}
+	return q.exec(`DELETE FROM habit_entries WHERE id = ?`, id)
+}
+
+// DeleteDayEntries removes all entries of a day.
+func (q *Q) DeleteDayEntries(habitID int64, d model.Day) error {
+	return q.exec(`DELETE FROM habit_entries WHERE habit_id = ? AND date = ?`, habitID, d.String())
+}
+
+// DayTotals sums the entries of a day per habit.
+func (q *Q) DayTotals(d model.Day) (map[int64]int, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT habit_id, sum(amount) FROM habit_entries WHERE date = ? GROUP BY habit_id`, d.String())
+	if err != nil {
+		return nil, fmt.Errorf("day totals: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64]int{}
+	for rows.Next() {
+		var id int64
+		var total int
+		if err := rows.Scan(&id, &total); err != nil {
+			return nil, fmt.Errorf("scan day total: %w", err)
+		}
+		out[id] = total
+	}
+	return out, rows.Err()
 }
 
 // AddRelapse records a relapse.
@@ -608,6 +679,7 @@ type Export struct {
 	Areas       []model.Area        `json:"areas"`
 	Habits      []model.Habit       `json:"habits"`
 	Checkins    []ExportCheckin     `json:"checkins"`
+	Entries     []ExportEntry       `json:"entries"`
 	Relapses    []ExportRelapse     `json:"relapses"`
 	Rewards     []model.Reward      `json:"rewards"`
 	Redemptions []model.Redemption  `json:"redemptions"`
@@ -621,6 +693,14 @@ type ExportCheckin struct {
 	Date      string `json:"date"`
 	CreatedAt string `json:"created_at"`
 	UsedJoker bool   `json:"used_joker"`
+}
+
+// ExportEntry is the JSON form of a click on a counter or quantity habit.
+type ExportEntry struct {
+	HabitID   int64  `json:"habit_id"`
+	Date      string `json:"date"`
+	Amount    int    `json:"amount"`
+	CreatedAt string `json:"created_at"`
 }
 
 // ExportRelapse is the JSON form of a relapse.
@@ -676,6 +756,17 @@ func (q *Q) DumpAll() (*Export, error) {
 			return err
 		}
 		e.Checkins = append(e.Checkins, c)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = q.each(`SELECT habit_id, date, amount, created_at FROM habit_entries ORDER BY id`, func(s scanner) error {
+		var x ExportEntry
+		if err := s.Scan(&x.HabitID, &x.Date, &x.Amount, &x.CreatedAt); err != nil {
+			return err
+		}
+		e.Entries = append(e.Entries, x)
 		return nil
 	})
 	if err != nil {
@@ -740,7 +831,7 @@ func (q *Q) RestoreAll(e *Export) error {
 	}
 	for _, stmt := range []string{
 		`DELETE FROM celebrations`, `DELETE FROM badges_unlocked`, `DELETE FROM ledger`, `DELETE FROM redemptions`,
-		`DELETE FROM rewards`, `DELETE FROM relapses`, `DELETE FROM checkins`, `DELETE FROM habits`, `DELETE FROM areas`,
+		`DELETE FROM rewards`, `DELETE FROM relapses`, `DELETE FROM habit_entries`, `DELETE FROM checkins`, `DELETE FROM habits`, `DELETE FROM areas`,
 		`DELETE FROM settings WHERE key NOT IN (` + strings.Join(private, ",") + `)`,
 	} {
 		if err := q.exec(stmt); err != nil {
@@ -762,9 +853,16 @@ func (q *Q) RestoreAll(e *Export) error {
 		}
 	}
 	for _, h := range e.Habits {
-		if err := q.exec(`INSERT INTO habits (`+habitColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		h = h.Normalized()
+		if err := q.exec(`INSERT INTO habits (`+habitColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			h.ID, nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty,
-			b2i(h.Archived), formatTime(h.CreatedAt), h.Sort); err != nil {
+			b2i(h.Archived), formatTime(h.CreatedAt), h.Sort, h.Measure, h.Target, h.Step, h.Unit); err != nil {
+			return err
+		}
+	}
+	for _, x := range e.Entries {
+		if err := q.exec(`INSERT INTO habit_entries (habit_id, date, amount, created_at) VALUES (?, ?, ?, ?)`,
+			x.HabitID, x.Date, x.Amount, x.CreatedAt); err != nil {
 			return err
 		}
 	}

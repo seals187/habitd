@@ -20,4 +20,8 @@
 <a class="row" href="/onboarding">{{icon "sparkles" 22}}<span>Onboarding erneut starten</span>{{icon "chevron-right" 18}}</a>
 <a class="row" href="/settings/server">{{icon "server" 22}}<span>Server</span><em>v{{$d.Version}} · {{$d.Runtime}}</em>{{icon "chevron-right" 18}}</a>
 </nav>
+<form method="post" action="/logout" class="form-footer" hx-boost="false">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button class="link-btn" type="submit">{{icon "log-out" 18}}Abmelden</button>
+</form>
 </main>{{end}}

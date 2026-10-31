@@ -22,6 +22,14 @@ type Frequency struct {
 	Times int    `json:"times"`
 }
 
+// Measure turns a template into a counter or quantity habit.
+type Measure struct {
+	Type   string `json:"type"`
+	Target int    `json:"target"`
+	Step   int    `json:"step"`
+	Unit   string `json:"unit"`
+}
+
 // Template is a habit suggestion.
 type Template struct {
 	ID         string    `json:"id"`
@@ -33,6 +41,7 @@ type Template struct {
 	Frequency  Frequency `json:"frequency"`
 	Difficulty string    `json:"difficulty"`
 	Popular    bool      `json:"popular"`
+	Measure    *Measure  `json:"measure,omitempty"`
 
 	fold string
 }
@@ -166,6 +175,9 @@ func (t Template) Habit(areaID int64, now time.Time) model.Habit {
 		Difficulty: t.Difficulty, Frequency: model.FreqDaily, CreatedAt: now}
 	if t.Kind == model.KindBuild && t.Frequency.Type != "daily" {
 		h.Frequency, h.WeeklyTarget = t.Frequency.Type, t.Frequency.Times
+	}
+	if m := t.Measure; m != nil {
+		h.Measure, h.Target, h.Step, h.Unit = m.Type, m.Target, m.Step, m.Unit
 	}
 	return h
 }

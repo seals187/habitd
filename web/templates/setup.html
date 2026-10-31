@@ -2,7 +2,7 @@
 <div class="auth-mark">{{icon "flame" 34}}</div>
 <h1>habitd</h1>
 <p class="muted">Lege deine Zugangsdaten fest, um loszulegen.</p>
-<form method="post" action="/setup">
+<form method="post" action="/setup" hx-boost="false">
 <label class="field-label" for="username">Benutzername</label>
 <input class="input" id="username" name="username" value="{{.Data.User}}" autocomplete="username" autocapitalize="none" required>
 <label class="field-label" for="password">Passwort (mindestens 8 Zeichen)</label>

@@ -2,12 +2,16 @@
 package server
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +36,7 @@ type Server struct {
 	svc     *service.Service
 	view    *view.Renderer
 	static  fs.FS
+	gzipped map[string][]byte // compressed text assets by URL path
 	limiter *loginLimiter
 }
 
@@ -45,7 +50,45 @@ func New(cfg Config, svc *service.Service, files fs.FS) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("static assets: %w", err)
 	}
-	return &Server{cfg: cfg, svc: svc, view: renderer, static: static, limiter: newLoginLimiter()}, nil
+	gzipped, err := gzipAssets(static)
+	if err != nil {
+		return nil, fmt.Errorf("compress assets: %w", err)
+	}
+	return &Server{cfg: cfg, svc: svc, view: renderer, static: static, gzipped: gzipped, limiter: newLoginLimiter()}, nil
+}
+
+// gzipAssets compresses the text assets once at startup. Pages stay uncompressed:
+// they hold the CSRF token next to reflected input, which would allow BREACH.
+func gzipAssets(static fs.FS) (map[string][]byte, error) {
+	out := map[string][]byte{}
+	err := fs.WalkDir(static, ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		switch path.Ext(name) {
+		case ".css", ".js", ".svg":
+		default:
+			return nil
+		}
+		body, err := fs.ReadFile(static, name)
+		if err != nil {
+			return err
+		}
+		var buf bytes.Buffer
+		zw, err := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+		if err != nil {
+			return err
+		}
+		if _, err := zw.Write(body); err != nil {
+			return err
+		}
+		if err := zw.Close(); err != nil {
+			return err
+		}
+		out["/static/"+name] = buf.Bytes()
+		return nil
+	})
+	return out, err
 }
 
 // Handler returns the complete handler chain.
@@ -81,12 +124,16 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("GET /templates/suggest", s.templateSuggest)
 	handle("POST /templates/{id}/add", s.templateAdd)
 	handle("GET /habits", s.habitList)
+	handle("POST /habits/delete", s.habitDeleteAll)
 	handle("GET /habits/new", s.habitNew)
 	handle("POST /habits/new", s.habitSave)
 	handle("GET /habits/{id}", s.habitDetail)
 	handle("GET /habits/{id}/edit", s.habitEdit)
 	handle("POST /habits/{id}/edit", s.habitSave)
 	handle("POST /habits/{id}/check", s.habitCheck)
+	handle("POST /habits/{id}/add", s.habitAdd)
+	handle("POST /habits/{id}/undo", s.habitUndo)
+	handle("POST /habits/{id}/delete", s.habitDelete)
 	handle("POST /habits/{id}/relapse", s.habitRelapse)
 	handle("POST /habits/{id}/joker", s.habitJoker)
 	handle("POST /habits/{id}/archive", s.habitArchive)
@@ -121,6 +168,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /settings/holidays", s.holidaysSave)
 	handle("GET /export", s.exportData)
 	handle("POST /import", s.importData)
+	handle("POST /settings/reset", s.settingsReset)
 	handle("POST /push/subscribe", s.pushSubscribe)
 	handle("POST /push/unsubscribe", s.pushUnsubscribe)
 
@@ -193,12 +241,28 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 func (s *Server) staticFiles() http.Handler {
 	files := http.StripPrefix("/static/", http.FileServerFS(s.static))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Has("v") {
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		h := w.Header()
+		// The stylesheet cannot version the font URL, and embedded files have no
+		// validators: a short lifetime would refetch it and shift the text.
+		if r.URL.Query().Has("v") || strings.HasPrefix(r.URL.Path, "/static/fonts/") {
+			h.Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {
-			w.Header().Set("Cache-Control", "public, max-age=3600")
+			h.Set("Cache-Control", "public, max-age=3600")
 		}
-		files.ServeHTTP(w, r)
+		body, ok := s.gzipped[r.URL.Path]
+		if !ok {
+			files.ServeHTTP(w, r)
+			return
+		}
+		h.Set("Vary", "Accept-Encoding")
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			files.ServeHTTP(w, r)
+			return
+		}
+		h.Set("Content-Type", mime.TypeByExtension(path.Ext(r.URL.Path)))
+		h.Set("Content-Encoding", "gzip")
+		h.Set("Content-Length", strconv.Itoa(len(body)))
+		_, _ = w.Write(body)
 	})
 }
 
@@ -262,12 +326,17 @@ func (s *Server) requestDay(r *http.Request) (model.Day, error) {
 	return d, nil
 }
 
-func isHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
+// isHTMX reports a request for a fragment. Boosted links and forms and history
+// restores also come from HTMX, but they want the complete page.
+func isHTMX(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true" && r.Header.Get("HX-Boosted") != "true" &&
+		r.Header.Get("HX-History-Restore-Request") != "true"
+}
 
 // redirect sends the browser elsewhere, also from inside an HTMX request.
 func redirect(w http.ResponseWriter, r *http.Request, target string) error {
 	if isHTMX(r) {
-		w.Header().Set("HX-Redirect", target)
+		w.Header().Set("HX-Location", target)
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}

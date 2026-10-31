@@ -254,6 +254,13 @@ func (s *Server) importData(w http.ResponseWriter, r *http.Request) error {
 	return redirect(w, r, "/")
 }
 
+func (s *Server) settingsReset(w http.ResponseWriter, r *http.Request) error {
+	if err := s.svc.Reset(r.Context()); err != nil {
+		return err
+	}
+	return redirect(w, r, "/")
+}
+
 func (s *Server) serverInfo(w http.ResponseWriter, r *http.Request) error {
 	q := s.svc.Store.Q(r.Context())
 	on, err := q.Setting(service.KeyHolidaysOn, "1")

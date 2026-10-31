@@ -187,14 +187,16 @@ func (s *Service) Check(ctx context.Context, habitID int64, d model.Day) error {
 		}
 		var trigger *Trigger
 		if _, done := h.Done[d]; done {
-			if err := q.DeleteCheckin(h.ID, d); err != nil {
+			if err := s.removeCheckin(q, h, d); err != nil {
 				return err
 			}
-			delete(h.Done, d)
-			if err := s.reverse(q, checkinRef(h.ID, d)); err != nil {
+			if err := q.DeleteDayEntries(h.ID, d); err != nil {
 				return err
 			}
 		} else {
+			if err := s.fillDay(q, h, d); err != nil {
+				return err
+			}
 			if trigger, err = s.addCheckin(q, w, h, d); err != nil {
 				return err
 			}
@@ -204,6 +206,171 @@ func (s *Service) Check(ctx context.Context, habitID int64, d model.Day) error {
 		}
 		return s.evaluate(q, trigger, false)
 	})
+}
+
+func (s *Service) removeCheckin(q *db.Q, h *game.HabitData, d model.Day) error {
+	if err := q.DeleteCheckin(h.ID, d); err != nil {
+		return err
+	}
+	delete(h.Done, d)
+	return s.reverse(q, checkinRef(h.ID, d))
+}
+
+// fillDay tops a counter or quantity habit up to its goal, for days marked done
+// in the calendar instead of on the card.
+func (s *Service) fillDay(q *db.Q, h *game.HabitData, d model.Day) error {
+	if !h.Measured() {
+		return nil
+	}
+	totals, err := q.DayTotals(d)
+	if err != nil {
+		return err
+	}
+	if missing := h.Target - totals[h.ID]; missing > 0 {
+		return q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: missing, CreatedAt: s.atDay(d)})
+	}
+	return nil
+}
+
+// measured finds a counter or quantity habit that can take entries today.
+func (s *Service) measured(q *db.Q, habitID int64) (*game.World, *game.HabitData, error) {
+	w, err := s.World(q)
+	if err != nil {
+		return nil, nil, err
+	}
+	h := Find(w, habitID)
+	if h == nil {
+		return nil, nil, db.ErrNotFound
+	}
+	if !h.Measured() || h.Kind != model.KindBuild || h.Archived {
+		return nil, nil, ErrNotAllowed
+	}
+	return w, h, nil
+}
+
+// AddEntry books one click. The check-in with XP, streak and badges follows
+// when the click reaches the daily goal.
+func (s *Service) AddEntry(ctx context.Context, habitID int64) error {
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		w, h, err := s.measured(q, habitID)
+		if err != nil {
+			return err
+		}
+		d := w.Today
+		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: h.Step, CreatedAt: s.Now()}); err != nil {
+			return err
+		}
+		totals, err := q.DayTotals(d)
+		if err != nil {
+			return err
+		}
+		if _, done := h.Done[d]; done || totals[h.ID] < h.Target {
+			return nil
+		}
+		trigger, err := s.addCheckin(q, w, h, d)
+		if err != nil {
+			return err
+		}
+		if err := s.updateQuest(q, w); err != nil {
+			return err
+		}
+		return s.evaluate(q, trigger, false)
+	})
+}
+
+// UndoEntry takes back the last click of today. Falling below the goal also
+// takes back the check-in.
+func (s *Service) UndoEntry(ctx context.Context, habitID int64) error {
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		w, h, err := s.measured(q, habitID)
+		if err != nil {
+			return err
+		}
+		d := w.Today
+		if err := q.DeleteLastEntry(h.ID, d); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return ErrNotAllowed
+			}
+			return err
+		}
+		totals, err := q.DayTotals(d)
+		if err != nil {
+			return err
+		}
+		if _, done := h.Done[d]; !done || totals[h.ID] >= h.Target {
+			return nil
+		}
+		if err := s.removeCheckin(q, h, d); err != nil {
+			return err
+		}
+		if err := s.updateQuest(q, w); err != nil {
+			return err
+		}
+		return s.evaluate(q, nil, false)
+	})
+}
+
+// DeleteHabit removes a habit for good. Earned XP and Taler stay.
+func (s *Service) DeleteHabit(ctx context.Context, habitID int64) error {
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		if _, err := q.Habit(habitID); err != nil {
+			return err
+		}
+		if err := q.DeleteHabit(habitID); err != nil {
+			return err
+		}
+		return s.afterDelete(q)
+	})
+}
+
+// DeleteAllHabits removes every habit, archived ones included. Earned XP and
+// Taler stay.
+func (s *Service) DeleteAllHabits(ctx context.Context) error {
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		habits, err := q.Habits()
+		if err != nil {
+			return err
+		}
+		for _, h := range habits {
+			if err := q.DeleteHabit(h.ID); err != nil {
+				return err
+			}
+		}
+		return s.afterDelete(q)
+	})
+}
+
+// Reset starts over: everything earned is gone and the install date moves to
+// today, so time-based badges start from zero too. The onboarding runs again.
+func (s *Service) Reset(ctx context.Context) error {
+	today := s.Today()
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		if err := q.ResetProgress(); err != nil {
+			return err
+		}
+		for key, value := range map[string]string{
+			KeyInstalledOn: today.String(),
+			KeyLastSettled: (today - 1).String(),
+			KeyLevel:       "1",
+			KeyOnboarded:   "0",
+		} {
+			if err := q.SetSetting(key, value); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Service) afterDelete(q *db.Q) error {
+	w, err := s.World(q)
+	if err != nil {
+		return err
+	}
+	if err := s.updateQuest(q, w); err != nil {
+		return err
+	}
+	return s.evaluate(q, nil, false)
 }
 
 func (s *Service) addCheckin(q *db.Q, w *game.World, h *game.HabitData, d model.Day) (*Trigger, error) {

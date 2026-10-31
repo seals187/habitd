@@ -248,11 +248,13 @@ func (s *Server) rewardArchive(w http.ResponseWriter, r *http.Request) error {
 
 type badgeView struct {
 	game.Badge
-	Color    string
-	Unlocked bool
-	Percent  int
-	Value    int
-	Label    string
+	Color        string
+	Unlocked     bool
+	Percent      int
+	Value        int
+	Label        string
+	Rule         string
+	ShowProgress bool
 }
 
 type badgeSection struct {
@@ -312,11 +314,13 @@ func (s *Server) badges(w http.ResponseWriter, r *http.Request) error {
 			section.Total++
 			v := badgeView{Badge: b, Color: c.Color, Unlocked: open, Value: b.Value(facts), Label: b.Name}
 			v.Percent = percent(v.Value, b.Target)
+			v.Rule, v.ShowProgress = b.Rule(), b.Target > 1
 			if open {
 				section.Unlocked++
-				v.Percent = 100
+				v.Percent, v.ShowProgress = 100, false
 			} else if b.Secret {
 				v.Label, v.Percent, v.Icon, v.Hint = "???", 0, "lock", ""
+				v.Rule, v.ShowProgress = game.SecretRule, false
 			}
 			if active != "" || len(section.Badges) < overviewBadges {
 				section.Badges = append(section.Badges, v)

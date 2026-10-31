@@ -15,7 +15,7 @@
 <script src="/static/js/app.js?v={{.Version}}" defer></script>
 <script src="/static/js/alpine-csp.min.js?v={{.Version}}" defer></script>
 </head>
-<body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
+<body hx-boost="true" hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
 <div class="app{{if .Tab}} has-tabs{{end}}">
 {{template "content" .}}
 </div>
@@ -30,6 +30,11 @@
 <a href="/rewards" {{if eq .Tab "rewards"}}class="on" aria-current="page"{{end}}>{{icon "gift" 26}}<span>Gönn dir</span></a>
 <a href="/profile" {{if eq .Tab "profile"}}class="on" aria-current="page"{{end}}>{{icon "user" 26}}<span>Profil</span></a>
 </nav>{{end}}
+
+{{define "habit-delete"}}<form method="post" action="/habits/{{.ID}}/delete" class="form-footer" hx-confirm="„{{.Name}}“ endgültig löschen? Der Verlauf geht verloren, verdiente XP und Taler bleiben.">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button class="link-btn danger" type="submit" aria-label="{{.Name}} löschen">{{icon "trash-2" 18}}Endgültig löschen</button>
+</form>{{end}}
 
 {{define "back"}}<a class="round" href="{{.}}" aria-label="Zurück">{{icon "chevron-left" 22}}</a>{{end}}
 

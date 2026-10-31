@@ -16,7 +16,7 @@
 <button class="btn-primary" type="submit">Speichern</button>
 </form>
 <h2 class="section">Passwort ändern</h2>
-<form method="post" action="/settings/password">
+<form method="post" action="/settings/password" hx-boost="false">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <label class="field-label" for="current">Aktuelles Passwort</label>
 <input class="input" id="current" type="password" name="current" autocomplete="current-password" required>
@@ -24,7 +24,7 @@
 <input class="input" id="password" type="password" name="password" autocomplete="new-password" minlength="8" required>
 <button class="btn-primary" type="submit">Passwort ändern</button>
 </form>
-<form method="post" action="/logout" class="form-footer">
+<form method="post" action="/logout" class="form-footer" hx-boost="false">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <button class="link-btn" type="submit">{{icon "log-out" 18}}Abmelden</button>
 </form>

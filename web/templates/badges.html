@@ -4,9 +4,19 @@
 <nav class="filters" aria-label="Kategorien">{{range $d.Filters}}<a href="/badges{{if .Key}}?cat={{.Key}}{{end}}" {{if eq .Key $d.Active}}class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 {{range $d.Sections}}<section class="badge-section" style="--c:{{.Color}}">
 <a class="badge-title" href="/badges?cat={{.Key}}"><i class="dot big"></i><strong>{{.Name}}</strong><span>{{.Unlocked}} / {{.Total}}{{if not $d.Detail}} ›{{end}}</span></a>
-<div class="badge-grid">{{range .Badges}}<div class="badge{{if .Unlocked}} on{{end}}">
-<div class="medal"><svg viewBox="0 0 58 58" aria-hidden="true"><circle class="ring-track" cx="29" cy="29" r="27"/>{{if .Percent}}<circle class="ring-c" cx="29" cy="29" r="27" stroke-dasharray="{{dash 27.0 .Percent}}" transform="rotate(-90 29 29)"/>{{end}}</svg><span>{{icon .Icon 24}}</span></div>
+<div class="badge-grid">{{range .Badges}}<button type="button" class="badge{{if .Unlocked}} on{{end}}" popovertarget="rule-{{.Key}}" aria-label="Regel von {{.Label}} anzeigen">
+{{template "medal" .}}
 <strong>{{.Label}}</strong>{{if $d.Detail}}{{with .Hint}}<small>{{.}}</small>{{end}}{{end}}
+</button>
+<div id="rule-{{.Key}}" class="card badge-rule badge{{if .Unlocked}} on{{end}}" popover>
+{{template "medal" .}}
+<h2>{{.Label}}</h2>
+<p>{{.Rule}}</p>
+{{if .Unlocked}}<p class="badge-status">Freigeschaltet</p>{{else if .ShowProgress}}<div class="badge-progress"><span>Fortschritt</span><b>{{num .Value}} / {{num .Target}}</b></div>
+<div class="bar"><i style="width:{{.Percent}}%"></i></div>{{end}}
+<button type="button" class="pill-btn" popovertarget="rule-{{.Key}}" popovertargetaction="hide">Schließen</button>
 </div>{{end}}</div>
 </section>{{end}}
 </main>{{end}}
+
+{{define "medal"}}<div class="medal"><svg viewBox="0 0 58 58" aria-hidden="true"><circle class="ring-track" cx="29" cy="29" r="27"/>{{if .Percent}}<circle class="ring-c" cx="29" cy="29" r="27" stroke-dasharray="{{dash 27.0 .Percent}}" transform="rotate(-90 29 29)"/>{{end}}</svg><span>{{icon .Icon 24}}</span></div>{{end}}

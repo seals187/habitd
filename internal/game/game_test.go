@@ -604,3 +604,14 @@ func TestDetoxNeedsThreeCleanDigitalHabits(t *testing.T) {
 		t.Fatalf("got %d", f.DigitalClean)
 	}
 }
+
+func TestEveryBadgeHasARule(t *testing.T) {
+	for _, b := range Badges {
+		if b.Rule() == "" {
+			t.Errorf("%s has no rule", b.Key)
+		}
+	}
+	if len(badgeRules) != len(Badges) {
+		t.Errorf("%d rules for %d badges", len(badgeRules), len(Badges))
+	}
+}

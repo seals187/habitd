@@ -152,6 +152,15 @@ func Number(n int) string {
 	return b.String()
 }
 
+// IsMinutes reports a unit shown with the minute sign, like 12′.
+func IsMinutes(unit string) bool {
+	switch strings.ToLower(strings.TrimSuffix(unit, ".")) {
+	case "min", "minute", "minuten":
+		return true
+	}
+	return false
+}
+
 // dash renders stroke-dasharray for a ring of the given radius.
 func dash(radius float64, percent int) string {
 	circumference := 2 * math.Pi * radius

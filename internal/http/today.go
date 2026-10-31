@@ -2,7 +2,9 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/seals187/habitd/internal/db"
 	"github.com/seals187/habitd/internal/game"
@@ -13,13 +15,133 @@ import (
 
 // habitCard is a row on the Today screen.
 type habitCard struct {
-	ID       int64
-	Name     string
-	Area     model.Area
-	XP       int
-	Done     bool
-	Relapsed bool
-	Streak   game.Streak
+	ID          int64
+	Name        string
+	Area        model.Area
+	Done        bool
+	Relapsed    bool
+	Streak      game.Streak
+	StreakLabel string
+	Meter       *meter // set for counter and quantity habits
+	Week        []weekDay
+	Reached     int // days reached this week
+	Goal        int // days planned this week, 0 for monthly rhythms
+}
+
+// meter is the state of a counter or quantity habit on its card.
+type meter struct {
+	RingLabel string
+	AddLabel  string
+	Percent   int
+	CanUndo   bool
+}
+
+func newMeter(h model.Habit, total int, done bool) *meter {
+	value := total
+	if done { // e.g. ticked before the habit became a counter
+		value = max(value, h.Target)
+	}
+	m := &meter{AddLabel: "+" + view.Number(h.Step), RingLabel: view.Number(value), CanUndo: total > 0,
+		Percent: min(value*100/h.Target, 100)}
+	switch {
+	case view.IsMinutes(h.Unit):
+		m.AddLabel += "′"
+		m.RingLabel += "′"
+	case h.Measure == model.MeasureCount:
+		m.RingLabel += "/" + view.Number(h.Target)
+	}
+	return m
+}
+
+// weekDay is one bar of the week strip on a card.
+type weekDay struct {
+	Letter string
+	State  string // CSS class: done, part, open, missed, rest or future
+	Fill   int    // filled height in percent
+	Today  bool
+}
+
+var weekLetters = [7]string{"M", "D", "M", "D", "F", "S", "S"}
+
+// dayTotals holds the entry sums of the days of a week.
+type dayTotals map[model.Day]map[int64]int
+
+func (s *Server) weekTotals(q *db.Q, today model.Day) (dayTotals, error) {
+	out := dayTotals{}
+	for d := today.WeekStart(); d <= today; d++ {
+		totals, err := q.DayTotals(d)
+		if err != nil {
+			return nil, err
+		}
+		out[d] = totals
+	}
+	return out, nil
+}
+
+// weekStrip shows the week of today for a habit and counts the reached days.
+func weekStrip(h *game.HabitData, today model.Day, totals dayTotals) ([]weekDay, int) {
+	days := make([]weekDay, 0, len(weekLetters))
+	reached := 0
+	for i, letter := range weekLetters {
+		d := today.WeekStart() + model.Day(i)
+		day := weekDay{Letter: letter, Today: d == today, State: dayState(h, d, today, totals[d][h.ID])}
+		switch day.State {
+		case "done":
+			day.Fill = 100
+			reached++
+		case "joker":
+			day.Fill = 100
+		case "part":
+			day.Fill = min(totals[d][h.ID]*100/h.Target, 99)
+		}
+		days = append(days, day)
+	}
+	return days, reached
+}
+
+func dayState(h *game.HabitData, d, today model.Day, total int) string {
+	if _, done := h.Done[d]; done {
+		return "done"
+	}
+	switch {
+	case h.Joker[d]:
+		return "joker"
+	case d > today || d < h.Start:
+		return "future"
+	case h.Kind == model.KindAvoid:
+		if slices.Contains(h.Relapses, d) {
+			return "missed"
+		}
+		return "done"
+	case h.Measured() && total > 0:
+		return "part"
+	case d == today:
+		return "open"
+	case h.Scheduled(d):
+		return "missed"
+	}
+	return "rest"
+}
+
+// weekGoal is the number of days a habit is planned for in a week.
+func weekGoal(h *game.HabitData) int {
+	switch {
+	case h.Kind == model.KindAvoid || h.Frequency == model.FreqDaily:
+		return 7
+	case h.Frequency == model.FreqMonthly:
+		return 0
+	}
+	return h.WeekTarget()
+}
+
+func streakLabel(s game.Streak) string {
+	switch {
+	case s.Monthly:
+		return fmt.Sprintf("%d Mo", s.Current)
+	case s.Weekly:
+		return fmt.Sprintf("%d Wo", s.Current)
+	}
+	return view.Number(s.Current)
 }
 
 type bridgeOffer struct {
@@ -30,15 +152,11 @@ type bridgeOffer struct {
 }
 
 type todayData struct {
-	Date     string
-	Bal      model.Balances
-	Progress game.Progress
-	Title    string
-	Quest    game.Quest
-	QuestPay int
-	Build    []habitCard
-	Avoid    []habitCard
-	Bridges  []bridgeOffer
+	Date    string
+	Bal     model.Balances
+	Build   []habitCard
+	Avoid   []habitCard
+	Bridges []bridgeOffer
 }
 
 func areaMap(areas []model.Area) map[int64]model.Area {
@@ -59,17 +177,20 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 	if err != nil {
 		return nil, err
 	}
-	byID := areaMap(areas)
-	progress := game.ProgressFor(w.Balances.XP, w.Level)
-	d := &todayData{
-		Date: view.LongDate(w.Today), Bal: w.Balances, Progress: progress, Title: game.Title(progress.Level),
-		Quest: game.QuestFor(w.Habits, w.Today), QuestPay: game.QuestCoins,
+	totals, err := s.weekTotals(q, w.Today)
+	if err != nil {
+		return nil, err
 	}
+	byID := areaMap(areas)
+	_, kw := w.Today.Time().ISOWeek()
+	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances}
 	for _, h := range w.Habits {
 		if h.Archived || w.Today < h.Start {
 			continue
 		}
-		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], XP: game.BaseXP(h.Habit), Streak: h.StreakAt(w.Today)}
+		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], Streak: h.StreakAt(w.Today), Goal: weekGoal(h)}
+		card.StreakLabel = streakLabel(card.Streak)
+		card.Week, card.Reached = weekStrip(h, w.Today, totals)
 		if h.Kind == model.KindAvoid {
 			for _, relapse := range h.Relapses {
 				card.Relapsed = card.Relapsed || relapse == w.Today
@@ -78,6 +199,9 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 			continue
 		}
 		_, card.Done = h.Done[w.Today]
+		if h.Measured() {
+			card.Meter = newMeter(h.Habit, totals[w.Today][h.ID], card.Done)
+		}
 		if h.Frequency != model.FreqCustom || h.Scheduled(w.Today) || card.Done {
 			d.Build = append(d.Build, card)
 		}
@@ -142,6 +266,28 @@ func (s *Server) habitCheck(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if err := s.svc.Check(r.Context(), id, day); err != nil {
+		return err
+	}
+	return s.afterHabitChange(w, r, id)
+}
+
+func (s *Server) habitAdd(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	if err := s.svc.AddEntry(r.Context(), id); err != nil {
+		return err
+	}
+	return s.afterHabitChange(w, r, id)
+}
+
+func (s *Server) habitUndo(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	if err := s.svc.UndoEntry(r.Context(), id); err != nil {
 		return err
 	}
 	return s.afterHabitChange(w, r, id)

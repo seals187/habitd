@@ -1,6 +1,7 @@
 package server
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/seals187/habitd/internal/db"
+	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
 	"github.com/seals187/habitd/web"
 )
@@ -241,8 +243,8 @@ func TestCheckFlowHTMX(t *testing.T) {
 
 	// The first check-in unlocks a badge, so the celebration wins.
 	resp, _ := c.post(fmt.Sprintf("/habits/%d/check", id), true)
-	if resp.Header.Get("HX-Redirect") != "/celebrate" {
-		t.Fatalf("redirect %q", resp.Header.Get("HX-Redirect"))
+	if resp.Header.Get("HX-Location") != "/celebrate" {
+		t.Fatalf("redirect %q", resp.Header.Get("HX-Location"))
 	}
 	_, html := c.get("/celebrate")
 	if !strings.Contains(html, "freigeschaltet") {
@@ -515,6 +517,54 @@ func TestSuggestions(t *testing.T) {
 	}
 }
 
+func TestBoostedRequestsGetFullPages(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	full := map[string]string{"HX-Request": "true", "HX-Boosted": "true"}
+	restore := map[string]string{"HX-Request": "true", "HX-History-Restore-Request": "true"}
+	for _, headers := range []map[string]string{full, restore} {
+		if _, html := c.do("GET", "/templates", nil, headers); !strings.Contains(html, "<html") {
+			t.Fatalf("%v: fragment instead of page", headers)
+		}
+	}
+	if _, html := c.do("GET", "/templates", nil, map[string]string{"HX-Request": "true"}); strings.Contains(html, "<html") {
+		t.Fatal("search got a full page")
+	}
+	resp, _ := c.do("POST", "/habits/1/archive", url.Values{"csrf": {c.csrf}}, full)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("boosted form must follow a normal redirect: %s", resp.Status)
+	}
+}
+
+func TestStaticCompressionAndCaching(t *testing.T) {
+	c := newApp(t, Config{})
+	path := "/static/css/app.css?v=1"
+	resp, body := c.do("GET", path, nil, map[string]string{"Accept-Encoding": "gzip"})
+	if resp.Header.Get("Content-Encoding") != "gzip" || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/css") {
+		t.Fatalf("headers: %v", resp.Header)
+	}
+	zr, err := gzip.NewReader(strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	css, err := io.ReadAll(zr)
+	if err != nil || !strings.Contains(string(css), "--bg:") {
+		t.Fatalf("css: %v", err)
+	}
+	resp, body = c.do("GET", path, nil, map[string]string{"Accept-Encoding": "identity"})
+	if resp.Header.Get("Content-Encoding") != "" || resp.Header.Get("Vary") != "Accept-Encoding" || !strings.Contains(body, "--bg:") {
+		t.Fatalf("plain: %v", resp.Header)
+	}
+	resp, _ = c.get("/static/fonts/inter.woff2")
+	if !strings.Contains(resp.Header.Get("Cache-Control"), "immutable") {
+		t.Fatalf("font cache: %s", resp.Header.Get("Cache-Control"))
+	}
+	resp, _ = c.do("GET", "/login", nil, map[string]string{"Accept-Encoding": "gzip"})
+	if resp.Header.Get("Content-Encoding") != "" {
+		t.Fatal("pages must stay uncompressed")
+	}
+}
+
 func TestLibraryAddAndActive(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
@@ -547,5 +597,261 @@ func TestTemplateTagSurvivesForm(t *testing.T) {
 	habits, _ := c.svc.Store.Q(context.Background()).Habits()
 	if habits[0].Tag != "doomscroll" || habits[0].TemplateID != "doomscrolling" {
 		t.Fatalf("habit %+v", habits[0])
+	}
+}
+
+func TestBadgeRules(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	_, html := c.get("/badges?cat=meilensteine")
+	if !strings.Contains(html, `popovertarget="rule-zehner"`) || !strings.Contains(html, "Sammle insgesamt 10 Check-ins") || !strings.Contains(html, "0 / 10") {
+		t.Fatalf("rule missing: %s", html)
+	}
+	_, html = c.get("/badges?cat=geheim")
+	if !strings.Contains(html, "Dieses Abzeichen ist geheim") || strings.Contains(html, "14. März") {
+		t.Fatal("secret rule leaked")
+	}
+}
+
+func (c *client) meterHabit(name, measure, target, step, unit string) int64 {
+	c.t.Helper()
+	form := url.Values{"csrf": {c.csrf}, "name": {name}, "kind": {"build"}, "freq": {"daily"}, "difficulty": {"easy"}, "icon": {"drop"}, "area": {"2"},
+		"measure": {measure}, "target": {target}, "step": {step}, "unit": {unit}}
+	resp, body := c.do("POST", "/habits/new", form, nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		c.t.Fatalf("create habit: %s %s", resp.Status, body)
+	}
+	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	return habits[len(habits)-1].ID
+}
+
+func (c *client) xp() int {
+	c.t.Helper()
+	bal, err := c.svc.Store.Q(context.Background()).Balances(c.svc.Today())
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	return bal.XP
+}
+
+func TestCounterCard(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	c.habit("Lesen", "build") // takes the first-check-in badge out of the way below
+	id := c.meterHabit("Wasser", "count", "2", "1", "Gläser")
+	add := fmt.Sprintf("/habits/%d/add", id)
+	undo := fmt.Sprintf("/habits/%d/undo", id)
+
+	_, html := c.get("/")
+	if !strings.Contains(html, "0/2") || !strings.Contains(html, ">&#43;1<") || strings.Contains(html, "meter-undo") {
+		t.Fatalf("fresh card: %s", html)
+	}
+	if resp, _ := c.post(undo, true); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("undo without entry: %s", resp.Status)
+	}
+	_, html = c.post(add, true)
+	if strings.Contains(html, "<html") || !strings.Contains(html, "1/2") || !strings.Contains(html, "meter-undo") {
+		t.Fatalf("after click: %s", html)
+	}
+	if c.xp() != 0 {
+		t.Fatalf("xp before goal: %d", c.xp())
+	}
+	c.post(add, true)
+	earned := c.xp()
+	if earned == 0 {
+		t.Fatal("no xp at goal")
+	}
+	c.post(add, true) // over the goal: no second payout
+	if c.xp() != earned {
+		t.Fatalf("paid twice: %d", c.xp())
+	}
+	c.post(undo, true)
+	if c.xp() != earned {
+		t.Fatalf("still at goal: %d", c.xp())
+	}
+	c.post(undo, true)
+	if c.xp() != 0 {
+		t.Fatalf("below goal keeps xp: %d", c.xp())
+	}
+}
+
+func TestQuantityCardAndValidation(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Schritte", "amount", "10000", "1000", "Schritte")
+	_, html := c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	if !strings.Contains(html, "&#43;1.000") || !strings.Contains(html, "<b>1.000</b>") {
+		t.Fatalf("card: %s", html)
+	}
+	id = c.meterHabit("Lesen", "amount", "20", "5", "Min.")
+	_, html = c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	if !strings.Contains(html, "&#43;5′") || !strings.Contains(html, "5′") {
+		t.Fatalf("minutes: %s", html)
+	}
+	form := url.Values{"csrf": {c.csrf}, "name": {"Falsch"}, "kind": {"build"}, "freq": {"daily"}, "icon": {"drop"}, "area": {"2"},
+		"measure": {"count"}, "target": {"2"}, "step": {"5"}}
+	if resp, _ := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("step above goal: %s", resp.Status)
+	}
+}
+
+func TestCalendarFillsMeasuredDay(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "count", "8", "1", "Gläser")
+	c.post(fmt.Sprintf("/habits/%d/check", id), false)
+	_, html := c.get("/")
+	if !strings.Contains(html, "8/8") {
+		t.Fatalf("check fills the goal: %s", html)
+	}
+	c.post(fmt.Sprintf("/habits/%d/check", id), false)
+	_, html = c.get("/")
+	if !strings.Contains(html, "0/8") {
+		t.Fatalf("second check clears the day: %s", html)
+	}
+}
+
+func TestDeleteHabit(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.habit("Lesen", "build")
+	c.post(fmt.Sprintf("/habits/%d/check", id), false)
+	earned := c.xp()
+	if err := c.svc.Store.Q(context.Background()).SaveReward(model.Reward{Title: "Buch", Mode: model.RewardStreak, HabitID: id, StreakTarget: 3}); err != nil {
+		t.Fatal(err)
+	}
+	if resp, _ := c.post(fmt.Sprintf("/habits/%d/delete", id), false); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("delete: %s", resp.Status)
+	}
+	if resp, _ := c.get(fmt.Sprintf("/habits/%d", id)); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("still there: %s", resp.Status)
+	}
+	if c.xp() < earned {
+		t.Fatalf("earned xp lost: %d of %d", c.xp(), earned)
+	}
+	rewards, err := c.svc.Store.Q(context.Background()).Rewards()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rewards) != 1 || !rewards[0].Archived {
+		t.Fatalf("streak reward: %+v", rewards)
+	}
+	if next := c.habit("Neu", "build"); next == id {
+		t.Fatal("id reused, the new habit would inherit old ledger entries")
+	}
+}
+
+func TestDeleteAllHabits(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	first := c.habit("Lesen", "build")
+	c.habit("Sport", "build")
+	c.post(fmt.Sprintf("/habits/%d/check", first), false)
+	c.post(fmt.Sprintf("/habits/%d/archive", first), false)
+	earned := c.xp()
+	_, html := c.get("/habits")
+	if !strings.Contains(html, `action="/habits/delete"`) || !strings.Contains(html, "Lesen löschen") || !strings.Contains(html, "Sport löschen") {
+		t.Fatalf("delete controls: %s", html)
+	}
+	if resp, _ := c.post("/habits/delete", false); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("delete all: %s", resp.Status)
+	}
+	habits, err := c.svc.Store.Q(context.Background()).Habits()
+	if err != nil || len(habits) != 0 {
+		t.Fatalf("left: %v %v", habits, err)
+	}
+	if c.xp() < earned {
+		t.Fatalf("earned xp lost: %d of %d", c.xp(), earned)
+	}
+	if resp, _ := c.get("/"); resp.StatusCode >= http.StatusBadRequest {
+		t.Fatalf("today without habits: %s", resp.Status)
+	}
+	_, html = c.get("/habits")
+	if strings.Contains(html, `action="/habits/delete"`) {
+		t.Fatal("button shown without habits")
+	}
+}
+
+func TestResetStartsOver(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.habit("Lesen", "build")
+	c.post(fmt.Sprintf("/habits/%d/check", id), false)
+	q := c.svc.Store.Q(context.Background())
+	if err := q.SaveReward(model.Reward{Title: "Kino", Mode: model.RewardCoins, Price: 10}); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.SaveReward(model.Reward{Title: "Buch", Mode: model.RewardStreak, HabitID: id, StreakTarget: 3}); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.SetSetting(service.KeyLevel, "12"); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.SetSetting(service.KeyInstalledOn, "2020-01-01"); err != nil {
+		t.Fatal(err)
+	}
+	areas, _ := q.Areas()
+	if c.xp() == 0 {
+		t.Fatal("nothing earned before the reset")
+	}
+
+	if resp, _ := c.post("/settings/reset", false); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("reset: %s", resp.Status)
+	}
+	bal, err := q.Balances(c.svc.Today())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bal.XP != 0 || bal.Coins != 0 || bal.Jokers != 0 || bal.CoinsEarned != 0 {
+		t.Fatalf("balances: %+v", bal)
+	}
+	if habits, _ := q.Habits(); len(habits) != 0 {
+		t.Fatalf("habits left: %v", habits)
+	}
+	if unlocked, _ := q.UnlockedBadges(); len(unlocked) != 0 {
+		t.Fatalf("badges left: %v", unlocked)
+	}
+	if level, _ := q.SettingInt(service.KeyLevel, 0); level != 1 {
+		t.Fatalf("level %d", level)
+	}
+	if left, _ := q.Areas(); len(left) != len(areas) {
+		t.Fatalf("areas: %d of %d", len(left), len(areas))
+	}
+	rewards, _ := q.Rewards()
+	if len(rewards) != 2 || rewards[0].Archived == rewards[1].Archived {
+		t.Fatalf("rewards: %+v", rewards)
+	}
+	if resp, _ := c.get("/"); resp.Header.Get("Location") != "/onboarding" {
+		t.Fatalf("next: %s %q", resp.Status, resp.Header.Get("Location"))
+	}
+	if _, html := c.get("/settings/server"); !strings.Contains(html, "Abmelden") {
+		t.Fatal("still signed in expected")
+	}
+	if _, html := c.get("/profile"); !strings.Contains(html, `action="/logout"`) || !strings.Contains(html, "Level 1 ") {
+		t.Fatalf("profile: %s", html)
+	}
+}
+
+func TestWeekStrip(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "count", "4", "1", "Gläser")
+	_, html := c.get("/")
+	if !strings.Contains(html, "KW ") || !strings.Contains(html, "erreicht") || !strings.Contains(html, "wd open today") {
+		t.Fatalf("empty week: %s", html)
+	}
+	_, html = c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	if !strings.Contains(html, "wd part today") || !strings.Contains(html, "height:25%") {
+		t.Fatalf("partial day: %s", html)
+	}
+	for range 3 {
+		c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	}
+	_, html = c.get("/")
+	if !strings.Contains(html, "wd done today") || !strings.Contains(html, `Diese Woche: 1 von 7 erreicht`) {
+		t.Fatalf("reached day: %s", html)
 	}
 }

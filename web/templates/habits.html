@@ -5,6 +5,7 @@
 <a class="row-text" href="/habits/{{.ID}}/edit"><strong>{{.Name}}</strong><small>{{.Area.Name}} · {{.Frequency}}</small></a>
 <form method="post" action="/habits/{{.ID}}/move?dir=up"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} nach oben">{{icon "arrow-up" 18}}</button></form>
 <form method="post" action="/habits/{{.ID}}/move?dir=down"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} nach unten">{{icon "arrow-down" 18}}</button></form>
+<form method="post" action="/habits/{{.ID}}/delete" hx-confirm="„{{.Name}}“ endgültig löschen? Der Verlauf geht verloren, verdiente XP und Taler bleiben."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} löschen">{{icon "trash-2" 18}}</button></form>
 </div>{{else}}<p class="row muted">Noch keine Habits.</p>{{end}}</section>
 <a class="btn-primary" href="/habits/new">Neues Habit</a>
 {{if .Data.Archived}}<h2 class="section">Archiviert</h2>
@@ -12,5 +13,10 @@
 <span class="row-icon muted">{{icon .Icon 22}}</span>
 <span class="row-text"><strong>{{.Name}}</strong><small>{{.Area.Name}}</small></span>
 <form method="post" action="/habits/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} wiederherstellen">{{icon "undo-2" 18}}</button></form>
+<form method="post" action="/habits/{{.ID}}/delete" hx-confirm="„{{.Name}}“ endgültig löschen? Der Verlauf geht verloren, verdiente XP und Taler bleiben."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="mini" aria-label="{{.Name}} löschen">{{icon "trash-2" 18}}</button></form>
 </div>{{end}}</section>{{end}}
+{{if or .Data.Active .Data.Archived}}<form method="post" action="/habits/delete" class="form-footer" hx-confirm="Wirklich alle Habits endgültig löschen, auch die archivierten? Der gesamte Verlauf geht verloren, verdiente XP und Taler bleiben.">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button class="link-btn danger" type="submit">{{icon "trash-2" 18}}Alle Habits löschen</button>
+</form>{{end}}
 </main>{{end}}

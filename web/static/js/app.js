@@ -3,12 +3,40 @@ const readConfig = (el) => JSON.parse(el.dataset.config || "{}");
 
 document.addEventListener("alpine:init", () => {
   const multipliers = { easy: 10, medium: 15, hard: 25 };
+  const measureDefaults = { count: { target: "8", step: "1" }, amount: { target: "10000", step: "1000" } };
+  const stepSize = (n) => 10 ** Math.floor(Math.log10(Math.max(n, 1)));
 
   Alpine.data("habitForm", () => ({
     kind: "build",
     difficulty: "easy",
+    measure: "check",
+    target: "8",
+    step: "1",
+    edited: false,
     init() {
       Object.assign(this, readConfig(this.$el));
+      this.$watch("measure", (m) => {
+        if (!this.edited && measureDefaults[m]) Object.assign(this, measureDefaults[m]);
+      });
+    },
+    setGoal(target, step) {
+      this.edited = true;
+      this.step = String(step);
+      this.target = String(Math.max(target, step));
+    },
+    incTarget() {
+      this.setGoal(Number(this.target) + Number(this.step), Number(this.step));
+    },
+    decTarget() {
+      this.setGoal(Number(this.target) - Number(this.step), Number(this.step));
+    },
+    incStep() {
+      const step = Number(this.step);
+      this.setGoal(Number(this.target), step + stepSize(step));
+    },
+    decStep() {
+      const step = Number(this.step);
+      this.setGoal(Number(this.target), Math.max(step - stepSize(step - 1), 1));
     },
     get xp() {
       return this.kind === "avoid" ? 20 : multipliers[this.difficulty];
@@ -79,14 +107,37 @@ document.addEventListener("alpine:init", () => {
   }));
 });
 
-// Server errors of HTMX requests arrive as short plain text.
-document.addEventListener("htmx:responseError", (e) => {
+function showToast(text) {
   const toast = document.getElementById("toast");
   if (!toast) return;
-  toast.textContent = e.detail.xhr.responseText || "Das hat nicht geklappt.";
+  toast.textContent = text;
   toast.hidden = false;
   setTimeout(() => (toast.hidden = true), 3000);
+}
+
+// Server errors of HTMX requests arrive as short plain text.
+document.addEventListener("htmx:responseError", (e) => {
+  showToast(e.detail.xhr.responseText || "Das hat nicht geklappt.");
 });
+
+// Boosted links bypass the offline page of the service worker.
+document.addEventListener("htmx:sendError", () => showToast("Keine Verbindung zum Server."));
+
+// Every response replaces the buttons on the card, which would drop what htmx
+// queues on them. This queue outlives the swap, so fast clicks all count.
+let clicks = Promise.resolve();
+document.addEventListener("click", (e) => {
+  const button = e.target.closest("[data-post]");
+  if (!button) return;
+  const url = button.dataset.post;
+  clicks = clicks.then(() => htmx.ajax("POST", url, { target: "#page" })).catch(() => {});
+});
+
+// History pages come fresh from the server, htmx keeps no scroll position for them.
+const scrolls = new Map();
+history.scrollRestoration = "manual";
+document.addEventListener("htmx:beforeHistorySave", (e) => scrolls.set(e.detail.path, scrollY));
+document.addEventListener("htmx:historyRestore", (e) => scrollTo(0, scrolls.get(e.detail.path) || 0));
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -110,7 +161,8 @@ function setupPush() {
   const on = document.getElementById("push-on");
   const off = document.getElementById("push-off");
   const state = document.getElementById("push-state");
-  if (!on) return;
+  if (!on || on.dataset.ready) return;
+  on.dataset.ready = "true";
   if (!("PushManager" in window) || !navigator.serviceWorker) {
     state.textContent = "Dieser Browser oder diese Verbindung unterstützt kein Web-Push.";
     on.disabled = off.disabled = true;
@@ -142,3 +194,4 @@ function setupPush() {
 }
 
 setupPush();
+document.addEventListener("htmx:afterSettle", setupPush);

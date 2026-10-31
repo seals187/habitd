@@ -7,37 +7,33 @@
 <span class="chip blue" aria-label="{{.Bal.Jokers}} Joker">{{icon "shield" 18}}{{.Bal.Jokers}}</span>
 </div>
 </header>
-<section class="card level-card">
-<div class="ring-56"><svg viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/>{{if .Progress.Percent}}<circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Progress.Percent}}" transform="rotate(-90 28 28)"/>{{end}}</svg>
-<div class="ring-text"><small>LVL</small><b>{{.Progress.Level}}</b></div></div>
-<div class="level-info">
-<div class="level-top"><strong>{{.Title}}</strong><span>{{num .Progress.Into}} / {{num .Progress.Cost}} XP</span></div>
-<p>Noch {{num .Progress.Missing}} XP bis Level {{add .Progress.Level 1}}</p>
-<div class="bar"><i style="width:{{.Progress.Percent}}%"></i></div>
-</div>
-</section>
-{{if .Quest.Total}}<section class="quest{{if .Quest.Complete}} done{{end}}">
-{{icon "star" 20}}<p>{{if .Quest.Complete}}<b>Tagesquest</b> geschafft{{else}}<b>Tagesquest:</b> Alle {{.Quest.Total}} Habits abhaken{{end}}</p><span>+{{.QuestPay}}</span>
-</section>{{end}}
+{{if or .Build .Avoid}}<ul class="week-legend" aria-label="Legende">
+<li><i class="wd"><b style="height:100%"></b></i>erreicht</li>
+<li><i class="wd"><b style="height:45%"></b></i>Füllstand = teilweise</li>
+<li><i class="wd missed"></i>verpasst</li>
+</ul>{{end}}
 {{range .Bridges}}<section class="card bridge">
 <p><b>{{.Habit}}</b><br><span class="muted">{{.Label}} verpasst</span></p>
 <button class="pill-btn" hx-post="/habits/{{.HabitID}}/joker?date={{.Date}}" hx-target="#page">{{icon "shield" 16}}Joker einsetzen</button>
 </section>{{end}}
 {{if .Build}}<h2 class="section">Aufbauen</h2>
-{{range .Build}}<article class="card habit">
-<button class="check{{if .Done}} on{{end}}" hx-post="/habits/{{.ID}}/check" hx-target="#page" aria-pressed="{{if .Done}}true{{else}}false{{end}}" aria-label="{{.Name}} {{if .Done}}zurücksetzen{{else}}abhaken{{end}}">{{if .Done}}{{icon "check" 20}}{{end}}</button>
-<a class="habit-main" href="/habits/{{.ID}}">
-<span class="habit-text"><strong>{{.Name}}</strong><small><i class="dot" style="background:{{.Area.Color}}"></i><em style="color:{{.Area.Color}}">{{.Area.Name}}</em> · +{{.XP}} XP</small></span>
-{{if .Streak.Current}}<span class="streak">{{icon "flame" 16}}{{streak .Streak}}</span>{{end}}
-</a>
+{{range .Build}}<article class="card hcard" style="--c:{{.Area.Color}}">
+{{if .Meter}}<span class="meter-ring"><svg class="ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/>{{if .Meter.Percent}}<circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Meter.Percent}}" transform="rotate(-90 28 28)"/>{{end}}</svg><b>{{.Meter.RingLabel}}</b></span>
+{{else}}<button class="check{{if .Done}} on{{end}}" hx-post="/habits/{{.ID}}/check" hx-target="#page" aria-pressed="{{if .Done}}true{{else}}false{{end}}" aria-label="{{.Name}} {{if .Done}}zurücksetzen{{else}}abhaken{{end}}">{{if .Done}}{{icon "check" 20}}{{end}}</button>
+{{end}}{{template "hcard-main" .}}
+{{if .Meter}}<span class="meter-actions">{{if .Meter.CanUndo}}<button class="meter-undo" data-post="/habits/{{.ID}}/undo" aria-label="Letzten Eintrag zurücknehmen: {{.Name}}">{{icon "minus" 16}}</button>{{end}}<button class="meter-add" data-post="/habits/{{.ID}}/add" aria-label="{{.Meter.AddLabel}} bei {{.Name}}">{{.Meter.AddLabel}}</button></span>
+{{else if .Streak.Current}}<span class="streak">{{icon "flame" 16}}{{.StreakLabel}}</span>{{end}}
 </article>{{end}}{{end}}
 {{if .Avoid}}<h2 class="section">Vermeiden</h2>
-{{range .Avoid}}<article class="card habit">
-<button class="check avoid{{if .Relapsed}} relapsed{{end}}" hx-post="/habits/{{.ID}}/relapse" hx-target="#page" {{if not .Relapsed}}hx-confirm="Rückfall bei „{{.Name}}“ melden? Die Serie startet neu, XP bleiben erhalten."{{end}} aria-pressed="{{if .Relapsed}}true{{else}}false{{end}}" aria-label="{{if .Relapsed}}Rückfall zurücknehmen{{else}}Rückfall melden{{end}}: {{.Name}}">{{icon "ban" 20}}</button>
-<a class="habit-main" href="/habits/{{.ID}}">
-<span class="habit-text"><strong>{{.Name}}</strong><small><i class="dot" style="background:{{.Area.Color}}"></i><em style="color:{{.Area.Color}}">{{.Area.Name}}</em> · +{{.XP}} XP pro Tag</small></span>
-<span class="clean">{{if .Relapsed}}Rückfall{{else}}{{streak .Streak}}{{end}}</span>
-</a>
+{{range .Avoid}}<article class="card hcard" style="--c:{{.Area.Color}}">
+<button class="check{{if .Relapsed}} relapsed{{else}} on{{end}}" hx-post="/habits/{{.ID}}/relapse" hx-target="#page" {{if not .Relapsed}}hx-confirm="Rückfall bei „{{.Name}}“ melden? Die Serie startet neu, XP bleiben erhalten."{{end}} aria-pressed="{{if .Relapsed}}true{{else}}false{{end}}" aria-label="{{if .Relapsed}}Rückfall zurücknehmen{{else}}Rückfall melden{{end}}: {{.Name}}">{{if .Relapsed}}{{icon "ban" 20}}{{else}}{{icon "check" 20}}{{end}}</button>
+{{template "hcard-main" .}}
+{{if .Relapsed}}<span class="streak relapse">Rückfall</span>{{else if .Streak.Current}}<span class="streak">{{icon "flame" 16}}{{.StreakLabel}}</span>{{end}}
 </article>{{end}}{{end}}
 {{if not (or .Build .Avoid)}}<section class="empty"><p class="muted">Noch keine Habits. Leg dein erstes an!</p></section>{{end}}
 <a class="add-link" href="/habits/new">{{icon "plus" 18}}Neues Habit</a>{{end}}{{end}}
+
+{{define "hcard-main"}}<a class="hcard-main" href="/habits/{{.ID}}">
+<strong>{{.Name}}</strong>
+<span class="week" aria-label="Diese Woche: {{.Reached}}{{if .Goal}} von {{.Goal}}{{end}} erreicht">{{range .Week}}<span class="week-day"><i class="wd {{.State}}{{if .Today}} today{{end}}">{{if .Fill}}<b style="height:{{.Fill}}%"></b>{{end}}</i><small>{{.Letter}}</small></span>{{end}}<span class="week-count"><b>{{.Reached}}</b>{{if .Goal}}/{{.Goal}}{{end}}</span></span>
+</a>{{end}}

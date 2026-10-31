@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/seals187/habitd/internal/db"
 	"github.com/seals187/habitd/internal/game"
@@ -18,6 +19,9 @@ import (
 )
 
 const heatmapWeeks = 53
+
+// maxGoal limits the daily goal of counter and quantity habits.
+const maxGoal = 1_000_000
 
 // dayCell is one day in the week or month view.
 type dayCell struct {
@@ -436,12 +440,21 @@ func (s *Server) habitForm(w http.ResponseWriter, r *http.Request, h model.Habit
 	if err != nil {
 		return err
 	}
+	measured := h.Measured()
+	if h.Measure == "" {
+		h = h.Normalized()
+	}
 	d := habitFormData{Habit: h, New: h.ID == 0, Areas: areas, Icons: habitIcons, Error: message, Freqs: freqOptions(h), Popular: popularRows(areas), Total: len(templates.All())}
 	d.Expanded = !d.New || status != http.StatusOK || h.Name != ""
 	for i, l := range []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"} {
 		d.Days = append(d.Days, dayOption{Bit: i, Label: l, Checked: h.DaysMask&(1<<i) != 0})
 	}
-	config, err := json.Marshal(map[string]string{"kind": h.Kind, "difficulty": h.Difficulty})
+	target, step := "8", "1"
+	if measured {
+		target, step = strconv.Itoa(h.Target), strconv.Itoa(h.Step)
+	}
+	config, err := json.Marshal(map[string]any{"kind": h.Kind, "difficulty": h.Difficulty, "measure": h.Measure,
+		"target": target, "step": step, "edited": measured})
 	if err != nil {
 		return err
 	}
@@ -522,6 +535,13 @@ func parseHabitForm(r *http.Request, h *model.Habit) string {
 	if h.Difficulty != model.Medium && h.Difficulty != model.Hard {
 		h.Difficulty = model.Easy
 	}
+	h.Measure, h.Unit = r.FormValue("measure"), strings.TrimSpace(r.FormValue("unit"))
+	if h.Kind == model.KindAvoid {
+		h.Measure = model.MeasureCheck
+	}
+	h.Target, _ = strconv.Atoi(r.FormValue("target"))
+	h.Step, _ = strconv.Atoi(r.FormValue("step"))
+	*h = h.Normalized()
 	tag, ok := tagForIcon(h.Icon)
 	if !ok {
 		h.Icon = habitIcons[0].Name
@@ -543,6 +563,12 @@ func parseHabitForm(r *http.Request, h *model.Habit) string {
 		return "Der Name ist zu lang"
 	case h.Frequency == model.FreqCustom && h.DaysMask == 0:
 		return "Bitte wähle mindestens einen Wochentag"
+	case h.Target < 1 || h.Target > maxGoal:
+		return "Das Tagesziel muss zwischen 1 und 1.000.000 liegen"
+	case h.Step < 1 || h.Step > h.Target:
+		return "Pro Klick muss zwischen 1 und dem Tagesziel liegen"
+	case utf8.RuneCountInString(h.Unit) > 16:
+		return "Die Einheit ist zu lang"
 	}
 	return ""
 }
@@ -633,6 +659,24 @@ func (s *Server) setArchived(w http.ResponseWriter, r *http.Request, archived bo
 		return err
 	}
 	if err := s.svc.HabitSaved(r.Context()); err != nil {
+		return err
+	}
+	return redirect(w, r, "/habits")
+}
+
+func (s *Server) habitDelete(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	if err := s.svc.DeleteHabit(r.Context(), id); err != nil {
+		return err
+	}
+	return redirect(w, r, "/habits")
+}
+
+func (s *Server) habitDeleteAll(w http.ResponseWriter, r *http.Request) error {
+	if err := s.svc.DeleteAllHabits(r.Context()); err != nil {
 		return err
 	}
 	return redirect(w, r, "/habits")
