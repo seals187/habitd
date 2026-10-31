@@ -26,6 +26,7 @@ const (
 	KeyLevel         = "level"
 	KeyLastSettled   = "last_settled"
 	KeyJokerMode     = "joker_mode"
+	KeyFigure        = "figure"
 	KeyReminderOn    = "reminder_enabled"
 	KeyReminderTime  = "reminder_time"
 	KeyReminderSent  = "reminder_sent"

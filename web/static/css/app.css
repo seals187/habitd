@@ -918,6 +918,21 @@ main:has(.row-menu[open]) { padding-bottom: 250px; }
 .level-top { display: flex; align-items: center; gap: 12px; }
 .level-tile { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: var(--sky); color: #1a1b2e; font-size: 17px; font-weight: 800; }
 .level-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.level-top:has(.level-figure) { gap: 8px; }
+.level-figure { flex: none; display: block; width: 46px; height: 46px; margin: -6px 0; }
+.level-figure img { display: block; width: 100%; height: 100%; }
+.figure-stages { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-top: 12px; padding: 10px 8px; }
+.figure-stages div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.figure-stages img { width: 100%; max-width: 36px; height: auto; }
+.figure-stages small { color: var(--muted); font-size: 10px; }
+.figure-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.figure-pick { position: relative; cursor: pointer; }
+.figure-pick input { position: absolute; inset: 0; opacity: 0; }
+.figure-pick span { min-height: 86px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 2px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.figure-pick small { color: var(--muted); font-size: 11px; line-height: 1.15; text-align: center; }
+.figure-pick input:checked + span { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--surface)); }
+.figure-pick input:checked + span small { color: var(--text); }
+.figure-pick input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 2px; }
 .level-text strong { font-size: 15.5px; font-weight: 700; }
 .level-text small, .level-today small { color: var(--muted); }
 .level-today { flex: none; display: flex; flex-direction: column; align-items: flex-end; }

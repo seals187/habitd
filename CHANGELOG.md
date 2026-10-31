@@ -11,6 +11,16 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.0.8] - 2026-10-31
+
+### Added
+
+- **Figures:** a figure on the level card grows with the day in 8 stages, from nothing done to everything done, and starts over the next day. Every click on a counter or amount counts. Choose one of 16 figures under Profile → Figur, or turn it off. The choice is per user.
+
+### Changed
+
+- With a figure on the card, the level line reads `560 XP bis Level 13` so it stays on one line.
+
 ## [0.0.7] - 2026-10-31
 
 ### Added
@@ -133,6 +143,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.0.8]: https://github.com/seals187/habitd/releases/tag/v0.0.8
 [0.0.7]: https://github.com/seals187/habitd/releases/tag/v0.0.7
 [0.0.6]: https://github.com/seals187/habitd/releases/tag/v0.0.6
 [0.0.5]: https://github.com/seals187/habitd/releases/tag/v0.0.5

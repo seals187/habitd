@@ -8,7 +8,8 @@
 </div>
 </header>
 <section class="card level-card">
-<div class="level-top"><span class="level-tile">{{.Level.Level}}</span><div class="level-text"><strong>{{.Title}}</strong><small>noch {{num .Level.Missing}} XP bis Level {{add .Level.Level 1}}</small></div>
+<div class="level-top"><span class="level-tile">{{.Level.Level}}</span><div class="level-text"><strong>{{.Title}}</strong><small>{{if not .Stage}}noch {{end}}{{num .Level.Missing}} XP bis Level {{add .Level.Level 1}}</small></div>
+{{if .Stage}}<a class="level-figure" href="/settings/figure"><img src="{{figure .Figure.Key .Stage}}" width="46" height="46" alt="{{.Figure.Name}}, Stufe {{.Stage}} von 8"></a>{{end}}
 <div class="level-today"><b>+{{num .Bal.XPToday}} XP</b><small>heute</small></div></div>
 <div class="level-bar" aria-hidden="true">{{range .Segments}}<i{{if .}} class="on"{{end}}></i>{{end}}</div>
 {{range .Quests}}<a class="quest-row{{if .State.Complete}} done{{end}}" href="/quest" style="--c:{{.Color}}">{{icon .Icon 18}}<p><b>Tagesquest</b> · {{if .State.Complete}}geschafft{{else}}{{.Label}}{{end}}</p><span class="quest-dots" aria-label="{{.State.Done}} von {{.State.Total}}">{{range .Dots}}<i{{if .}} class="on"{{end}}></i>{{end}}</span><em>{{.Reward}}</em></a>

@@ -1,0 +1,13 @@
+{{define "content"}}{{$d := .Data}}<main class="page">
+{{template "subhead" (dict "Back" "/profile" "Title" .Title)}}
+<p class="muted quest-choice-intro">Deine Figur steht auf der Level-Karte und wächst jeden Tag mit deinen Zielen. Am Morgen beginnt sie wieder bei Stufe 1, Stufe {{$d.Last}} heißt: alles erledigt.</p>
+{{if $d.On}}<section class="card figure-stages" aria-label="Stufen von {{$d.Figure.Name}}">{{range $d.Stages}}<div><img src="{{figure $d.Figure.Key .}}" width="36" height="36" alt=""><small>{{.}}</small></div>{{end}}</section>{{end}}
+<form method="post" action="/settings/figure">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+{{range $d.Groups}}<h2 class="section">{{.Name}}</h2>
+<div class="figure-grid">{{range .Figures}}<label class="figure-pick"><input type="radio" name="figure" value="{{.Key}}" {{if and $d.On (eq .Key $d.Figure.Key)}}checked{{end}} data-submit><span><img src="{{figure .Key $d.Last}}" width="44" height="44" alt=""><small>{{.Name}}</small></span></label>{{end}}</div>
+{{end}}
+<h2 class="section">Ohne Figur</h2>
+<div class="figure-grid"><label class="figure-pick"><input type="radio" name="figure" value="{{$d.None}}" {{if not $d.On}}checked{{end}} data-submit><span><small>Keine</small></span></label></div>
+</form>
+</main>{{end}}

@@ -788,6 +788,57 @@ func TestHabitZoom(t *testing.T) {
 	}
 }
 
+func TestFigureGrowsWithTheDay(t *testing.T) {
+	for percent, want := range map[int]int{0: 1, 13: 1, 15: 2, 50: 4, 86: 7, 99: 7, 100: 8, 140: 8} {
+		if got := figureStage(percent); got != want {
+			t.Fatalf("%d %%: stage %d, want %d", percent, got, want)
+		}
+	}
+	c := newApp(t, Config{})
+	c.signIn()
+	done := c.meterHabit("Lesen", "count", "2", "1", "Seiten")
+	c.meterHabit("Wasser", "count", "2", "1", "Gläser")
+	if _, html := c.get("/"); !strings.Contains(html, `/static/figures/pflanze-1.svg`) || !strings.Contains(html, "Pflanze, Stufe 1 von 8") {
+		t.Fatalf("start of the day: %s", html)
+	}
+	c.post(fmt.Sprintf("/habits/%d/add", done), true)
+	if _, html := c.get("/"); !strings.Contains(html, `/static/figures/pflanze-2.svg`) {
+		t.Fatalf("a click counts: %s", html)
+	}
+	save := func(key string) *http.Response {
+		resp, _ := c.do("POST", "/settings/figure", url.Values{"csrf": {c.csrf}, "figure": {key}}, nil)
+		return resp
+	}
+	if _, html := c.get("/settings/figure"); !strings.Contains(html, "Roboter-Bau") || !strings.Contains(html, "figures/platine-8.svg") {
+		t.Fatalf("choice: %s", html)
+	}
+	if resp := save("roboter"); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("save: %s", resp.Status)
+	}
+	if _, html := c.get("/"); !strings.Contains(html, "figures/roboter-2.svg") {
+		t.Fatalf("chosen figure: %s", html)
+	}
+	if resp := save("drache"); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unknown figure: %s", resp.Status)
+	}
+	save(noFigure)
+	if _, html := c.get("/"); strings.Contains(html, "level-figure") {
+		t.Fatalf("figure is off: %s", html)
+	}
+	if _, html := c.get("/settings/figure"); !strings.Contains(html, `value="keine" checked`) {
+		t.Fatalf("off in the choice: %s", html)
+	}
+	for _, group := range figureGroups {
+		for _, fig := range group.Figures {
+			for stage := 1; stage <= figureStages; stage++ {
+				if resp, _ := c.get(fmt.Sprintf("/static/figures/%s-%d.svg", fig.Key, stage)); resp.StatusCode != http.StatusOK {
+					t.Fatalf("%s %d: %s", fig.Key, stage, resp.Status)
+				}
+			}
+		}
+	}
+}
+
 func TestGoalBars(t *testing.T) {
 	today := model.DayOf(time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC), time.UTC)
 	count := func(bars []string, class string) int {

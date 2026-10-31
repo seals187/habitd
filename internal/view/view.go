@@ -53,7 +53,10 @@ func New(files fs.FS) (*Renderer, error) {
 		return nil, err
 	}
 	funcs := template.FuncMap{
-		"icon":       func(name string, size int) template.HTML { return iconHTML(version, name, size) },
+		"icon": func(name string, size int) template.HTML { return iconHTML(version, name, size) },
+		"figure": func(key string, stage int) string {
+			return fmt.Sprintf("/static/figures/%s-%d.svg?v=%s", key, stage, version)
+		},
 		"num":        Number,
 		"add":        func(a, b int) int { return a + b },
 		"sub":        func(a, b int) int { return a - b },

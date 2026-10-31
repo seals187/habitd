@@ -269,6 +269,8 @@ type todayData struct {
 	Treats   []todayReward
 	Undo     *undoToast
 	Zoom     int // size of the habit cards in percent
+	Figure   figure
+	Stage    int // stage of the figure, 0 hides it
 }
 
 func allFolded(cards []habitCard) bool {
@@ -436,6 +438,13 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 			continue
 		}
 		d.Build = append(d.Build, card)
+	}
+	fig, on, err := userFigure(q)
+	if err != nil {
+		return nil, err
+	}
+	if on {
+		d.Figure, d.Stage = fig, figureStage(dayProgress(d.Build, d.Reached))
 	}
 	if err := s.fillToday(q, d, w); err != nil {
 		return nil, err

@@ -178,6 +178,9 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   Die Wahl gilt ab sofort auch für die Quest des Tages, vergangene Tage bleiben, wie sie sind.
 - **Habit-Größe:** liegt pro Gerät in einem Cookie statt im Konto, weil ein Handy andere Größen
   braucht als ein Desktop. Der Server liest das Cookie, so springt die Seite beim Laden nicht.
+- **Figuren:** Die 16 Figuren mit je 8 Stufen sind nachgezeichnete SVG aus `tools/genfigures`, weil
+  die Vorlage nur ein PNG ist. Die Stufe folgt dem mittleren Füllstand der Ziele von heute, jeder
+  Klick zählt also. Vermeiden und „Heute frei“ zählen nicht mit, gewählt wird pro Nutzer.
 - **Gruppen auf „Heute“:** Offen und Erreicht ersetzen die Überschrift „Aufbauen“. Vermeiden bleibt
   eine eigene Gruppe, weil diese Habits erst nach Tagesende als geschafft gelten.
 - **Mehr als das Ziel** zeigt die Karte in Gold: eine zweite Runde im Kreis, weitere Balken und der

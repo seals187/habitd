@@ -177,6 +177,8 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /settings/reminders", s.remindersSave)
 	handle("GET /settings/joker", s.jokerRules)
 	handle("POST /settings/joker", s.jokerRulesSave)
+	handle("GET /settings/figure", s.figures)
+	handle("POST /settings/figure", s.figureSave)
 	handle("GET /settings/quests", s.questHabits)
 	handle("POST /settings/quests/{quest}/habits/{id}", s.questHabitSave)
 	handle("GET /settings/backup", s.backup)
