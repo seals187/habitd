@@ -174,7 +174,7 @@ func (s *Service) seedRewards(q *db.Q, readingID int64) error {
 		{"Serien-Folge schauen", "eye", 50, 6},
 		{"Lieblingskaffee", "cup", 80, 6},
 		{"Essen bestellen", "meal", 200, 3},
-		{"Ausschlafen am Samstag", "moon", 150, 2},
+		{"Ausschlafen am Sa", "moon", 150, 2},
 		{"Neues Videospiel", "trophy", 900, 0},
 	}
 	today := s.Today()

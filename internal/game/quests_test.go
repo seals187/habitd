@@ -36,6 +36,13 @@ func TestQuestUntilCountsOnlyEarlyCheckins(t *testing.T) {
 	}
 }
 
+func TestQuestLabelShortensDays(t *testing.T) {
+	q := QuestDef{Text: "Alle Habits am Samstag und Sonntag, nicht die Montagsrunde"}
+	if got := q.Label(); got != "Alle Habits am Sa und So, nicht die Montagsrunde" {
+		t.Fatalf("label: %s", got)
+	}
+}
+
 func TestQuestLeavesOutSkippedHabits(t *testing.T) {
 	d := day("2026-10-31")
 	a, b := questHabit("A", model.KindBuild, d-5), questHabit("B", model.KindBuild, d-5)

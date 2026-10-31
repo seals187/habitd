@@ -171,11 +171,17 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   Ein erreichtes Wochen- oder Monatsziel klappt die Karte bis zum Ende des Zeitraums ein.
 - **Erreichte Karten** lassen sich aufklappen. Das gilt nur für den laufenden Tag, am nächsten Tag
   klappt eine weiterhin erreichte Karte wieder ein, damit „Heute“ übersichtlich bleibt.
+- **Ein- und Aufklappen** liegt pro Gerät in Cookies statt in der Datenbank. Der Klick ändert nur
+  die Karte im Browser und braucht keinen Server, gerendert wird wieder aus den Cookies.
 - **Quest-Habits:** Der Quest-Pool gehört der Instanz und wird im Admin-Bereich angepasst, Habits
   gehören den Nutzern. Darum wählt jeder selbst, welche Habits für die „Alle Habits“-Quests zählen.
   Die Wahl gilt ab sofort auch für die Quest des Tages, vergangene Tage bleiben, wie sie sind.
 - **Habit-Größe:** liegt pro Gerät in einem Cookie statt im Konto, weil ein Handy andere Größen
   braucht als ein Desktop. Der Server liest das Cookie, so springt die Seite beim Laden nicht.
+- **Gruppen auf „Heute“:** Offen und Erreicht ersetzen die Überschrift „Aufbauen“. Vermeiden bleibt
+  eine eigene Gruppe, weil diese Habits erst nach Tagesende als geschafft gelten.
+- **Mehr als das Ziel** zeigt die Karte in Gold: eine zweite Runde im Kreis, weitere Balken und der
+  Wert neben der Woche. Das ist nur Anzeige aus den Einträgen, XP und Taler gibt es weiter einmal.
 - **Vorlagen** öffnen immer zuerst das Formular. Nur das Onboarding legt mehrere direkt an.
 - **Wochenziel:** Zähler und Mengen können pro Woche gelten. Das Habit läuft dann als „1× pro
   Woche“, das Ziel sammelt sich über die Einträge der Woche, und der Check-in entsteht an dem Tag,

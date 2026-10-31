@@ -112,10 +112,7 @@ type detailData struct {
 	Rewards []linkedReward
 }
 
-var (
-	dayLetters = []string{"M", "D", "M", "D", "F", "S", "S"}
-	dayNames   = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
-)
+var dayNames = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 
 // streakMilestones are the marks the ring around the streak runs towards.
 var streakMilestones = []int{7, 30, 60, 100, 180, 365, 500, 1000}
@@ -154,7 +151,7 @@ func rangeLabel(from, to model.Day) string {
 
 // cellFor derives the display state of one day.
 func cellFor(h *game.HabitData, d, today model.Day, totals map[model.Day]float64) dayCell {
-	c := dayCell{Label: d.Dom(), Letter: dayLetters[d.WeekdayIndex()], Date: d.String(), Today: d == today}
+	c := dayCell{Label: d.Dom(), Letter: dayNames[d.WeekdayIndex()], Date: d.String(), Today: d == today}
 	c.Editable = d <= today && d >= today-game.BackfillDays && !h.Archived
 	switch {
 	case h.Kind == model.KindAvoid:

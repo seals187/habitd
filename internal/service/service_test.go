@@ -220,6 +220,27 @@ func TestStreakJokerOnceAndCapped(t *testing.T) {
 	}
 }
 
+func TestUndoReachesBackInAWeeklyGoal(t *testing.T) {
+	e := setup(t)
+	today := e.s.Today()
+	if today.WeekdayIndex() == 0 {
+		t.Skip("needs an earlier day in the same week")
+	}
+	id := e.habit(model.Habit{Name: "Idee", Frequency: model.FreqWeekly, WeeklyTarget: 1, Measure: model.MeasureCount, Target: 2, Step: 1, GoalWeek: true}, 0)
+	if err := e.q().AddEntry(model.Entry{HabitID: id, Date: today - 1, Amount: 1, CreatedAt: e.s.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.UndoEntry(e.ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if totals, _ := e.q().DayTotals(today - 1); totals[id] != 0 {
+		t.Fatalf("yesterday keeps its click: %v", totals)
+	}
+	if err := e.s.UndoEntry(e.ctx, id); err == nil {
+		t.Fatal("nothing left to take back")
+	}
+}
+
 func TestQuestSkipSettlesToday(t *testing.T) {
 	e := setup(t)
 	a := e.habit(model.Habit{Name: "A"}, 0)

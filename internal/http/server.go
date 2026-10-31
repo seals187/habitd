@@ -148,8 +148,6 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /habits/{id}/archive", s.habitArchive)
 	handle("POST /habits/{id}/restore", s.habitRestore)
 	handle("POST /habits/{id}/move", s.habitMove)
-	handle("POST /habits/{id}/fold", s.habitFold)
-	handle("POST /habits/{id}/open", s.habitOpen)
 
 	handle("GET /badges", s.badges)
 

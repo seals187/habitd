@@ -23,7 +23,7 @@
 <section class="card admin-card plan-rules">
 <h2 class="admin-title">Wiederkehrende Regeln</h2>
 <form method="post" action="/admin/quests/rules"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="week" value="{{$d.Week}}">
-<label class="toggle plain row-toggle"><input type="checkbox" name="weekend_rule" {{if $d.Config.WeekendRule}}checked{{end}} data-submit><i></i><span>Jeden Samstag und Sonntag: Wochenend-Held</span><em>wöchentlich</em></label>
+<label class="toggle plain row-toggle"><input type="checkbox" name="weekend_rule" {{if $d.Config.WeekendRule}}checked{{end}} data-submit><i></i><span>Jeden Sa und So: Wochenend-Held</span><em>wöchentlich</em></label>
 <label class="toggle plain row-toggle"><input type="checkbox" name="first_rule" {{if $d.Config.FirstRule}}checked{{end}} data-submit><i></i><span>Am Monatsersten: Doppelte Quest-Belohnung</span><em>monatlich</em></label>
 </form>
 </section>

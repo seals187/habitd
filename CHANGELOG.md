@@ -11,6 +11,23 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.0.7] - 2026-10-31
+
+### Added
+
+- **Groups on Today:** habits are split into Offen and Erreicht, each with its count and a button to fold or open all of them. Vermeiden has the same head.
+- **Goal bars:** every card shows one bar per unit of its goal in the colour of its area, such as six bars for 3 l in steps of 0,5. Weekly and monthly rhythms get one bar per check-in.
+- **Beyond the goal:** more than the goal shows in gold. The ring runs on in a gold lap around a dark centre, gold bars follow a white mark, and the value such as `3,5/3 l` or `40/20 min` stands beside the week count. This is display only, XP and coins are still paid once.
+- **Reached look:** a reached card has a green ring, a green add button and a green glow that fades from the ring to the right.
+
+### Changed
+
+- Folded and opened cards are remembered per device instead of for all devices. Cards folded by hand open once after the update.
+- The level card has a new look with a night sky, lavender bars and the day's XP in blue.
+- Weekdays are always short, such as Sa or So, in dates, quest texts, the week strip and the month calendar.
+- `−` on a weekly goal also works on days without an entry of their own and takes back the last click of the week.
+- Day blocks on reached cards have more contrast.
+
 ## [0.0.6] - 2026-10-31
 
 ### Added
@@ -116,6 +133,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.0.7]: https://github.com/seals187/habitd/releases/tag/v0.0.7
 [0.0.6]: https://github.com/seals187/habitd/releases/tag/v0.0.6
 [0.0.5]: https://github.com/seals187/habitd/releases/tag/v0.0.5
 [0.0.4]: https://github.com/seals187/habitd/releases/tag/v0.0.4

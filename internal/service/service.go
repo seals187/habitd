@@ -344,8 +344,8 @@ func (s *Service) AddEntry(ctx context.Context, habitID int64) error {
 	})
 }
 
-// UndoEntry takes back the last click of today. Falling below the goal also
-// takes back the check-in.
+// UndoEntry takes back the last click of today, for a weekly goal the last click
+// of the week. Falling below the goal also takes back the check-in.
 func (s *Service) UndoEntry(ctx context.Context, habitID int64) error {
 	return s.Store.Tx(ctx, func(q *db.Q) error {
 		w, h, err := s.measured(q, habitID)
@@ -353,6 +353,9 @@ func (s *Service) UndoEntry(ctx context.Context, habitID int64) error {
 			return err
 		}
 		d := w.Today
+		for h.GoalWeek && d > d.WeekStart() && h.Entries[d] == 0 {
+			d--
+		}
 		if err := q.DeleteLastEntry(h.ID, d); err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				return ErrNotAllowed

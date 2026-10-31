@@ -38,8 +38,6 @@ type Renderer struct {
 	Version string
 }
 
-var weekdays = []string{"Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"}
-
 var weekdaysShort = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 
 // ShortMonths are the abbreviated German month names.
@@ -227,9 +225,9 @@ func MultiplierLabel(m float64) string {
 	return "×" + strings.ReplaceAll(strconv.FormatFloat(m, 'f', -1, 64), ".", ",")
 }
 
-// LongDate formats "Freitag, 30. Oktober".
+// LongDate formats "Fr, 30. Oktober".
 func LongDate(d model.Day) string {
-	return fmt.Sprintf("%s, %d. %s", weekdays[d.WeekdayIndex()], d.Dom(), Months[d.Month()-1])
+	return fmt.Sprintf("%s, %d. %s", weekdaysShort[d.WeekdayIndex()], d.Dom(), Months[d.Month()-1])
 }
 
 // LongDateShort formats "Sa, 24. Okt."

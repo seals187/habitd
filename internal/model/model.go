@@ -141,9 +141,7 @@ type Habit struct {
 	Target       float64   `json:"target"` // goal of counter and quantity habits, per day or per week
 	Step         float64   `json:"step"`   // amount of one click, may be below 1
 	Unit         string    `json:"unit"`
-	Collapsed    bool      `json:"collapsed,omitempty"` // stays folded on the Today screen
 	GoalWeek     bool      `json:"goal_week,omitempty"` // Target adds up over a week instead of a day
-	OpenedOn     string    `json:"-"`                   // day a reached habit was opened again, not exported
 }
 
 // RoundAmount cuts the noise of adding up decimal amounts like 0,1 and 0,2.

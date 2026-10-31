@@ -276,6 +276,56 @@ document.addEventListener("click", (e) => {
   clicks = clicks.then(() => htmx.ajax("POST", url, { target: "#page" })).catch(() => {});
 });
 
+const saveCookie = (name, value) => (document.cookie = `${name}=${value}; path=/; max-age=31536000; samesite=lax`);
+
+const readCookie = (name) => {
+  const found = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
+  return found ? found.slice(name.length + 1) : "";
+};
+
+const isFolded = (button) => button.closest(".hcard").classList.contains("collapsed");
+
+// Folds a card. Each device keeps its own state, the server reads the cookies.
+// Reached cards are folded by default, so for them the list holds the opened ones.
+function foldCard(button, folded) {
+  const { fold: id, day } = button.dataset;
+  const name = day ? "habit_opened" : "habit_folded";
+  let saved = readCookie(name);
+  if (day) saved = saved.startsWith(`${day}:`) ? saved.slice(day.length + 1) : "";
+  const known = [...document.querySelectorAll("[data-fold]")].map((b) => b.dataset.fold);
+  const ids = new Set(saved.split(".").filter((x) => known.includes(x)));
+  if (day ? folded : !folded) ids.delete(id);
+  else ids.add(id);
+  saveCookie(name, (day ? `${day}:` : "") + [...ids].join("."));
+  button.closest(".hcard").classList.toggle("collapsed", folded);
+  button.setAttribute("aria-expanded", String(!folded));
+  button.setAttribute("aria-label", button.getAttribute("aria-label").replace(/\w+klappen$/, folded ? "aufklappen" : "einklappen"));
+}
+
+// The button of a group offers what most helps: folding as long as a card is open.
+function labelGroup(group) {
+  const all = group?.querySelector("[data-fold-all]");
+  if (!all) return;
+  const open = [...group.querySelectorAll("[data-fold]")].some((b) => !isFolded(b));
+  all.textContent = open ? "Alle einklappen" : "Alle aufklappen";
+}
+
+document.addEventListener("click", (e) => {
+  const button = e.target.closest("[data-fold]");
+  if (button) {
+    foldCard(button, !isFolded(button));
+    labelGroup(button.closest(".habit-group"));
+  }
+  const all = e.target.closest("[data-fold-all]");
+  if (all) {
+    const group = all.closest(".habit-group");
+    const buttons = [...group.querySelectorAll("[data-fold]")];
+    const fold = buttons.some((b) => !isFolded(b));
+    buttons.forEach((b) => foldCard(b, fold));
+    labelGroup(group);
+  }
+});
+
 // Size of the habit cards. Each device keeps its own, the server reads the cookie.
 document.addEventListener("click", (e) => {
   const button = e.target.closest("[data-zoom]");
@@ -286,7 +336,7 @@ document.addEventListener("click", (e) => {
   box.querySelector("b").textContent = `${zoom}%`;
   box.querySelectorAll("button").forEach((b) => (b.disabled = zoom === Number(b.dataset.stop)));
   document.getElementById("page").style.setProperty("--habit-zoom", zoom / 100);
-  document.cookie = `habit_zoom=${zoom}; path=/; max-age=31536000; samesite=lax`;
+  saveCookie("habit_zoom", zoom);
 });
 
 // Role select of the user list.

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/seals187/habitd/internal/db"
+	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
 	"github.com/seals187/habitd/web"
@@ -743,22 +744,23 @@ func TestFoldHabit(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
 	id := c.meterHabit("Wasser", "count", "8", "1", "Gläser")
-	fold := fmt.Sprintf("/habits/%d/fold", id)
-	_, html := c.post(fold, true)
+	if _, html := c.get("/"); strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser einklappen") {
+		t.Fatalf("starts open: %s", html)
+	}
+	folded := map[string]string{"Cookie": fmt.Sprintf("habit_folded=9999.%d", id)}
+	_, html := c.do("GET", "/", nil, folded)
 	if !strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser aufklappen") {
-		t.Fatalf("folded: %s", html)
+		t.Fatalf("folded on this device: %s", html)
 	}
-	if _, html = c.get("/"); !strings.Contains(html, "hcard collapsed") {
-		t.Fatal("folding is not stored")
-	}
-	if _, html = c.post(fmt.Sprintf("/habits/%d/add", id), true); !strings.Contains(html, "1/8") || !strings.Contains(html, "hcard collapsed") {
+	headers := map[string]string{"Cookie": fmt.Sprintf("habit_folded=%d", id), "HX-Request": "true", "X-CSRF-Token": c.csrf}
+	if _, html = c.do("POST", fmt.Sprintf("/habits/%d/add", id), url.Values{"csrf": {c.csrf}}, headers); !strings.Contains(html, "1/8") || !strings.Contains(html, "hcard collapsed") {
 		t.Fatalf("a folded counter keeps its value: %s", html)
 	}
-	if _, html = c.post(fold, true); strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser einklappen") {
-		t.Fatalf("unfolded: %s", html)
+	if _, html = c.get("/"); strings.Contains(html, "hcard collapsed") {
+		t.Fatal("another device still sees the open card")
 	}
-	if resp, _ := c.post("/habits/9999/fold", true); resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("unknown habit: %s", resp.Status)
+	if _, html = c.do("GET", "/", nil, map[string]string{"Cookie": "habit_folded=x"}); strings.Contains(html, "hcard collapsed") {
+		t.Fatalf("a broken cookie folds nothing: %s", html)
 	}
 }
 
@@ -786,6 +788,117 @@ func TestHabitZoom(t *testing.T) {
 	}
 }
 
+func TestGoalBars(t *testing.T) {
+	today := model.DayOf(time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC), time.UTC)
+	count := func(bars []string, class string) int {
+		n := 0
+		for _, b := range bars {
+			if b == class {
+				n++
+			}
+		}
+		return n
+	}
+	h := game.NewHabitData(model.Habit{Measure: model.MeasureAmount, Frequency: model.FreqDaily, Target: 3, Step: 0.5}, today-5)
+	h.Entries[today] = 1.5
+	if b, gold := goalBars(goalUnits(h, today, 0, false)); len(b) != 6 || count(b, "on") != 3 || gold != 0 {
+		t.Fatalf("3 l in steps of 0,5: %v", b)
+	}
+	h.Entries[today] = 3.5
+	if b, gold := goalBars(goalUnits(h, today, 0, true)); len(b) != 7 || count(b, "on") != 6 || count(b, "gold") != 1 || gold != 16 {
+		t.Fatalf("one step beyond the goal: %v %d", b, gold)
+	}
+	tenths := game.NewHabitData(model.Habit{Measure: model.MeasureAmount, Frequency: model.FreqDaily, Target: 0.6, Step: 0.2}, today-5)
+	if b, _ := goalBars(goalUnits(tenths, today, 0, false)); len(b) != 3 {
+		t.Fatalf("decimal noise: %v", b)
+	}
+	many := game.NewHabitData(model.Habit{Measure: model.MeasureCount, Frequency: model.FreqDaily, Target: 1000, Step: 1}, today-5)
+	many.Entries[today] = 500
+	if b, _ := goalBars(goalUnits(many, today, 0, false)); len(b) != maxBars || count(b, "on") != maxBars/2 {
+		t.Fatalf("many steps: %v", b)
+	}
+	if b, gold := goalBars(20, 40); len(b) != maxBars || count(b, "on") != 15 || count(b, "gold") != 15 || gold != 100 {
+		t.Fatalf("twice the goal in many steps: %v %d", b, gold)
+	}
+	if b, _ := goalBars(1000, 1001); len(b) != maxBars || count(b, "gold") != 1 {
+		t.Fatalf("a small excess stays visible: %v", b)
+	}
+	week := game.NewHabitData(model.Habit{Frequency: model.FreqWeekly, WeeklyTarget: 3}, today-5)
+	if b, _ := goalBars(goalUnits(week, today, 2, false)); len(b) != 3 || count(b, "on") != 2 {
+		t.Fatalf("weekly rhythm: %v", b)
+	}
+	if b, _ := goalBars(goalUnits(week, today, 4, false)); len(b) != 4 || count(b, "gold") != 1 {
+		t.Fatalf("a fourth check-in: %v", b)
+	}
+	daily := game.NewHabitData(model.Habit{Frequency: model.FreqDaily}, today-5)
+	if b, _ := goalBars(goalUnits(daily, today, 0, true)); len(b) != 1 || count(b, "on") != 1 {
+		t.Fatalf("plain habit: %v", b)
+	}
+}
+
+func TestOverLabel(t *testing.T) {
+	habit := func(measure, unit string) *game.HabitData {
+		return game.NewHabitData(model.Habit{Measure: measure, Unit: unit}, 0)
+	}
+	for _, c := range []struct {
+		h           *game.HabitData
+		value, goal float64
+		want        string
+	}{
+		{habit(model.MeasureAmount, "Liter"), 3.5, 3, "3,5/3 l"},
+		{habit(model.MeasureAmount, "Min."), 40, 20, "40/20 min"},
+		{habit(model.MeasureAmount, "Schritte"), 12500, 10000, "12,5k/10k Schr."},
+		{habit(model.MeasureAmount, "km"), 6.5, 5, "6,5/5 km"},
+		{habit(model.MeasureCount, "Gläser"), 9, 8, "9/8 Gläser"},
+		{habit("", ""), 4, 3, "4/3"},
+	} {
+		if got := overLabel(c.h, c.value, c.goal); got != c.want {
+			t.Fatalf("%s: got %s", c.want, got)
+		}
+	}
+}
+
+func TestGoalPassedShowsGold(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Lesen", "amount", "20", "20", "Min.")
+	add := fmt.Sprintf("/habits/%d/add", id)
+	c.post(add, true)
+	if _, html := c.get("/"); strings.Contains(html, "ring-gold") || strings.Contains(html, "week-count over") {
+		t.Fatalf("exactly the goal stays green: %s", html)
+	}
+	c.post(add, true)
+	_, html := c.get("/")
+	for _, want := range []string{"ring-gold", `<b>1</b>/7</span><span class="week-count over">40/20 min</span>`, `<i class="gold"></i>`} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("missing %q in %s", want, html)
+		}
+	}
+}
+
+func TestTodayGroups(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	c.meterHabit("Wasser", "amount", "3", "0.5", "l")
+	done := c.meterHabit("Lesen", "amount", "10", "5", "Min.")
+	c.post(fmt.Sprintf("/habits/%d/add", done), true)
+	c.post(fmt.Sprintf("/habits/%d/add", done), true)
+	_, html := c.get("/")
+	for _, want := range []string{"Offen <em>1</em>", "Erreicht <em>1</em>", "Alle einklappen", "Alle aufklappen", "hcard collapsed reached", "meter-undo", "meter-add"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("today: missing %q in %s", want, html)
+		}
+	}
+	if n := strings.Count(html, `<span class="hbars"`); n != 2 {
+		t.Fatalf("bars on %d cards", n)
+	}
+	c.habit("Kein Zucker", "avoid")
+	c.habit("Kein Alkohol", "avoid")
+	if _, html = c.get("/"); !strings.Contains(html, "Vermeiden <em>2</em>") || strings.Count(html, "data-fold-all") != 3 {
+		t.Fatalf("avoid group: %s", html)
+	}
+}
+
 func TestReachedHabitOpens(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
@@ -800,27 +913,19 @@ func TestReachedHabitOpens(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	open := fmt.Sprintf("/habits/%d/open", id)
-	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") || !strings.Contains(html, `hx-post="`+open+`"`) {
+	today := c.svc.Today()
+	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") || !strings.Contains(html, fmt.Sprintf(`data-fold="%d" data-day="%s"`, id, today)) {
 		t.Fatalf("a reached habit folds and can open: %s", html)
 	}
-	if _, html := c.post(open, true); strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser einklappen") {
-		t.Fatalf("opened: %s", html)
+	opened := func(day model.Day) string {
+		_, html := c.do("GET", "/", nil, map[string]string{"Cookie": fmt.Sprintf("habit_opened=%s:%d", day, id)})
+		return html
 	}
-	if _, html := c.get("/"); strings.Contains(html, "hcard collapsed") {
-		t.Fatal("opening does not last for the day")
+	if html := opened(today); strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser einklappen") {
+		t.Fatalf("opened on this device: %s", html)
 	}
-	if _, html := c.post(open, true); !strings.Contains(html, "hcard collapsed") {
-		t.Fatalf("folded again: %s", html)
-	}
-	if err := c.q().SetHabitOpened(id, (c.svc.Today() - 1).String()); err != nil {
-		t.Fatal(err)
-	}
-	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") {
+	if html := opened(today - 1); !strings.Contains(html, "hcard collapsed") {
 		t.Fatal("a new day folds the reached habit again")
-	}
-	if resp, _ := c.post("/habits/9999/open", true); resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("unknown habit: %s", resp.Status)
 	}
 }
 

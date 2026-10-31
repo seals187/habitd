@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,6 +27,10 @@ const (
 	RewardXP    = "xp"
 	RewardJoker = "joker"
 )
+
+// longDay finds weekdays written out, also in texts from the admin area. Their
+// first two letters are the short form.
+var longDay = regexp.MustCompile(`\b(Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)\b`)
 
 // AllDays is the mask of a quest without limits on the weekday.
 const AllDays = 127
@@ -110,7 +115,7 @@ func DefaultQuests() []QuestDef {
 		base(QuestDef{Key: "ueberflieger", Name: "Überflieger", Text: "Ein Zähler-Habit auf {{prozent}} % bringen", Icon: "drop", Color: "#5FD3C6", Kind: QuestCounter, Percent: 120, Reward: 25, Weight: 1}),
 		base(QuestDef{Key: "zurueck", Name: "Zurück in die Spur", Text: "Habit erledigen, das gestern verpasst wurde", Icon: "refresh-cw", Color: "#F2994A", Kind: QuestCatchUp, Reward: 30}),
 		base(QuestDef{Key: "sauber", Name: "Sauber bleiben", Text: "Alle Vermeiden-Habits heute ohne Rückfall", Icon: "shield-check", Color: "#7FB8F0", Kind: QuestAvoid, Reward: 30, Weight: 1}),
-		base(QuestDef{Key: "wochenend", Name: "Wochenend-Held", Text: "Alle Habits am Samstag und Sonntag", Icon: "star", Color: "#E8A0E8", Kind: QuestAll, RewardKind: RewardJoker, Reward: 1, Days: 96, Weight: 1}),
+		base(QuestDef{Key: "wochenend", Name: "Wochenend-Held", Text: "Alle Habits am Sa und So", Icon: "star", Color: "#E8A0E8", Kind: QuestAll, RewardKind: RewardJoker, Reward: 1, Days: 96, Weight: 1}),
 		base(QuestDef{Key: "abendruhe", Name: "Abendruhe", Text: "Kein Bildschirm-Habit nach 22 Uhr verletzt", Icon: "moon", Color: "#8C8CF5", Kind: QuestAvoid, Area: "digital", Reward: 20, Weight: 1}),
 	}
 	out[len(out)-1].Active = false
@@ -126,7 +131,8 @@ func (q QuestDef) Label() string {
 	if q.Count == 0 {
 		count = "alle"
 	}
-	return strings.NewReplacer("{{anzahl}}", count, "{{uhrzeit}}", q.Until, "{{prozent}}", strconv.Itoa(q.Percent), "{{bereich}}", q.Area).Replace(q.Text)
+	text := strings.NewReplacer("{{anzahl}}", count, "{{uhrzeit}}", q.Until, "{{prozent}}", strconv.Itoa(q.Percent), "{{bereich}}", q.Area).Replace(q.Text)
+	return longDay.ReplaceAllStringFunc(text, func(day string) string { return day[:2] })
 }
 
 // RewardLabel formats the reward, with an event or rule factor applied.

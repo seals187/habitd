@@ -123,6 +123,9 @@ func (h *HabitData) GoalCheckin(d model.Day) (model.Day, bool) {
 	return d, false
 }
 
+// MonthCount counts the check-ins in the month of day d.
+func (h *HabitData) MonthCount(d model.Day) int { return h.monthCount(monthStart(d)) }
+
 // DueOn reports whether the habit still asks for a check-in on day d: planned
 // for that day, or a weekly rhythm that has not reached its target yet.
 func (h *HabitData) DueOn(d model.Day) bool {

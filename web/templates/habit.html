@@ -30,7 +30,7 @@
 </section>{{end}}
 {{if eq $d.View "month"}}<section class="card calendar">
 <div class="cal-head"><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.PrevMonth}}" aria-label="Voriger Monat">{{icon "chevron-left" 22}}</a><strong>{{$d.MonthTitle}}</strong><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.NextMonth}}" aria-label="Nächster Monat">{{icon "chevron-right" 22}}</a></div>
-<div class="cal-grid cal-letters"><span>M</span><span>D</span><span>M</span><span>D</span><span>F</span><span>S</span><span>S</span></div>
+<div class="cal-grid cal-letters"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
 {{range $d.Weeks}}<div class="cal-grid">{{range .}}{{template "day" dict "Cell" . "D" $d}}{{end}}</div>{{end}}
 {{with $d.Amount}}{{with .Hint}}<p class="muted heat-hint">{{.}}</p>{{end}}{{end}}
 </section>{{end}}

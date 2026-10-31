@@ -50,7 +50,7 @@ var badgeRules = map[string]string{
 
 	"fruehaufsteher": "Hake 7-mal ein Habit vor 7 Uhr ab. Nachgetragene Tage zählen nicht.",
 	"nachteule":      "Hake 7-mal ein Habit ab 22 Uhr ab. Nachgetragene Tage zählen nicht.",
-	"wochenendheld":  "Erledige an 10 Wochenenden samstags und sonntags alle geplanten Habits, ohne Rückfall.",
+	"wochenendheld":  "Erledige an 10 Wochenenden am Sa und So alle geplanten Habits, ohne Rückfall.",
 	"feiertagsheld":  "Hake an einem Feiertag ein Habit ab.",
 	"ganzes-jahr":    "Sei 12 Monate in Folge aktiv: In jedem Monat braucht es mindestens einen Check-in.",
 	"jahreszeiten":   "Erreiche in allen 4 Jahreszeiten eine Quote von mindestens 80 %. Es zählen Habits mit festen Tagen, und eine Jahreszeit braucht mindestens 60 geplante Check-ins.",

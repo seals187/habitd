@@ -10,6 +10,7 @@
   --green-strong: #3e8e66;
   --green-soft: #213a2e;
   --gold: #f2c14e;
+  --sky: #a9aaf5;
   --blue: #7fb8f0;
   --orange: #f2994a;
   --purple: #c79bf2;
@@ -143,7 +144,9 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
 .bar i { display: block; height: 100%; border-radius: 4px; background: var(--green); transition: width .3s; }
 .gold-bar i { background: var(--gold); }
 .habit-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 24px 0 10px; }
-.habit-head .section { margin: 0; }
+.habit-head .section { margin: 0 auto 0 0; }
+.habit-head .section em { color: var(--text); font-style: normal; }
+.fold-all { flex: none; min-height: 30px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
 .zoom { flex: none; display: flex; align-items: center; height: 30px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); }
 .zoom button { position: relative; width: 36px; height: 100%; display: grid; place-items: center; color: var(--text); }
 .zoom button::after { content: ""; position: absolute; inset: -7px 0; }
@@ -151,6 +154,21 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
 .zoom b { min-width: 38px; color: var(--muted); font-size: 12px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
 .hcard { zoom: var(--habit-zoom, 1); position: relative; display: flex; align-items: center; gap: 16px; min-height: 80px; margin-bottom: 10px; padding: 9px 16px 9px 14px; }
 .hcard.treat { zoom: 1; }
+.hcard:has(.hbars) { padding-bottom: 17px; }
+.hcard.collapsed:has(.hbars) { padding-bottom: 12px; }
+.hbars { position: absolute; left: 14px; right: 14px; bottom: 6px; display: flex; gap: 3px; pointer-events: none; }
+.hbars i { position: relative; flex: 1 1 0; min-width: 0; height: 4px; border-radius: 2px; background: var(--track); }
+.hbars i.on { background: var(--c); }
+.hbars i.gold { background: var(--gold); }
+.hbars i.on + i.gold::before { content: ""; position: absolute; top: -3px; left: -3px; width: 2px; height: 10px; border-radius: 1px; background: #fff; }
+.collapsed .hbars { left: 12px; right: 12px; bottom: 5px; }
+.hcard.reached { background-image: linear-gradient(90deg, color-mix(in srgb, var(--green) 24%, transparent), transparent 62%); }
+.hcard.reached .hring-face { color: var(--green); }
+.hcard.reached .ring-fill { stroke: var(--green); }
+.hcard.reached .meter-add { background: var(--green); }
+.hcard .hring-face .ring-gold { stroke: var(--gold); }
+.hcard:has(.ring-gold) .ring-track { fill: var(--bg); }
+.hcard:has(.ring-gold) .hring-face > .i { position: relative; }
 .hring { position: relative; flex: none; width: 48px; height: 48px; }
 .hring-face { position: relative; width: 100%; height: 100%; display: grid; place-items: center; color: var(--c); font-size: 11.5px; }
 .hring-face b { position: relative; font-weight: 700; }
@@ -205,8 +223,18 @@ button.hring-face::after { content: ""; position: absolute; inset: -7px; }
 .wd.joker b { background: var(--blue); }
 .wd.future { background: none; border: 1px dashed #3a3e3b; }
 .wd.today { outline: 1.5px solid var(--text); outline-offset: 1px; }
+/* The glow of a reached card needs stronger days. */
+.hcard.reached .wd:not(.missed, .future) { background: #474d49; }
+.hcard.reached .wd.future { border-color: #666c68; }
+.hcard.reached.collapsed .wd.future { background: #474d4980; }
 .week-count { flex: none; margin-left: 4px; color: var(--muted); font-size: 12.5px; line-height: 18px; }
 .week-count b { color: var(--text); font-weight: 700; }
+.week-count.over { flex: 0 1 auto; min-width: 0; overflow: hidden; color: var(--gold); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+/* Open cards keep plus and minus in place. A gold value runs up to the button and
+   the days give way only as far as it needs, never below their labels. */
+.hcard:not(.collapsed):has(.meter-actions) .week:has(.over) { gap: 3px; width: calc(100% + 14px); }
+.hcard:not(.collapsed):has(.meter-actions) .week:has(.over) .week-day { min-width: 12px; }
+.hcard:not(.collapsed):has(.meter-actions) .week-count.over { margin-left: 3px; }
 .collapsed .week { align-items: center; gap: 2px; }
 .collapsed .week-day { flex: none; width: 9px; }
 .collapsed .week-day small { display: none; }
@@ -214,8 +242,25 @@ button.hring-face::after { content: ""; position: absolute; inset: -7px; }
 .collapsed .wd.future { border: 0; background: color-mix(in srgb, var(--track) 45%, transparent); }
 .collapsed .wd.today { outline: 1px solid var(--muted); outline-offset: 1px; }
 .collapsed .week-count { margin-left: 6px; font-size: 11px; line-height: 12px; }
+/* A gold value stays beside the count: its line runs on below the streak, which
+   stays centred like on every card, and the days thin out only as far as needed. */
+.collapsed:has(.meter-actions):has(.over) { min-height: 67px; }
+.collapsed:has(.meter-actions):has(.over) .hcard-main { gap: 13px; }
+.collapsed:has(.meter-actions) .week:has(.over) { width: calc(100% + 36px); }
+.collapsed .week:has(.over) .week-day { flex: 0 1000 9px; width: auto; min-width: 3px; }
+/* Tight folded cards thin out the days and only give them up when nothing else helps. */
+.collapsed .hcard-main { container-type: inline-size; }
+@container (max-width: 105px) {
+  .collapsed .week { gap: 1px; }
+  .collapsed .week:not(:has(.over)) .week-day { width: 6px; }
+  .collapsed .week-count { margin-left: 4px; }
+}
+@container (max-width: 72px) {
+  .collapsed .week:not(:has(.over)) .week-day { width: 4px; }
+}
 @media (max-width: 359px) {
   .collapsed:has(.meter-actions) .hstreak { display: none; }
+  .collapsed:has(.meter-actions) .week:has(.over) { width: 100%; }
 }
 .week-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
 .week-legend li { display: flex; align-items: center; gap: 6px; }
@@ -855,17 +900,31 @@ main:has(.row-menu[open]) { padding-bottom: 250px; }
 .toast.undo button { flex: none; color: var(--green-strong); font-weight: 700; }
 
 /* Level card on Today */
-.level-card { margin-bottom: 14px; padding: 14px 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--green) 16%, var(--surface)), var(--surface) 70%); border-color: color-mix(in srgb, var(--green) 30%, var(--border)); }
+.level-card {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  background:
+    radial-gradient(1px 1px at 52% 22%, #ffffffb0, transparent),
+    radial-gradient(1px 1px at 71% 44%, #ffffff80, transparent),
+    radial-gradient(1.5px 1.5px at 56% 9%, #ffffff60, transparent),
+    radial-gradient(1px 1px at 84% 63%, #ffffff90, transparent),
+    radial-gradient(1px 1px at 63% 73%, #ffffff70, transparent),
+    radial-gradient(1.5px 1.5px at 93% 12%, #ffffff50, transparent),
+    radial-gradient(1px 1px at 38% 66%, #ffffff60, transparent),
+    radial-gradient(1px 1px at 12% 88%, #ffffff50, transparent),
+    linear-gradient(135deg, #252845, #191b2d 72%);
+  border-color: color-mix(in srgb, var(--sky) 38%, var(--border));
+}
 .level-top { display: flex; align-items: center; gap: 12px; }
-.level-tile { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: var(--green); color: var(--bg); font-size: 17px; font-weight: 800; }
+.level-tile { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: var(--sky); color: #1a1b2e; font-size: 17px; font-weight: 800; }
 .level-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .level-text strong { font-size: 15.5px; font-weight: 700; }
 .level-text small, .level-today small { color: var(--muted); }
 .level-today { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
-.level-today b { color: var(--green); font-size: 15px; font-weight: 700; }
+.level-today b { color: var(--blue); font-size: 15px; font-weight: 700; }
 .level-bar { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin: 12px 0; }
-.level-bar i { height: 5px; border-radius: 3px; background: var(--track); }
-.level-bar i.on { background: var(--green); }
+.level-bar i { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--sky) 16%, var(--track)); }
+.level-bar i.on { background: var(--sky); box-shadow: 0 0 6px color-mix(in srgb, var(--sky) 55%, transparent); }
 .quest-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; }
 .quest-row .i { flex: none; color: var(--c, var(--gold)); }
 .quest-row.done .i { fill: var(--c, var(--gold)); }
