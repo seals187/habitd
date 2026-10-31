@@ -182,6 +182,10 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /push/unsubscribe", s.pushUnsubscribe)
 
 	admin("GET /admin", s.adminHome)
+	admin("GET /admin/levels", s.adminLevels)
+	admin("POST /admin/levels", s.adminLevelsSave)
+	admin("POST /admin/levels/reset", s.adminLevelsReset)
+	admin("POST /admin/levels/{level}/formula", s.adminLevelFormula)
 	admin("GET /admin/areas", s.adminPlaceholder("Bereiche", "areas", "Die Standardwerte der Bereiche sind vorerst fest. Jeder Benutzer verwaltet seine eigene Kopie im Profil."))
 	admin("GET /admin/templates", s.adminPlaceholder("Vorlagen", "templates", "Die Vorlagen sind vorerst fest eingebaut."))
 	admin("GET /admin/economy", s.adminPlaceholder("Taler & Joker", "economy", "Preise und Grenzen sind vorerst fest eingebaut."))

@@ -1,0 +1,60 @@
+{{define "content"}}{{$d := .Data}}<header class="admin-head">
+<div><h1>Levels</h1><p class="muted">{{len $d.Rows | add $d.Hidden}} Stufen · Titel, XP-Schwellen und Belohnungen anpassen</p></div>
+<div class="admin-actions">
+<form method="post" action="/admin/levels/reset" hx-confirm="Alle Levels auf die Standardwerte zurücksetzen? Eigene Titel und Schwellen gehen verloren."><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="admin-btn" type="submit">Zurücksetzen</button></form>
+<button class="admin-btn light" type="submit" form="levels-form">Speichern</button>
+</div>
+</header>
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form id="levels-form" method="post" action="/admin/levels" class="admin-split">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+{{if $d.All}}<input type="hidden" name="all" value="1">{{end}}
+<section class="card admin-table-card">
+<div class="admin-scroll"><table class="admin-table">
+<thead><tr><th>Level</th><th>Titel</th><th>XP gesamt</th><th>Belohnung beim Erreichen</th><th></th></tr></thead>
+<tbody>{{range $d.Rows}}<tr>
+<td><span class="lvl-ring">{{.Level}}</span><input type="hidden" name="level" value="{{.Level}}"></td>
+<td><input class="admin-input" name="title_{{.Level}}" value="{{.Title}}" maxlength="40" aria-label="Titel von Level {{.Level}}" required></td>
+<td><label class="admin-affix"><input class="admin-input" name="xp_{{.Level}}" type="number" min="0" value="{{.XP}}" aria-label="XP für Level {{.Level}}"><span>XP</span></label></td>
+<td>{{if eq .Level 1}}<input type="hidden" name="coins_1" value="{{.Coins}}"><input type="hidden" name="jokers_1" value="{{.Jokers}}"><span class="muted">—</span>{{else}}<div class="lvl-reward">
+<label class="admin-affix"><input class="admin-input" name="coins_{{.Level}}" type="number" min="0" value="{{.Coins}}" aria-label="Taler für Level {{.Level}}"><span class="gold">Taler</span></label>
+<label class="admin-affix"><input class="admin-input" name="jokers_{{.Level}}" type="number" min="0" max="3" value="{{.Jokers}}" aria-label="Joker für Level {{.Level}}"><span class="blue">Joker</span></label>
+{{if .BadgeKey}}<small class="gold">Abzeichen</small>{{end}}</div>{{end}}</td>
+<td>{{if .Overridden}}<button class="lvl-undo" type="submit" formaction="/admin/levels/{{.Level}}/formula" title="Zurück zur Formel" aria-label="Level {{.Level}} zurück zur Formel">{{icon "undo-2" 16}}</button>{{end}}</td>
+</tr>{{end}}</tbody>
+</table></div>
+{{if $d.Hidden}}<p class="lvl-more">… {{$d.Hidden}} weitere Stufen · <a class="green" href="/admin/levels?all=1">Alle anzeigen</a></p>{{else if $d.All}}<p class="lvl-more"><a class="green" href="/admin/levels">Nur Meilensteine anzeigen</a></p>{{end}}
+</section>
+<div class="admin-column">
+<section class="card admin-card">
+<h2 class="admin-title">XP-Kurve</h2>
+<p class="muted admin-sub">Automatisch berechnen, einzelne Werte überschreibbar</p>
+<div class="admin-grid-2">
+<div><p class="admin-label">Formel</p><p class="admin-input static">Basis × Level ^ Exponent</p></div>
+<div><label class="admin-label" for="tempo">Tempo</label><select class="admin-input" id="tempo" name="tempo">
+<option value="gemuetlich" {{if eq $d.Settings.Tempo "gemuetlich"}}selected{{end}}>Gemütlich</option>
+<option value="normal" {{if eq $d.Settings.Tempo "normal"}}selected{{end}}>Normal</option>
+<option value="ehrgeizig" {{if eq $d.Settings.Tempo "ehrgeizig"}}selected{{end}}>Ehrgeizig</option>
+</select></div>
+<div><label class="admin-label" for="base">Basis</label><input class="admin-input" id="base" name="base" value="{{$d.Base}}" inputmode="decimal" required></div>
+<div><label class="admin-label" for="exponent">Exponent</label><input class="admin-input" id="exponent" name="exponent" value="{{$d.Exponent}}" inputmode="decimal" required></div>
+</div>
+<svg class="curve" viewBox="0 0 300 140" role="img" aria-label="XP-Kurve aktuell und {{$d.Label}}">
+<line class="curve-axis" x1="0" y1="130" x2="300" y2="130"/>
+<polyline class="curve-compare" points="{{$d.Compare}}"/>
+<polyline class="curve-now" points="{{$d.Current}}"/>
+<text class="curve-label now" x="262" y="{{add $d.CurrentY 14}}">aktuell</text>
+<text class="curve-label compare" x="254" y="{{add $d.CompareY 14}}">{{$d.Label}}</text>
+</svg>
+{{with $d.Estimate}}<p class="muted lvl-estimate">Ø Zeit bis Level 10 bei 5 Habits: <b>{{.}}</b></p>{{end}}
+</section>
+<section class="card admin-card">
+<h2 class="admin-title">Regeln</h2>
+<label class="toggle plain"><span>Level-Up-Feier anzeigen</span><input type="checkbox" name="celebrate" {{if $d.Settings.Celebrate}}checked{{end}}><i></i></label>
+<label class="toggle plain"><span>Level kann nicht sinken</span><input type="checkbox" name="no_drop" {{if $d.Settings.NoDrop}}checked{{end}}><i></i></label>
+<label class="toggle plain"><span>Titel im Profil anzeigen</span><input type="checkbox" name="show_title" {{if $d.Settings.ShowTitle}}checked{{end}}><i></i></label>
+<label class="toggle plain"><span>Max. Level begrenzen ({{$d.Settings.MaxLevel}})</span><input type="checkbox" name="limit" {{if $d.Settings.Limit}}checked{{end}}><i></i></label>
+</section>
+</div>
+</form>
+{{end}}

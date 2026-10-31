@@ -9,7 +9,7 @@ import (
 )
 
 // adminPaths lists every page of the admin area.
-var adminPaths = []string{"/admin", "/admin/areas", "/admin/templates", "/admin/economy"}
+var adminPaths = []string{"/admin", "/admin/levels", "/admin/levels?all=1", "/admin/areas", "/admin/templates", "/admin/economy"}
 
 func TestAdminPagesRender(t *testing.T) {
 	a := newApp(t, Config{})
