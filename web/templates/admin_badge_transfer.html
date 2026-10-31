@@ -1,0 +1,14 @@
+{{define "content"}}<p class="muted admin-crumb"><a href="/admin/badges">Abzeichen</a> › Import / Export</p>
+{{template "admin-head" dict "Title" .Title "Sub" "Alle Abzeichen und Kategorien als JSON"}}
+{{with .Data}}<p class="error" role="alert">{{.}}</p>{{end}}
+<section class="card admin-card">
+<a class="admin-btn light" href="/admin/badges/export" hx-boost="false" download>{{icon "download" 18}}Exportieren</a>
+</section>
+<h2 class="section">Import</h2>
+<form class="card admin-card inline-form" method="post" action="/admin/badges/import" enctype="multipart/form-data" hx-boost="false">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input class="admin-input file" type="file" name="file" accept="application/json,.json" required aria-label="Datei">
+<button class="admin-btn light" type="submit">Importieren</button>
+</form>
+<p class="hint">Vorhandene Abzeichen mit gleichem Schlüssel werden überschrieben, alle anderen bleiben.</p>
+{{end}}

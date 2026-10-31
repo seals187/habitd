@@ -158,6 +158,24 @@ func (q *Q) UserStats() (map[int64]UserStat, error) {
 	return out, rows.Err()
 }
 
+// DefaultAreas lists the global start values of the areas.
+func (q *Q) DefaultAreas() ([]model.Area, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT id, key, name, color, icon, sort FROM areas WHERE user_id IS NULL ORDER BY sort`)
+	if err != nil {
+		return nil, fmt.Errorf("list default areas: %w", err)
+	}
+	defer rows.Close()
+	var out []model.Area
+	for rows.Next() {
+		var a model.Area
+		if err := rows.Scan(&a.ID, &a.Key, &a.Name, &a.Color, &a.Icon, &a.Sort); err != nil {
+			return nil, fmt.Errorf("scan area: %w", err)
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
 // CopyDefaultAreas gives the current user a copy of the global areas.
 func (q *Q) CopyDefaultAreas() error {
 	return q.exec(`INSERT INTO areas (user_id, key, name, color, icon, sort)

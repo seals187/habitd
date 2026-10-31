@@ -1,0 +1,80 @@
+{{define "content"}}{{$d := .Data}}{{$b := $d.Badge}}<div x-data="badgeEditor" data-config='{{$d.Config}}'>
+<p class="muted admin-crumb"><a href="/admin/badges">Abzeichen</a> › {{if $d.New}}Neu{{else}}{{$b.Name}}{{end}}</p>
+<header class="admin-head">
+<h1>{{.Title}}</h1>
+<div class="admin-actions">
+{{if not $d.New}}{{if not $b.Builtin}}<form method="post" action="/admin/badges/{{$b.Key}}/delete" hx-confirm="„{{$b.Name}}“ endgültig löschen?"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="admin-btn danger" type="submit">Löschen</button></form>{{end}}
+<form method="post" action="/admin/badges/{{$b.Key}}/active"><input type="hidden" name="csrf" value="{{.CSRF}}">{{if not $b.Active}}<input type="hidden" name="active" value="on">{{end}}<button class="admin-btn {{if $b.Active}}danger{{end}}" type="submit">{{if $b.Active}}Deaktivieren{{else}}Aktivieren{{end}}</button></form>{{end}}
+<a class="admin-btn" href="/admin/badges">Abbrechen</a>
+<button class="admin-btn light" type="submit" form="badge-form">Speichern</button>
+</div>
+</header>
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<form id="badge-form" method="post" class="admin-split wide" {{if $d.New}}action="/admin/badges/new"{{else}}action="/admin/badges/{{$b.Key}}/edit"{{end}}>
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<div class="admin-column">
+<section class="card admin-card">
+<div class="admin-grid-2">
+<div><label class="admin-label" for="name">Name</label><input class="admin-input" id="name" name="name" value="{{$b.Name}}" x-model="name" maxlength="60" required></div>
+<div><label class="admin-label" for="category">Kategorie</label><select class="admin-input" id="category" name="category" x-model="category">{{range $d.Categories}}<option value="{{.Key}}" {{if eq .Key $b.Category}}selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+</div>
+<label class="admin-label spaced" for="description">Beschreibung</label>
+<input class="admin-input" id="description" name="description" value="{{$b.Description}}" maxlength="240">
+</section>
+<section class="card admin-card">
+<h2 class="admin-title">Bedingung</h2>
+{{if $d.Special}}<p class="muted admin-sub">Diese Regel steckt im Code. Name, Aussehen, Belohnung und Status lassen sich ändern, die Bedingung nicht.</p>
+<label class="toggle plain"><span>Geheim</span><input type="checkbox" name="secret" {{if $b.Secret}}checked{{end}}><i></i></label>
+{{else}}<div class="rule-grid">
+<div><p class="admin-label">Typ</p><div class="seg seg-3 tight">
+<label><input type="radio" name="rule" value="streak" x-model="rule" {{if eq $d.Rule "streak"}}checked{{end}}><span>Serie</span></label>
+<label><input type="radio" name="rule" value="count" x-model="rule" {{if eq $d.Rule "count"}}checked{{end}}><span>Anzahl</span></label>
+<label><input type="radio" name="rule" value="amount" x-model="rule" {{if eq $d.Rule "amount"}}checked{{end}}><span>Menge</span></label>
+</div></div>
+<div><label class="admin-label" for="scope">Bezieht sich auf</label><select class="admin-input" id="scope" name="scope" x-model="scope">
+<option value="any_habit" {{if eq $d.Scope "any_habit"}}selected{{end}}>Ein beliebiges Habit</option>
+<option value="habit_tag" {{if eq $d.Scope "habit_tag"}}selected{{end}}>Habit mit Tag</option>
+<option value="area" {{if eq $d.Scope "area"}}selected{{end}}>Bereich</option>
+<option value="kind_build" {{if eq $d.Scope "kind_build"}}selected{{end}}>Nur Aufbauen-Habits</option>
+<option value="kind_avoid" {{if eq $d.Scope "kind_avoid"}}selected{{end}}>Nur Vermeiden-Habits</option>
+</select></div>
+<div><label class="admin-label" for="target">Zielwert</label><div class="admin-affix wide"><input class="admin-input" id="target" name="target" type="number" min="1" value="{{$b.Target}}" x-model="target" required><span x-text="unit"></span></div></div>
+</div>
+<div class="scope-tag"><label class="admin-label spaced" for="tag">Tag</label><input class="admin-input" id="tag" name="tag" value="{{if eq $d.Scope "habit_tag"}}{{$d.Value}}{{end}}" x-model="tag" maxlength="40" placeholder="z. B. sport"></div>
+<div class="scope-area"><label class="admin-label spaced" for="area">Bereich</label><select class="admin-input" id="area" name="area" x-model="area">{{range $d.Areas}}<option value="{{.Key}}" {{if eq .Key $d.Value}}selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+<div class="rule-switches">
+<label class="toggle plain row-toggle"><input type="checkbox" name="count_jokers" x-model="jokers" {{if $d.Jokers}}checked{{end}}><i></i><span>Joker zählen mit</span></label>
+<label class="toggle plain row-toggle"><input type="checkbox" name="secret" {{if $b.Secret}}checked{{end}}><i></i><span>Geheim</span></label>
+</div>
+<p class="rule-code"><code x-text="formula"></code>{{if not $d.New}} · {{$d.Holders}} Benutzer {{if eq $d.Holders 1}}hat{{else}}haben{{end}} es bereits{{end}}</p>{{end}}
+</section>
+<section class="card admin-card">
+<div class="rule-grid even">
+<div><label class="admin-label" for="coins">Taler-Belohnung</label><input class="admin-input" id="coins" name="coins" type="number" min="0" value="{{$b.Coins}}"></div>
+<div><label class="admin-label" for="jokers">Joker</label><input class="admin-input" id="jokers" name="jokers" type="number" min="0" max="3" value="{{$b.Jokers}}"></div>
+<div><label class="admin-label" for="sort">Reihenfolge</label><input class="admin-input" id="sort" name="sort" type="number" value="{{$b.Sort}}"></div>
+</div>
+</section>
+</div>
+<div class="admin-column">
+<section class="card admin-card" :style="accent">
+<p class="admin-label">Vorschau</p>
+<div class="badge-preview">
+<div class="badge on"><div class="medal big"><svg viewBox="0 0 58 58" aria-hidden="true"><circle class="ring-c" cx="29" cy="29" r="27"/></svg><span><svg class="i" width="34" height="34" aria-hidden="true"><use :href="iconRef"/></svg></span></div><small>erhalten</small></div>
+<div class="badge"><div class="medal"><svg viewBox="0 0 58 58" aria-hidden="true"><circle class="ring-track" cx="29" cy="29" r="27"/><circle class="ring-c" cx="29" cy="29" r="27" stroke-dasharray="102 68" transform="rotate(-90 29 29)"/></svg><span><svg class="i" width="24" height="24" aria-hidden="true"><use :href="iconRef"/></svg></span></div><small>in Arbeit</small></div>
+</div>
+<p class="preview-name" x-text="name"></p>
+<p class="muted preview-hint" x-text="hint"></p>
+</section>
+<section class="card admin-card">
+<p class="admin-label">Icon</p>
+<div class="icons admin-icons">{{range $d.Icons}}<label class="icon-pick"><input type="radio" name="icon" value="{{.}}" x-model="icon" {{if eq . $b.Icon}}checked{{end}} aria-label="Icon {{.}}"><span>{{icon . 22}}</span></label>{{end}}</div>
+<p class="admin-label spaced">Farbe</p>
+<div class="color-pick">
+<label class="auto"><input type="radio" name="color" value="" x-model="color" {{if eq $b.Color ""}}checked{{end}}><span>Kategorie</span></label>
+{{range $d.Colors}}<label><input type="radio" name="color" value="{{.}}" x-model="color" {{if eq . $b.Color}}checked{{end}} aria-label="Farbe {{.}}"><i style="background:{{.}}"></i></label>{{end}}
+</div>
+</section>
+</div>
+</form>
+</div>{{end}}

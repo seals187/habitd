@@ -68,6 +68,52 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Live preview of the badge form.
+  const units = { streak: "Tage", count: "Check-ins", amount: "Einheiten" };
+  const scopes = { any_habit: "habit: any", habit_tag: "tag", area: "area", kind_build: "habit: build", kind_avoid: "habit: avoid" };
+
+  Alpine.data("badgeEditor", () => ({
+    name: "",
+    icon: "flame",
+    color: "",
+    category: "",
+    catColors: {},
+    rule: "streak",
+    scope: "any_habit",
+    value: "",
+    tag: "",
+    area: "",
+    target: "1",
+    jokers: false,
+    key: "",
+    sprite: "",
+    fixedHint: "",
+    init() {
+      Object.assign(this, readConfig(this.$el));
+      if (this.scope === "habit_tag") this.tag = this.value;
+      if (this.scope === "area") this.area = this.value;
+    },
+    get unit() {
+      return units[this.rule] || "";
+    },
+    get accent() {
+      return "--c:" + (this.color || this.catColors[this.category] || "#A3A69F");
+    },
+    get iconRef() {
+      return this.sprite + "#" + this.icon;
+    },
+    get hint() {
+      return this.rule === "special" ? this.fixedHint : this.target + " " + this.unit;
+    },
+    get formula() {
+      if (this.rule === "special") return "special(" + this.key + ") >= " + this.target;
+      let scope = scopes[this.scope] || "";
+      if (this.scope === "habit_tag") scope += ": " + this.tag;
+      if (this.scope === "area") scope += ": " + this.area;
+      return this.rule + "(" + scope + ") >= " + this.target;
+    },
+  }));
+
   Alpine.data("rewardForm", () => ({
     mode: "coins",
     price: "250",

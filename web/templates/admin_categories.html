@@ -1,0 +1,23 @@
+{{define "content"}}{{$d := .Data}}<p class="muted admin-crumb"><a href="/admin/badges">Abzeichen</a> › Kategorien</p>
+{{template "admin-head" dict "Title" .Title "Sub" "Name, Farbe und Reihenfolge der Abzeichen-Gruppen"}}
+{{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+<section class="card admin-table-card"><div class="admin-scroll"><table class="admin-table">
+<thead><tr><th>Name</th><th>Farbe</th><th>Abzeichen</th><th></th></tr></thead>
+<tbody>{{range $d.Rows}}<tr>
+<td><input class="admin-input" form="cat-{{.Key}}" name="name" value="{{.Name}}" maxlength="40" aria-label="Name" required></td>
+<td><input form="cat-{{.Key}}" type="color" name="color" value="{{.Color}}" aria-label="Farbe von {{.Name}}"></td>
+<td class="muted">{{.Count}}</td>
+<td class="row-actions">
+<form id="cat-{{.Key}}" method="post" action="/admin/badges/categories"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="key" value="{{.Key}}"><button class="admin-btn" type="submit">Sichern</button></form>
+{{if not .Count}}<form method="post" action="/admin/badges/categories/{{.Key}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="admin-btn danger" type="submit">Löschen</button></form>{{end}}
+</td>
+</tr>{{end}}</tbody>
+</table></div></section>
+<h2 class="section">Neue Kategorie</h2>
+<form class="card admin-card inline-form" method="post" action="/admin/badges/categories">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input class="admin-input" name="name" placeholder="Name" maxlength="40" aria-label="Name" required>
+<input type="color" name="color" value="#C79BF2" aria-label="Farbe">
+<button class="admin-btn light" type="submit">Anlegen</button>
+</form>
+{{end}}

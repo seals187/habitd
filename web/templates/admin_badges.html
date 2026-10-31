@@ -1,0 +1,37 @@
+{{define "content"}}{{$d := .Data}}<header class="admin-head">
+<div><h1>Abzeichen</h1><p class="muted">{{$d.Builtin}} eingebaut · {{$d.Own}} eigene · {{$d.Disabled}} deaktiviert</p></div>
+<div class="admin-actions">
+<a class="admin-btn" href="/admin/badges/categories">{{icon "layers" 18}}Kategorien</a>
+<a class="admin-btn" href="/admin/badges/transfer">Import / Export</a>
+<a class="admin-btn light" href="/admin/badges/new">{{icon "plus" 18}}Neues Abzeichen</a>
+</div>
+</header>
+<div class="admin-badges">
+<nav class="card cat-list" aria-label="Kategorien">
+<a href="/admin/badges" {{if eq $d.Category ""}}class="on"{{end}}><i class="dot"></i><span>Alle</span><em>{{$d.Total}}</em></a>
+{{range $d.Filters}}<a href="/admin/badges?cat={{.Key}}" style="--c:{{.Color}}" {{if eq .Key $d.Category}}class="on"{{end}}><i class="dot"></i><span>{{.Name}}</span><em>{{.Count}}</em></a>{{end}}
+<hr>
+<a href="/admin/badges?cat=_eigene" style="--c:#C79BF2" {{if eq $d.Category "_eigene"}}class="on"{{end}}><i class="dot"></i><span>Eigene</span><em>{{$d.Own}}</em></a>
+</nav>
+<section class="card admin-table-card">
+<form class="badge-search" action="/admin/badges" method="get">
+<input type="hidden" name="cat" value="{{$d.Category}}">
+<label class="admin-search">{{icon "search" 18}}<input type="search" name="q" value="{{$d.Query}}" placeholder="Abzeichen suchen …" aria-label="Abzeichen suchen" autocomplete="off" hx-get="/admin/badges" hx-include="closest form" hx-trigger="keyup changed delay:200ms, search" hx-target="#badge-rows"></label>
+<select class="admin-input status" name="status" aria-label="Status" hx-get="/admin/badges" hx-include="closest form" hx-trigger="change" hx-target="#badge-rows">{{range $d.Statuses}}<option value="{{.Key}}" {{if eq .Key $d.Status}}selected{{end}}>Status: {{.Label}}</option>{{end}}</select>
+</form>
+<div class="admin-scroll"><table class="admin-table">
+<thead><tr><th>Abzeichen</th><th>Kategorie</th><th>Bedingung</th><th>Taler</th><th>Aktiv</th><th></th></tr></thead>
+<tbody id="badge-rows">{{template "badge-rows" .}}</tbody>
+</table></div>
+</section>
+</div>
+{{end}}
+
+{{define "badge-rows"}}{{range .Data.Rows}}<tr class="badge-row{{if not .Active}} off{{end}}" style="--c:{{.Accent}}">
+<td><div class="badge-cell"><span class="adm-medal">{{icon .Icon 20}}</span><span><strong>{{.Name}}</strong><small>{{.Hint}}</small></span></div></td>
+<td><span class="cat-chip">{{.CategoryName}}</span></td>
+<td class="mono">{{.Condition}}</td>
+<td class="gold">+{{.Coins}}</td>
+<td><label class="toggle plain slim"><input type="checkbox" name="active" {{if .Active}}checked{{end}} hx-post="/admin/badges/{{.Key}}/active" hx-trigger="change" hx-swap="none" aria-label="{{.Name}} aktiv"><i></i></label></td>
+<td><a class="lvl-undo muted" href="/admin/badges/{{.Key}}/edit" aria-label="{{.Name}} bearbeiten">{{icon "pencil" 18}}</a></td>
+</tr>{{else}}<tr><td colspan="6" class="muted">Keine Abzeichen gefunden.</td></tr>{{end}}{{end}}
