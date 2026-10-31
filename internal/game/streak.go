@@ -17,6 +17,7 @@ type HabitData struct {
 	Done     map[model.Day]time.Time // real check-ins with their creation time
 	Joker    map[model.Day]bool      // days bridged by a joker
 	Relapses []model.Day             // sorted
+	Amount   int                     // sum of all entries of counter and quantity habits
 }
 
 // NewHabitData returns an empty history.

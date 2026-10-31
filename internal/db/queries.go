@@ -381,6 +381,25 @@ func (q *Q) LoadHabits(loc *time.Location) ([]*game.HabitData, error) {
 		return nil, err
 	}
 
+	amounts, err := q.r.QueryContext(q.ctx, `SELECT habit_id, sum(amount) FROM habit_entries WHERE user_id = ? GROUP BY habit_id`, q.uid)
+	if err != nil {
+		return nil, fmt.Errorf("sum entries: %w", err)
+	}
+	defer amounts.Close()
+	for amounts.Next() {
+		var id int64
+		var sum int
+		if err := amounts.Scan(&id, &sum); err != nil {
+			return nil, fmt.Errorf("scan entry sum: %w", err)
+		}
+		if h := byID[id]; h != nil {
+			h.Amount = sum
+		}
+	}
+	if err := amounts.Err(); err != nil {
+		return nil, err
+	}
+
 	relapses, err := q.r.QueryContext(q.ctx, `SELECT habit_id, date FROM relapses WHERE user_id = ? ORDER BY date`, q.uid)
 	if err != nil {
 		return nil, fmt.Errorf("list relapses: %w", err)

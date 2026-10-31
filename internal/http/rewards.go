@@ -300,26 +300,41 @@ func (s *Server) badges(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	facts := game.BuildFacts(world)
+	rules := s.svc.Rules()
 	active := r.FormValue("cat")
-	if _, ok := game.CategoryByKey(active); !ok {
+	if _, ok := rules.CategoryByKey(active); !ok {
 		active = ""
 	}
-	d := badgesData{Unlocked: len(unlocked), Total: len(game.Badges), Active: active, Detail: active != ""}
+	d := badgesData{Active: active, Detail: active != ""}
+	// Deactivated badges only stay in view for those who hold them.
+	visible := func(b game.Badge) bool {
+		_, have := unlocked[b.Key]
+		return b.Active || have
+	}
+	for _, b := range rules.Badges {
+		if !visible(b) {
+			continue
+		}
+		d.Total++
+		if _, have := unlocked[b.Key]; have {
+			d.Unlocked++
+		}
+	}
 	d.Percent = percent(d.Unlocked, d.Total)
 	d.Filters = append(d.Filters, badgeFilter{"", fmt.Sprintf("Alle · %d", d.Total)})
-	for _, c := range game.Categories {
+	for _, c := range rules.Categories {
 		d.Filters = append(d.Filters, badgeFilter{c.Key, c.Name})
 		if active != "" && c.Key != active {
 			continue
 		}
 		section := badgeSection{Category: c}
-		for _, b := range game.Badges {
-			if b.Category != c.Key {
+		for _, b := range rules.Badges {
+			if b.Category != c.Key || !visible(b) {
 				continue
 			}
 			_, open := unlocked[b.Key]
 			section.Total++
-			v := badgeView{Badge: b, Color: c.Color, Unlocked: open, Value: b.Value(facts), Label: b.Name}
+			v := badgeView{Badge: b, Color: badgeColor(b, c), Unlocked: open, Value: b.Value(facts), Label: b.Name}
 			v.Percent = percent(v.Value, b.Target)
 			v.Rule, v.ShowProgress = b.Rule(), b.Target > 1
 			if open {
@@ -338,15 +353,23 @@ func (s *Server) badges(w http.ResponseWriter, r *http.Request) error {
 	return s.view.Render(w, http.StatusOK, "badges", s.page(r, "Abzeichen", "badges", d))
 }
 
-func celebrationView(kind, payload string) (*celebrateData, error) {
-	d := &celebrateData{Coins: game.BadgeCoins, Confetti: []int{1, 2, 3, 4, 5, 6, 7, 8}}
+func badgeColor(b game.Badge, c game.Category) string {
+	if b.Color != "" {
+		return b.Color
+	}
+	return c.Color
+}
+
+func (s *Server) celebrationView(kind, payload string) (*celebrateData, error) {
+	rules := s.svc.Rules()
+	d := &celebrateData{Confetti: []int{1, 2, 3, 4, 5, 6, 7, 8}}
 	if kind == "level" {
 		var up service.LevelUp
 		if err := json.Unmarshal([]byte(payload), &up); err != nil {
 			return nil, fmt.Errorf("decode celebration: %w", err)
 		}
 		d.Level = &up
-		d.Coins = game.LevelUpCoins
+		d.Coins = up.Coins
 		d.Color = "#4FB283"
 		switch {
 		case up.Tag == "lesen" && up.Days > 1:
@@ -358,13 +381,14 @@ func celebrationView(kind, payload string) (*celebrateData, error) {
 		}
 		return d, nil
 	}
-	b, ok := game.BadgeByKey(payload)
+	b, ok := rules.BadgeByKey(payload)
 	if !ok {
 		return nil, errors.New("unknown badge " + payload)
 	}
 	d.Badge = &b
-	if c, ok := game.CategoryByKey(b.Category); ok {
-		d.Color = c.Color
+	d.Coins = b.Coins
+	if c, ok := rules.CategoryByKey(b.Category); ok {
+		d.Color = badgeColor(b, c)
 	}
 	return d, nil
 }

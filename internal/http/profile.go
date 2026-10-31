@@ -58,8 +58,9 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) error {
 	if on != "1" {
 		reminder = "aus"
 	}
-	progress := game.ProgressFor(world.Balances.XP, world.Level)
-	d := profileData{Progress: progress, Title: game.Title(progress.Level), DaysIn: int(world.Today - world.Installed),
+	rules := s.svc.Rules()
+	progress := rules.ProgressFor(world.Balances.XP, world.Level)
+	d := profileData{Progress: progress, Title: profileTitle(rules, progress.Level), DaysIn: int(world.Today - world.Installed),
 		XP: world.Balances.XP, CoinsEarned: world.Balances.CoinsEarned, Redeemed: len(world.Redemptions),
 		Areas: len(areas), Templates: len(templates.All()), ReminderTime: reminder, MaxJokers: game.MaxJokers, Version: s.cfg.Version, Runtime: s.cfg.Runtime}
 	for _, h := range world.Habits {
@@ -74,6 +75,14 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	return s.view.Render(w, http.StatusOK, "profile", s.page(r, "Profil", "profile", d))
+}
+
+// profileTitle honours the switch for titles in the profile.
+func profileTitle(r *game.Rules, level int) string {
+	if r.Settings.ShowTitle {
+		return r.Title(level)
+	}
+	return fmt.Sprintf("Level %d", level)
 }
 
 func (s *Server) areas(w http.ResponseWriter, r *http.Request) error {

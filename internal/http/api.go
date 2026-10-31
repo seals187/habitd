@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/seals187/habitd/internal/db"
-	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
 )
@@ -88,10 +87,11 @@ func (s *Server) apiStats(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	p := game.ProgressFor(world.Balances.XP, world.Level)
+	rules := s.svc.Rules()
+	p := rules.ProgressFor(world.Balances.XP, world.Level)
 	return writeJSON(w, http.StatusOK, map[string]any{
-		"level": p.Level, "title": game.Title(p.Level), "xp": world.Balances.XP, "xp_to_next": p.Missing,
+		"level": p.Level, "title": rules.Title(p.Level), "xp": world.Balances.XP, "xp_to_next": p.Missing,
 		"coins": world.Balances.Coins, "coins_earned": world.Balances.CoinsEarned, "jokers": world.Balances.Jokers,
-		"badges": len(unlocked), "badges_total": len(game.Badges), "redemptions": len(world.Redemptions),
+		"badges": len(unlocked), "badges_total": rules.ActiveBadges(), "redemptions": len(world.Redemptions),
 	})
 }

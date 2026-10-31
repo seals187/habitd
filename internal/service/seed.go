@@ -116,7 +116,7 @@ func (s *Service) seed(q *db.Q) error {
 	for key, value := range map[string]string{
 		KeyInstalledOn:  (today - seedInstalled).String(),
 		KeyLastSettled:  (today - 1).String(),
-		KeyLevel:        fmt.Sprint(game.LevelFor(seedXP)),
+		KeyLevel:        fmt.Sprint(s.Rules().LevelFor(seedXP)),
 		KeyReminderTime: "20:00",
 		KeyReminderOn:   "1",
 		KeyOnboarded:    "1",

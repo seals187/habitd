@@ -4,7 +4,12 @@ package game
 const SecretRule = "Dieses Abzeichen ist geheim. Die Regel siehst du, sobald du es freigeschaltet hast."
 
 // Rule explains in full what unlocks the badge. Hint is only the short label.
-func (b Badge) Rule() string { return badgeRules[b.Key] }
+func (b Badge) Rule() string {
+	if b.Description != "" {
+		return b.Description
+	}
+	return badgeRules[b.Key]
+}
 
 // badgeRules must describe what the Metric of a badge really measures.
 var badgeRules = map[string]string{

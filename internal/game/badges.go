@@ -1,85 +1,137 @@
 package game
 
+import "fmt"
+
 // Category groups badges and defines their colour.
 type Category struct {
 	Key   string
 	Name  string
 	Color string
+	Sort  int
 }
 
 // Categories in display order.
 var Categories = []Category{
-	{"serien", "Serien", "#F2994A"},
-	{"meilensteine", "Meilensteine", "#4FB283"},
-	{"vermeiden", "Vermeiden", "#5FD3C6"},
-	{"comeback", "Comeback & Joker", "#C79BF2"},
-	{"zeit", "Zeit", "#7FB8F0"},
-	{"bereiche", "Bereiche", "#F28BB0"},
-	{"gute-taten", "Gute Taten", "#E8A0E8"},
-	{"familie", "Familie", "#F2B880"},
-	{"freunde", "Freunde", "#F5A3A3"},
-	{"arbeit", "Arbeit", "#9FB4C8"},
-	{"digital", "Digital", "#8C8CF5"},
-	{"geld", "Geld", "#D9B26B"},
-	{"umwelt", "Umwelt", "#8ACB7A"},
-	{"goenn-dir", "Gönn dir", "#F2C14E"},
-	{"level", "Level", "#4FB283"},
-	{"geheim", "Geheim", "#A3A69F"},
+	{Key: "serien", Name: "Serien", Color: "#F2994A"},
+	{Key: "meilensteine", Name: "Meilensteine", Color: "#4FB283"},
+	{Key: "vermeiden", Name: "Vermeiden", Color: "#5FD3C6"},
+	{Key: "comeback", Name: "Comeback & Joker", Color: "#C79BF2"},
+	{Key: "zeit", Name: "Zeit", Color: "#7FB8F0"},
+	{Key: "bereiche", Name: "Bereiche", Color: "#F28BB0"},
+	{Key: "gute-taten", Name: "Gute Taten", Color: "#E8A0E8"},
+	{Key: "familie", Name: "Familie", Color: "#F2B880"},
+	{Key: "freunde", Name: "Freunde", Color: "#F5A3A3"},
+	{Key: "arbeit", Name: "Arbeit", Color: "#9FB4C8"},
+	{Key: "digital", Name: "Digital", Color: "#8C8CF5"},
+	{Key: "geld", Name: "Geld", Color: "#D9B26B"},
+	{Key: "umwelt", Name: "Umwelt", Color: "#8ACB7A"},
+	{Key: "goenn-dir", Name: "Gönn dir", Color: "#F2C14E"},
+	{Key: "level", Name: "Level", Color: "#4FB283"},
+	{Key: "geheim", Name: "Geheim", Color: "#A3A69F"},
 }
 
-// Badge is one rule: it is unlocked once Metric reaches Target.
+// Rule types of a badge.
+const (
+	RuleStreak  = "streak"
+	RuleCount   = "count"
+	RuleAmount  = "amount"
+	RuleSpecial = "special"
+)
+
+// What a rule looks at.
+const (
+	ScopeAnyHabit  = "any_habit"
+	ScopeHabitTag  = "habit_tag"
+	ScopeArea      = "area"
+	ScopeKindBuild = "kind_build"
+	ScopeKindAvoid = "kind_avoid"
+	ScopeGlobal    = "global"
+)
+
+// Badge is one rule: it is unlocked once the Metric reaches Target.
 type Badge struct {
-	Key      string
-	Name     string
-	Hint     string
-	Category string
-	Icon     string
-	Target   int
-	Metric   Metric
-	Secret   bool
+	Key         string
+	Name        string
+	Hint        string // short label under the medal
+	Description string // full explanation, see Rule
+	Category    string
+	Icon        string
+	Color       string // empty uses the colour of the category
+	Target      int
+	Metric      Metric
+	Secret      bool
+	Coins       int
+	Jokers      int
+	Sort        int
+	Active      bool
+	Builtin     bool
 }
 
-// Metric reads the progress of a badge from the facts.
-type Metric func(*Facts) int
+// Metric describes what a badge measures. Everything that does not fit the
+// building blocks is special: its logic stays in the code, under the badge key.
+type Metric struct {
+	Rule    string
+	Scope   string
+	Value   string
+	Jokers  bool
+	special func(*Facts) int
+}
 
-func field(get func(*Facts) int) Metric { return get }
+func field(get func(*Facts) int) Metric {
+	return Metric{Rule: RuleSpecial, Scope: ScopeGlobal, special: get}
+}
 
 func flag(get func(*Facts) bool) Metric {
-	return func(f *Facts) int {
+	return field(func(f *Facts) int {
 		if get(f) {
 			return 1
 		}
 		return 0
-	}
+	})
 }
 
-func areaCount(area string) Metric  { return func(f *Facts) int { return f.AreaCount[area] } }
-func areaStreak(area string) Metric { return func(f *Facts) int { return f.AreaStreak[area] } }
-func areaSpan(area string) Metric   { return func(f *Facts) int { return f.AreaSpan[area] } }
-func tagCount(tag string) Metric    { return func(f *Facts) int { return f.TagCount[tag] } }
-func tagStreak(tag string) Metric   { return func(f *Facts) int { return f.TagStreak[tag] } }
+func areaCount(area string) Metric {
+	return Metric{Rule: RuleCount, Scope: ScopeArea, Value: area}
+}
+
+func areaStreak(area string) Metric {
+	return Metric{Rule: RuleStreak, Scope: ScopeArea, Value: area, Jokers: true}
+}
+
+func tagCount(tag string) Metric {
+	return Metric{Rule: RuleCount, Scope: ScopeHabitTag, Value: tag}
+}
+
+func tagStreak(tag string) Metric {
+	return Metric{Rule: RuleStreak, Scope: ScopeHabitTag, Value: tag, Jokers: true}
+}
+
+func areaSpan(area string) Metric { return field(func(f *Facts) int { return f.AreaSpan[area] }) }
+
 func tagDays(tags ...string) Metric {
-	return func(f *Facts) int {
+	return field(func(f *Facts) int {
 		sum := 0
 		for _, t := range tags {
 			sum += f.TagDays[t]
 		}
 		return sum
-	}
+	})
 }
-func areaDays(area string) Metric    { return func(f *Facts) int { return f.AreaDays[area] } }
-func avoidStreak(area string) Metric { return func(f *Facts) int { return f.AvoidAreaStreak[area] } }
+func areaDays(area string) Metric { return field(func(f *Facts) int { return f.AreaDays[area] }) }
+func avoidStreak(area string) Metric {
+	return field(func(f *Facts) int { return f.AvoidAreaStreak[area] })
+}
 
 var (
-	streak     = field(func(f *Facts) int { return f.BestStreak })
-	checkins   = field(func(f *Facts) int { return f.Checkins })
+	streak     = Metric{Rule: RuleStreak, Scope: ScopeKindBuild}
+	checkins   = Metric{Rule: RuleCount, Scope: ScopeAnyHabit}
 	perfect    = field(func(f *Facts) int { return f.PerfectRun })
-	clean      = field(func(f *Facts) int { return f.AvoidBest })
+	clean      = Metric{Rule: RuleStreak, Scope: ScopeKindAvoid, Jokers: true}
 	redeemed   = field(func(f *Facts) int { return f.Redeemed })
 	reachLevel = field(func(f *Facts) int { return f.Level })
 )
 
-// Badges lists all 95 badges.
+// Badges lists all 95 badges with their start values.
 var Badges = []Badge{
 	{Key: "funke", Name: "Funke", Hint: "3 Tage", Category: "serien", Icon: "flame", Target: 3, Metric: streak},
 	{Key: "erste-woche", Name: "Erste Woche", Hint: "7 Tage", Category: "serien", Icon: "flame", Target: 7, Metric: streak},
@@ -193,39 +245,79 @@ var Badges = []Badge{
 	{Key: "blitzstart", Name: "Blitzstart", Hint: "alles vor 8 Uhr", Category: "geheim", Icon: "zap", Target: 1, Secret: true, Metric: flag(func(f *Facts) bool { return f.Blitz })},
 }
 
+// current reads the progress of a badge from the facts.
+func (b Badge) current(f *Facts) int {
+	m := b.Metric
+	switch m.Rule {
+	case RuleStreak:
+		return f.bestStreak(m)
+	case RuleCount:
+		return f.count(m)
+	case RuleAmount:
+		return f.amount(m)
+	}
+	if m.special == nil {
+		return 0
+	}
+	return m.special(f)
+}
+
 // Value is the progress of a badge, clamped to its target.
-func (b Badge) Value(f *Facts) int { return min(b.Metric(f), b.Target) }
+func (b Badge) Value(f *Facts) int { return min(b.current(f), b.Target) }
 
 // Reached reports whether the rule is fulfilled.
-func (b Badge) Reached(f *Facts) bool { return b.Metric(f) >= b.Target }
+func (b Badge) Reached(f *Facts) bool { return b.current(f) >= b.Target }
 
-// BadgeByKey finds a badge.
-func BadgeByKey(key string) (Badge, bool) {
-	for _, b := range Badges {
-		if b.Key == key {
-			return b, true
-		}
+var scopeLabels = map[string]string{ScopeAnyHabit: "habit: any", ScopeHabitTag: "tag", ScopeArea: "area",
+	ScopeKindBuild: "habit: build", ScopeKindAvoid: "habit: avoid", ScopeGlobal: "global"}
+
+// Formula is the rule in short form, like streak(habit: any) >= 60.
+func (b Badge) Formula() string {
+	m := b.Metric
+	if m.Rule == RuleSpecial {
+		return fmt.Sprintf("special(%s) >= %d", b.Key, b.Target)
 	}
-	return Badge{}, false
+	scope := scopeLabels[m.Scope]
+	if m.Value != "" {
+		scope += ": " + m.Value
+	}
+	return fmt.Sprintf("%s(%s) >= %d", m.Rule, scope, b.Target)
 }
 
-// CategoryByKey finds a category.
-func CategoryByKey(key string) (Category, bool) {
-	for _, c := range Categories {
-		if c.Key == key {
-			return c, true
-		}
+// Condition is the rule in plain words for the admin list.
+func (b Badge) Condition(areaName func(string) string) string {
+	m := b.Metric
+	subject := ""
+	switch m.Scope {
+	case ScopeHabitTag:
+		subject = "Tag " + m.Value + " · "
+	case ScopeArea:
+		subject = "Bereich " + areaName(m.Value) + " · "
 	}
-	return Category{}, false
+	switch m.Rule {
+	case RuleStreak:
+		if m.Scope == ScopeKindAvoid {
+			return fmt.Sprintf("Vermeiden-Serie ≥ %d", b.Target)
+		}
+		return fmt.Sprintf("%sSerie ≥ %d Tage", subject, b.Target)
+	case RuleCount:
+		if subject == "" {
+			return fmt.Sprintf("Check-ins ≥ %d", b.Target)
+		}
+		return fmt.Sprintf("%sAnzahl ≥ %d", subject, b.Target)
+	case RuleAmount:
+		return fmt.Sprintf("%sMenge ≥ %d", subject, b.Target)
+	}
+	return b.Hint
 }
 
-// NewlyReached returns the rules that are fulfilled but not unlocked yet.
+// BadgeByKey finds a default badge.
+func BadgeByKey(key string) (Badge, bool) { return defaults.BadgeByKey(key) }
+
+// CategoryByKey finds a default category.
+func CategoryByKey(key string) (Category, bool) { return defaults.CategoryByKey(key) }
+
+// NewlyReached returns the default rules that are fulfilled but not unlocked yet.
 func NewlyReached(f *Facts, unlocked map[string]bool) []Badge {
-	var out []Badge
-	for _, b := range Badges {
-		if !unlocked[b.Key] && b.Reached(f) {
-			out = append(out, b)
-		}
-	}
-	return out
+	return defaults.NewlyReached(f, unlocked)
 }

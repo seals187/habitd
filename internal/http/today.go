@@ -342,7 +342,7 @@ func (s *Server) celebrate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	d, err := celebrationView(kind, payload)
+	d, err := s.celebrationView(kind, payload)
 	if err != nil {
 		return err
 	}

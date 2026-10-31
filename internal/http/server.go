@@ -51,6 +51,9 @@ func New(cfg Config, svc *service.Service, files fs.FS) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("static assets: %w", err)
 	}
+	if err := svc.LoadRules(context.Background()); err != nil {
+		return nil, fmt.Errorf("load rules: %w", err)
+	}
 	gzipped, err := gzipAssets(static)
 	if err != nil {
 		return nil, fmt.Errorf("compress assets: %w", err)

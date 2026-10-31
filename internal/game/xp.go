@@ -77,15 +77,6 @@ func LevelXP(level int) int {
 	return total
 }
 
-// LevelFor returns the level reached with the given total XP.
-func LevelFor(xp int) int {
-	level := 1
-	for remaining := xp; remaining >= LevelCost(level); level++ {
-		remaining -= LevelCost(level)
-	}
-	return level
-}
-
 // Progress describes the position inside a level.
 type Progress struct {
 	Level   int
@@ -93,15 +84,6 @@ type Progress struct {
 	Cost    int // XP the level costs
 	Missing int // XP left until the next level
 	Percent int
-}
-
-// ProgressFor computes level progress. minLevel is the highest level ever
-// reached: levels are never lost, even when undoing check-ins lowers the XP.
-func ProgressFor(xp, minLevel int) Progress {
-	level := max(LevelFor(xp), minLevel, 1)
-	cost := LevelCost(level)
-	into := max(xp-LevelXP(level), 0)
-	return Progress{Level: level, Into: into, Cost: cost, Missing: cost - into, Percent: min(into*100/cost, 100)}
 }
 
 var titles = []struct {
@@ -120,8 +102,8 @@ var titles = []struct {
 	{50, "Lebenskünstler"},
 }
 
-// Title returns the title of a level.
-func Title(level int) string {
+// startTitle returns the title a level starts with.
+func startTitle(level int) string {
 	t := titles[0].title
 	for _, e := range titles {
 		if level >= e.level {

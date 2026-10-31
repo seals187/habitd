@@ -57,6 +57,74 @@ type Facts struct {
 	Palindrome      bool // streak of exactly 111 or 222
 	DaysInstalled   int
 	Blitz           bool
+	Habits          []habitFact // the base of the rules built in the admin area
+}
+
+// habitFact holds what a configurable rule can ask about one habit.
+type habitFact struct {
+	kind, area, tag string
+	archived        bool
+	days            int // current streak in days, bridged days included
+	active          int // days with a real check-in inside the streak
+	done            int
+	jokers          int
+	amount          int
+}
+
+func (h habitFact) matches(m Metric) bool {
+	switch m.Scope {
+	case ScopeHabitTag:
+		return h.tag == m.Value
+	case ScopeArea:
+		return h.area == m.Value
+	case ScopeKindBuild:
+		return h.kind == model.KindBuild
+	case ScopeKindAvoid:
+		return h.kind == model.KindAvoid
+	}
+	return true
+}
+
+// bestStreak is the longest current streak among the matching active habits.
+func (f *Facts) bestStreak(m Metric) int {
+	best := 0
+	for _, h := range f.Habits {
+		if h.archived || !h.matches(m) {
+			continue
+		}
+		if m.Jokers || h.kind == model.KindAvoid {
+			best = max(best, h.days)
+		} else {
+			best = max(best, h.active)
+		}
+	}
+	return best
+}
+
+// count sums the check-ins of the matching habits, archived ones included.
+func (f *Facts) count(m Metric) int {
+	sum := 0
+	for _, h := range f.Habits {
+		if !h.matches(m) {
+			continue
+		}
+		sum += h.done
+		if m.Jokers {
+			sum += h.jokers
+		}
+	}
+	return sum
+}
+
+// amount sums what counter and quantity habits have recorded.
+func (f *Facts) amount(m Metric) int {
+	sum := 0
+	for _, h := range f.Habits {
+		if h.matches(m) {
+			sum += h.amount
+		}
+	}
+	return sum
 }
 
 // BuildFacts derives all facts from the world.
@@ -75,6 +143,9 @@ func BuildFacts(w *World) *Facts {
 
 	months := map[int]bool{}
 	for _, h := range w.Habits {
+		s := h.StreakAt(w.Today)
+		f.Habits = append(f.Habits, habitFact{kind: h.Kind, area: h.AreaKey, tag: h.Tag, archived: h.Archived,
+			days: s.Days, active: s.Active, done: len(h.Done), jokers: len(h.Joker), amount: h.Amount})
 		f.addCheckins(h, months, w)
 		f.addCleanDays(h, w.Today)
 		if h.Archived {

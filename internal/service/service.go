@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/seals187/habitd/internal/db"
@@ -55,11 +56,36 @@ type Service struct {
 	Loc     *time.Location
 	Now     func() time.Time
 	settled sync.Map // user id to the day settled last
+	rules   atomic.Pointer[game.Rules]
 }
 
 // New creates a service using the wall clock.
 func New(store *db.Store, loc *time.Location) *Service {
-	return &Service{Store: store, Loc: loc, Now: func() time.Time { return time.Now().In(loc) }}
+	s := &Service{Store: store, Loc: loc, Now: func() time.Time { return time.Now().In(loc) }}
+	s.rules.Store(game.DefaultRules())
+	return s
+}
+
+// Rules returns the cached global rules.
+func (s *Service) Rules() *game.Rules { return s.rules.Load() }
+
+// LoadRules stores missing start values and refreshes the cache. The admin area
+// calls it after every change.
+func (s *Service) LoadRules(ctx context.Context) error {
+	var rules *game.Rules
+	err := s.Store.Tx(ctx, func(q *db.Q) error {
+		if err := q.SeedRules(game.DefaultRules()); err != nil {
+			return err
+		}
+		var err error
+		rules, err = q.LoadRules()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	s.rules.Store(rules)
+	return nil
 }
 
 // Today is the current local day; it changes at 00:00 local time.
@@ -101,7 +127,16 @@ func (s *Service) World(q *db.Q) (*game.World, error) {
 		return nil, err
 	}
 	return &game.World{Today: today, Installed: installedDay, Habits: habits, Redemptions: reds, Balances: bal,
-		Level: max(level, game.LevelFor(bal.XP)), LastJoker: lastJoker, Holiday: holiday}, nil
+		Level: s.levelOf(bal.XP, level), LastJoker: lastJoker, Holiday: holiday}, nil
+}
+
+// levelOf derives the current level from the XP and the stored level.
+func (s *Service) levelOf(xp, stored int) int {
+	reached := s.Rules().LevelFor(xp)
+	if s.Rules().Settings.NoDrop {
+		return max(stored, reached)
+	}
+	return reached
 }
 
 // holidays builds the configured holiday check.
@@ -250,7 +285,7 @@ func (s *Service) AddEntry(ctx context.Context, habitID int64) error {
 			return err
 		}
 		if _, done := h.Done[d]; done || totals[h.ID] < h.Target {
-			return nil
+			return s.evaluate(q, nil, false) // amount badges count every click
 		}
 		trigger, err := s.addCheckin(q, w, h, d)
 		if err != nil {
@@ -633,6 +668,7 @@ type LevelUp struct {
 	Title    string `json:"title"`
 	NewTitle bool   `json:"new_title"`
 	Joker    bool   `json:"joker"`
+	Coins    int    `json:"coins"`
 	Habit    string `json:"habit"`
 	Tag      string `json:"tag"`
 	Days     int    `json:"days"`
@@ -658,9 +694,9 @@ func (s *Service) evaluate(q *db.Q, trigger *Trigger, silent bool) error {
 		for k := range unlocked {
 			known[k] = true
 		}
-		fresh := game.NewlyReached(game.BuildFacts(w), known)
+		fresh := s.Rules().NewlyReached(game.BuildFacts(w), known)
 		for _, b := range fresh {
-			if err := s.unlock(q, b, silent); err != nil {
+			if err := s.unlock(q, w, b, silent); err != nil {
 				return err
 			}
 		}
@@ -676,27 +712,37 @@ func (s *Service) applyLevels(q *db.Q, w *game.World, trigger *Trigger, silent b
 	if err != nil {
 		return false, err
 	}
-	reached := game.LevelFor(w.Balances.XP)
+	rules := s.Rules()
+	reached := rules.LevelFor(w.Balances.XP)
 	if reached <= stored {
+		if !rules.Settings.NoDrop && reached < stored {
+			return false, q.SetSetting(KeyLevel, fmt.Sprint(reached))
+		}
 		return false, nil
 	}
 	jokers := w.Balances.Jokers
 	for level := stored + 1; level <= reached && !silent; level++ {
 		now := s.Now()
-		up := LevelUp{Level: level, Title: game.Title(level), NewTitle: game.Title(level) != game.Title(level-1)}
+		row := rules.Level(level)
+		up := LevelUp{Level: level, Title: row.Title, NewTitle: row.Title != rules.Title(level-1), Coins: row.Coins}
 		if trigger != nil {
 			up.Habit, up.Tag, up.Days = trigger.Habit, trigger.Tag, trigger.Days
 		}
 		ref := fmt.Sprintf("level:%d", level)
-		if err := q.AddLedger(now, model.LedgerCoins, game.LevelUpCoins, "level", ref); err != nil {
-			return false, err
+		if row.Coins != 0 {
+			if err := q.AddLedger(now, model.LedgerCoins, row.Coins, "level", ref); err != nil {
+				return false, err
+			}
 		}
-		if jokers < game.MaxJokers {
+		for i := 0; i < row.Jokers && jokers < game.MaxJokers; i++ {
 			if err := q.AddLedger(now, model.LedgerJoker, 1, "level", ref); err != nil {
 				return false, err
 			}
 			jokers++
 			up.Joker = true
+		}
+		if !rules.Settings.Celebrate {
+			continue
 		}
 		payload, err := json.Marshal(up)
 		if err != nil {
@@ -709,7 +755,7 @@ func (s *Service) applyLevels(q *db.Q, w *game.World, trigger *Trigger, silent b
 	return true, q.SetSetting(KeyLevel, fmt.Sprint(reached))
 }
 
-func (s *Service) unlock(q *db.Q, b game.Badge, silent bool) error {
+func (s *Service) unlock(q *db.Q, w *game.World, b game.Badge, silent bool) error {
 	now := s.Now()
 	if err := q.UnlockBadge(b.Key, now); err != nil {
 		return err
@@ -717,10 +763,41 @@ func (s *Service) unlock(q *db.Q, b game.Badge, silent bool) error {
 	if silent {
 		return nil
 	}
-	if err := q.AddLedger(now, model.LedgerCoins, game.BadgeCoins, "badge", "badge:"+b.Key); err != nil {
-		return err
+	if b.Coins != 0 {
+		if err := q.AddLedger(now, model.LedgerCoins, b.Coins, "badge", "badge:"+b.Key); err != nil {
+			return err
+		}
+	}
+	for i := 0; i < b.Jokers && w.Balances.Jokers < game.MaxJokers; i++ {
+		if err := q.AddLedger(now, model.LedgerJoker, 1, "badge", "badge:"+b.Key); err != nil {
+			return err
+		}
+		w.Balances.Jokers++
 	}
 	return q.AddCelebration("badge", b.Key)
+}
+
+// RecalculateLevels applies changed thresholds to every user. Nobody gets the
+// rewards of levels that were only reached by lowering a threshold.
+func (s *Service) RecalculateLevels(ctx context.Context) error {
+	users, err := s.Store.Q(ctx).Users()
+	if err != nil {
+		return err
+	}
+	for _, u := range users {
+		err := s.Store.Tx(db.WithUser(ctx, u.ID), func(q *db.Q) error {
+			w, err := s.World(q)
+			if err != nil {
+				return err
+			}
+			_, err = s.applyLevels(q, w, nil, true)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RewardState is a reward with its derived availability.

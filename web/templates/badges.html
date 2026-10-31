@@ -4,11 +4,11 @@
 <nav class="filters" aria-label="Kategorien">{{range $d.Filters}}<a href="/badges{{if .Key}}?cat={{.Key}}{{end}}" {{if eq .Key $d.Active}}class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
 {{range $d.Sections}}<section class="badge-section" style="--c:{{.Color}}">
 <a class="badge-title" href="/badges?cat={{.Key}}"><i class="dot big"></i><strong>{{.Name}}</strong><span>{{.Unlocked}} / {{.Total}}{{if not $d.Detail}} ›{{end}}</span></a>
-<div class="badge-grid">{{range .Badges}}<button type="button" class="badge{{if .Unlocked}} on{{end}}" popovertarget="rule-{{.Key}}" aria-label="Regel von {{.Label}} anzeigen">
+<div class="badge-grid">{{range .Badges}}<button type="button" class="badge{{if .Unlocked}} on{{end}}" style="--c:{{.Color}}" popovertarget="rule-{{.Key}}" aria-label="Regel von {{.Label}} anzeigen">
 {{template "medal" .}}
 <strong>{{.Label}}</strong>{{if $d.Detail}}{{with .Hint}}<small>{{.}}</small>{{end}}{{end}}
 </button>
-<div id="rule-{{.Key}}" class="card badge-rule badge{{if .Unlocked}} on{{end}}" popover>
+<div id="rule-{{.Key}}" class="card badge-rule badge{{if .Unlocked}} on{{end}}" style="--c:{{.Color}}" popover>
 {{template "medal" .}}
 <h2>{{.Label}}</h2>
 <p>{{.Rule}}</p>
