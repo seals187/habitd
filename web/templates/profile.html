@@ -19,6 +19,7 @@
 <a class="row" href="/settings/backup">{{icon "download" 22}}<span>Export &amp; Backup</span><em>JSON</em>{{icon "chevron-right" 18}}</a>
 <a class="row" href="/onboarding">{{icon "sparkles" 22}}<span>Onboarding erneut starten</span>{{icon "chevron-right" 18}}</a>
 <a class="row" href="/settings/server">{{icon "server" 22}}<span>Server</span><em>v{{$d.Version}} · {{$d.Runtime}}</em>{{icon "chevron-right" 18}}</a>
+{{if .Admin}}<a class="row" href="/admin">{{icon "shield-check" 22}}<span>Administration</span>{{icon "chevron-right" 18}}</a>{{end}}
 </nav>
 <form method="post" action="/logout" class="form-footer" hx-boost="false">
 <input type="hidden" name="csrf" value="{{.CSRF}}">

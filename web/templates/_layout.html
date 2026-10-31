@@ -16,9 +16,9 @@
 <script src="/static/js/alpine-csp.min.js?v={{.Version}}" defer></script>
 </head>
 <body hx-boost="true" hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
-<div class="app{{if .Tab}} has-tabs{{end}}">
+{{if .Nav}}{{template "admin-shell" .}}{{else}}<div class="app{{if .Tab}} has-tabs{{end}}">
 {{template "content" .}}
-</div>
+</div>{{end}}
 {{if .Tab}}{{template "tabbar" .}}{{end}}
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>

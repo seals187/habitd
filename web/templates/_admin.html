@@ -1,0 +1,21 @@
+{{define "admin-shell"}}<div class="admin">
+<aside class="admin-side">
+<a class="admin-brand" href="/admin"><span class="admin-logo">{{icon "circle-check" 20}}</span><b>habitd</b><em>ADMIN</em></a>
+<input type="checkbox" id="admin-menu" class="admin-menu-toggle" aria-label="Menü öffnen">
+<label class="admin-menu-btn" for="admin-menu">{{icon "list-minus" 22}}<span>Menü</span></label>
+<nav class="admin-links" aria-label="Administration">
+<a href="/admin" {{if eq .Nav "home"}}class="on" aria-current="page"{{end}}>{{icon "star" 20}}Übersicht</a>
+<a href="/admin/levels" {{if eq .Nav "levels"}}class="on" aria-current="page"{{end}}>{{icon "arrow-big-up" 20}}Levels</a>
+<a href="/admin/badges" {{if eq .Nav "badges"}}class="on" aria-current="page"{{end}}>{{icon "trophy" 20}}Abzeichen</a>
+<a href="/admin/areas" {{if eq .Nav "areas"}}class="on" aria-current="page"{{end}}>{{icon "layers" 20}}Bereiche</a>
+<a href="/admin/templates" {{if eq .Nav "templates"}}class="on" aria-current="page"{{end}}>{{icon "book" 20}}Vorlagen</a>
+<a href="/admin/economy" {{if eq .Nav "economy"}}class="on" aria-current="page"{{end}}>{{icon "coin" 20}}Taler &amp; Joker</a>
+<a href="/admin/users" {{if eq .Nav "users"}}class="on" aria-current="page"{{end}}>{{icon "users" 20}}Benutzer</a>
+<a href="/admin/system" {{if eq .Nav "system"}}class="on" aria-current="page"{{end}}>{{icon "shield-check" 20}}System</a>
+<a class="admin-back" href="/">{{icon "refresh-cw" 20}}Zurück zur App</a>
+</nav>
+</aside>
+<div class="admin-main">{{template "content" .}}</div>
+</div>{{end}}
+
+{{define "admin-head"}}<header class="admin-head"><div><h1>{{.Title}}</h1>{{with .Sub}}<p class="muted">{{.}}</p>{{end}}</div></header>{{end}}

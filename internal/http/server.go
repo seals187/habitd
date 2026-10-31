@@ -108,6 +108,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 		mux.Handle(pattern, s.wrap(h))
 	}
 
+	admin := func(pattern string, h handlerFunc) { handle(pattern, adminOnly(h)) }
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.Handle("GET /static/", s.staticFiles())
 	handle("GET /sw.js", s.serviceWorker)
@@ -179,6 +180,11 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /settings/reset", s.settingsReset)
 	handle("POST /push/subscribe", s.pushSubscribe)
 	handle("POST /push/unsubscribe", s.pushUnsubscribe)
+
+	admin("GET /admin", s.adminHome)
+	admin("GET /admin/areas", s.adminPlaceholder("Bereiche", "areas", "Die Standardwerte der Bereiche sind vorerst fest. Jeder Benutzer verwaltet seine eigene Kopie im Profil."))
+	admin("GET /admin/templates", s.adminPlaceholder("Vorlagen", "templates", "Die Vorlagen sind vorerst fest eingebaut."))
+	admin("GET /admin/economy", s.adminPlaceholder("Taler & Joker", "economy", "Preise und Grenzen sind vorerst fest eingebaut."))
 
 	handle("GET /api/v1/habits", s.apiHabits)
 	handle("GET /api/v1/checkins", s.apiCheckins)

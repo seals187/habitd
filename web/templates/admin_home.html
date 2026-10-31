@@ -1,0 +1,7 @@
+{{define "content"}}{{$d := .Data}}{{template "admin-head" dict "Title" .Title "Sub" "Regeln und Benutzer dieser Instanz"}}
+<div class="admin-stats">
+<a class="card admin-stat" href="/admin/users"><b>{{$d.Users}}</b><span>Benutzer</span></a>
+<a class="card admin-stat" href="/admin/levels"><b>{{$d.Levels}}</b><span>Levels</span></a>
+<a class="card admin-stat" href="/admin/badges"><b>{{$d.Badges}}</b><span>aktive Abzeichen</span></a>
+</div>
+{{end}}
