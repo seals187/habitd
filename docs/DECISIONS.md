@@ -160,6 +160,18 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   `hx-confirm` wird zum Titel, `data-yes` beschriftet den Knopf, Standard ist „Löschen“.
 - **Abgelehnte Formulare** antworten mit der ganzen Seite. Fehlerantworten mit `text/html` werden
   deshalb eingesetzt, reiner Text bleibt ein kurzer Hinweis.
+- **Habits mit Einheit** zeigen in der Statistik die Menge statt der Serie. Alles wird beim Aufruf
+  aus den Einträgen berechnet, gespeichert wird nichts zusätzlich. Das Zeitraum-Ziel ist die Zahl
+  der geplanten Tage mal Tagesziel und beginnt frühestens am Start des Habits. Ein laufender Monat
+  wird mit denselben Tagen des Vormonats verglichen, ein laufendes Jahr mit demselben Stück des
+  Vorjahres. Die Jahresansicht zeigt das Kalenderjahr, nicht die letzten zwölf Monate.
+- **Heute frei:** Habits mit festen Wochentagen bleiben an freien Tagen unten auf „Heute“ sichtbar.
+  Ein erreichtes Wochen- oder Monatsziel klappt die Karte bis zum Ende des Zeitraums ein.
+- **Vorlagen** öffnen immer zuerst das Formular. Nur das Onboarding legt mehrere direkt an.
+- **Wochenziel:** Zähler und Mengen können pro Woche gelten. Das Habit läuft dann als „1× pro
+  Woche“, das Ziel sammelt sich über die Einträge der Woche, und der Check-in entsteht an dem Tag,
+  an dem es erreicht wird. So bleiben Serie, XP und Taler unverändert, sie fallen einmal pro Woche
+  an. Ein Tipp im Kalender bucht dort einen Klick oder leert den Tag, er füllt nie das ganze Ziel.
 - **Komprimierung:** Nur CSS, JS und das Sprite werden mit gzip ausgeliefert. Seiten bleiben
   unkomprimiert, weil das CSRF-Token dort neben reflektierten Eingaben steht (BREACH).
 - **Migrationen** laufen mit deaktivierten Foreign Keys auf einer eigenen Verbindung, weil

@@ -209,20 +209,6 @@ func (s *Server) addTemplates(ctx context.Context, ids []string) error {
 	return s.svc.HabitSaved(ctx)
 }
 
-func (s *Server) templateAdd(w http.ResponseWriter, r *http.Request) error {
-	if err := s.addTemplates(r.Context(), []string{r.PathValue("id")}); err != nil {
-		return err
-	}
-	waiting, err := s.svc.Store.Q(r.Context()).HasCelebration()
-	if err != nil {
-		return err
-	}
-	if waiting {
-		return redirect(w, r, "/celebrate")
-	}
-	return s.templateList(w, r)
-}
-
 type onboardTile struct {
 	model.Area
 	Count int
@@ -367,7 +353,7 @@ func freqOptions(h model.Habit) []freqOption {
 	case model.FreqMonthly:
 		current = fmt.Sprintf("m%d", h.WeeklyTarget)
 	}
-	options := []freqOption{{Value: "daily", Label: "Täglich"}, {Value: "w3", Label: "3× / Woche"}, {Value: "w5", Label: "5× / Woche"}}
+	options := []freqOption{{Value: "daily", Label: "Täglich"}, {Value: "w1", Label: "1× / Woche"}, {Value: "w2", Label: "2× / Woche"}, {Value: "w3", Label: "3× / Woche"}, {Value: "w5", Label: "5× / Woche"}}
 	known := current == "custom"
 	for _, o := range options {
 		known = known || o.Value == current

@@ -14,11 +14,21 @@ document.addEventListener("alpine:init", () => {
     target: "8",
     step: "1",
     edited: false,
+    goalPeriod: "day",
     init() {
       Object.assign(this, readConfig(this.$el));
       this.$watch("measure", (m) => {
         if (!this.edited && measureDefaults[m]) Object.assign(this, measureDefaults[m]);
       });
+    },
+    get goalLabel() {
+      return this.goalPeriod === "week" ? "Wochenziel" : "Tagesziel";
+    },
+    get payLabel() {
+      return this.goalPeriod === "week" && this.measure !== "check" ? "pro Woche" : "pro Tag";
+    },
+    get goalHint() {
+      return "XP, Taler und Serie gibt es, sobald das " + this.goalLabel + " erreicht ist.";
     },
     setGoal(target, step) {
       this.edited = true;

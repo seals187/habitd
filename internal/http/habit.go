@@ -71,8 +71,12 @@ func (s *Server) habitForm(w http.ResponseWriter, r *http.Request, h model.Habit
 	if measured {
 		target, step = strconv.FormatFloat(h.Target, 'f', -1, 64), strconv.FormatFloat(h.Step, 'f', -1, 64)
 	}
+	goalPeriod := "day"
+	if h.GoalWeek {
+		goalPeriod = "week"
+	}
 	config, err := json.Marshal(map[string]any{"kind": h.Kind, "difficulty": h.Difficulty, "measure": h.Measure,
-		"target": target, "step": step, "edited": measured})
+		"target": target, "step": step, "edited": measured, "goalPeriod": goalPeriod})
 	if err != nil {
 		return err
 	}
@@ -161,6 +165,10 @@ func parseHabitForm(r *http.Request, h *model.Habit) string {
 	h.Step, _ = parseDecimal(r.FormValue("step"))
 	h.Target, h.Step = model.RoundAmount(h.Target), model.RoundAmount(h.Step)
 	*h = h.Normalized()
+	h.GoalWeek = h.Kind == model.KindBuild && h.Measured() && r.FormValue("goal_period") == "week"
+	if h.GoalWeek {
+		h.Frequency, h.WeeklyTarget, h.DaysMask = model.FreqWeekly, 1, 0
+	}
 	tag, ok := tagForIcon(h.Icon)
 	if !ok {
 		h.Icon = habitIcons[0].Name

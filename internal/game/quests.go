@@ -191,8 +191,8 @@ func noteFor(h *HabitData, d model.Day) string {
 		}
 		return "erledigt"
 	}
-	if h.Measured() && h.Entries[d] > 0 {
-		return fmt.Sprintf("%s / %s %s", amount(h.Entries[d]), amount(h.Target), h.Unit)
+	if h.Measured() && h.GoalTotal(d) > 0 {
+		return fmt.Sprintf("%s / %s %s", amount(h.GoalTotal(d)), amount(h.Target), h.Unit)
 	}
 	return "offen"
 }
@@ -282,7 +282,7 @@ func (q QuestDef) Eval(w *World, d model.Day) QuestState {
 			}
 		case QuestCounter:
 			if build && h.Measured() {
-				add(h, h.Entries[d] >= h.Target*float64(q.Percent)/100)
+				add(h, h.GoalTotal(d) >= h.Target*float64(q.Percent)/100)
 			}
 		case QuestCatchUp:
 			if _, had := h.Done[d-1]; build && !had && h.Scheduled(d-1) && !h.Joker[d-1] {

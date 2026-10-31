@@ -19,5 +19,5 @@
 <span class="tile big">{{icon .Icon 24}}</span>
 <span class="tpl-text"><strong>{{.Name}}</strong><small>{{.Meta}}</small></span>
 {{if .Active}}<span class="tpl-active">{{icon "check" 18}}Aktiv</span>
-{{else}}<a class="round light" href="/habits/new?template={{.ID}}" hx-post="/templates/{{.ID}}/add?q={{$d.Query}}&kind={{$d.Kind}}&area={{$d.Area}}" hx-target="#tpl-list" hx-push-url="false" aria-label="{{.Name}} hinzufügen">{{icon "plus" 20}}</a>{{end}}
+{{else}}<a class="round light" href="/habits/new?template={{.ID}}" aria-label="{{.Name}} hinzufügen">{{icon "plus" 20}}</a>{{end}}
 </div>{{end}}{{else}}<section class="empty"><p class="muted">Keine passende Vorlage. Leg einfach ein eigenes Habit an.</p><a class="add-link" href="/habits/new?custom=1&name={{$d.Query}}">{{icon "plus" 18}}Eigenes Habit</a></section>{{end}}{{end}}

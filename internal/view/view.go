@@ -242,6 +242,9 @@ func ShortDate(t time.Time) string { return t.Format("02.01.2006") }
 
 // FrequencyLabel describes the rhythm of a habit.
 func FrequencyLabel(h model.Habit) string {
+	if h.GoalWeek {
+		return strings.TrimSpace(Decimal(h.Target)+" "+h.Unit) + " pro Woche"
+	}
 	switch h.Frequency {
 	case model.FreqWeekly:
 		return fmt.Sprintf("%d× pro Woche", h.WeeklyTarget)

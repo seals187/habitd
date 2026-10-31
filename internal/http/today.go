@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 
 	"github.com/seals187/habitd/internal/db"
 	"github.com/seals187/habitd/internal/game"
@@ -19,6 +20,9 @@ type habitCard struct {
 	Name        string
 	Area        model.Area
 	Done        bool
+	Collapsed   bool   // folded by hand or reached
+	Auto        bool   // reached today or for this period, folds by itself
+	Rest        string // next planned day of a habit that is off today
 	Relapsed    bool
 	Streak      game.Streak
 	StreakLabel string
@@ -27,8 +31,10 @@ type habitCard struct {
 	RingLabel   string // text in the ring, empty shows an icon
 	Meter       *meter // set for counter and quantity habits
 	Week        []weekDay
-	Reached     int // days reached this week
-	Goal        int // days planned this week, 0 for monthly rhythms
+	Reached     int    // days reached this week
+	Goal        int    // days planned this week, 0 for monthly rhythms
+	Count       string // progress of the week beside the strip
+	Of          string // what the week asks for, empty for monthly rhythms
 }
 
 // meter is the state of a counter or quantity habit on its card.
@@ -65,6 +71,7 @@ type weekDay struct {
 }
 
 var weekLetters = [7]string{"M", "D", "M", "D", "F", "S", "S"}
+var weekNames = [7]string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 
 // dayTotals holds the entry sums of the days of a week.
 type dayTotals map[model.Day]map[int64]float64
@@ -103,7 +110,7 @@ func weekStrip(h *game.HabitData, today model.Day, totals dayTotals) ([]weekDay,
 }
 
 func dayState(h *game.HabitData, d, today model.Day, total float64) string {
-	if _, done := h.Done[d]; done {
+	if _, done := h.Done[d]; done && !h.GoalWeek {
 		return "done"
 	}
 	switch {
@@ -135,6 +142,16 @@ func weekGoal(h *game.HabitData) int {
 		return 0
 	}
 	return h.WeekTarget()
+}
+
+// nextPlanned names the next weekday a habit with fixed days is planned for.
+func nextPlanned(h *game.HabitData, today model.Day) string {
+	for d := today + 1; d < today+7; d++ {
+		if h.Scheduled(d) {
+			return "wieder am " + weekNames[d.WeekdayIndex()]
+		}
+	}
+	return "nächste Woche"
 }
 
 func streakLabel(s game.Streak) string {
@@ -176,6 +193,7 @@ type todayData struct {
 	Quests   []questCard
 	Build    []habitCard
 	Avoid    []habitCard
+	Rest     []habitCard // habits with fixed days that are off today
 	Bridges  []bridgeOffer
 	Treats   []todayReward
 	Undo     *undoToast
@@ -238,9 +256,16 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 		if h.Archived || w.Today < h.Start {
 			continue
 		}
-		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], Streak: h.StreakAt(w.Today), Goal: weekGoal(h)}
+		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], Streak: h.StreakAt(w.Today), Goal: weekGoal(h), Collapsed: h.Collapsed}
 		card.StreakLabel, card.XP = streakLabel(card.Streak), game.BaseXP(h.Habit)
 		card.Week, card.Reached = weekStrip(h, w.Today, totals)
+		card.Count = strconv.Itoa(card.Reached)
+		if card.Goal > 0 {
+			card.Of = strconv.Itoa(card.Goal)
+		}
+		if h.GoalWeek {
+			card.Count, card.Of = view.Decimal(h.GoalTotal(w.Today)), view.Decimal(h.Target)
+		}
 		if h.Kind == model.KindAvoid {
 			for _, relapse := range h.Relapses {
 				card.Relapsed = card.Relapsed || relapse == w.Today
@@ -255,14 +280,25 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 		}
 		_, card.Done = h.Done[w.Today]
 		if h.Measured() {
-			card.Meter = newMeter(h.Habit, totals[w.Today][h.ID], card.Done)
+			_, reached := h.GoalCheckin(w.Today)
+			card.Meter = newMeter(h.Habit, h.GoalTotal(w.Today), reached)
+			card.Meter.CanUndo = h.Entries[w.Today] > 0
 			card.Ring, card.RingLabel = card.Meter.Percent, card.Meter.RingLabel
 		} else if card.Done {
 			card.Ring = 100
 		}
-		if h.Frequency != model.FreqCustom || h.Scheduled(w.Today) || card.Done {
-			d.Build = append(d.Build, card)
+		periodMet := (h.Frequency == model.FreqWeekly || h.Frequency == model.FreqMonthly) && !h.DueOn(w.Today)
+		if periodMet {
+			card.Ring = 100
 		}
+		card.Auto = card.Done || periodMet
+		card.Collapsed = card.Collapsed || card.Auto
+		if h.Frequency == model.FreqCustom && !h.Scheduled(w.Today) && !card.Done {
+			card.Rest, card.Collapsed = nextPlanned(h, w.Today), true
+			d.Rest = append(d.Rest, card)
+			continue
+		}
+		d.Build = append(d.Build, card)
 	}
 	if err := s.fillToday(q, d, w); err != nil {
 		return nil, err
@@ -292,6 +328,23 @@ func (s *Server) today(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return s.view.Render(w, http.StatusOK, "today", s.page(r, "Heute", "today", d))
+}
+
+// habitFold switches a card on the Today screen between its two sizes.
+func (s *Server) habitFold(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r)
+	if err != nil {
+		return err
+	}
+	q := s.svc.Store.Q(r.Context())
+	h, err := q.Habit(id)
+	if err != nil {
+		return err
+	}
+	if err := q.SetHabitCollapsed(id, !h.Collapsed); err != nil {
+		return err
+	}
+	return s.afterHabitChange(w, r, id)
 }
 
 // afterHabitChange answers a check-in: a pending celebration wins, otherwise

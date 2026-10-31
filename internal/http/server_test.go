@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -288,12 +289,16 @@ func TestCheckFlowHTMX(t *testing.T) {
 		}
 	}
 
+	if _, html = c.get("/"); !strings.Contains(html, "hcard collapsed") {
+		t.Fatal("a reached habit should fold")
+	}
+
 	// Undo answers with the fragment, not a full document.
 	resp, html = c.post(fmt.Sprintf("/habits/%d/check", id), true)
 	if resp.StatusCode != 200 || strings.Contains(html, "<html") || !strings.Contains(html, "Lesen") {
 		t.Fatalf("fragment: %s %s", resp.Status, html)
 	}
-	if !strings.Contains(html, `aria-pressed="false"`) {
+	if !strings.Contains(html, `aria-pressed="false"`) || strings.Contains(html, "hcard collapsed") {
 		t.Fatal("habit should be open after undo")
 	}
 }
@@ -592,25 +597,34 @@ func TestStaticCompressionAndCaching(t *testing.T) {
 	}
 }
 
-func TestLibraryAddAndActive(t *testing.T) {
+func TestLibraryOpensTheFormFirst(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
 	_, html := c.get("/templates?area=umwelt&kind=avoid")
 	if !strings.Contains(html, "Plastiktüten") || strings.Contains(html, "Joggen") {
 		t.Fatal("filter")
 	}
-	resp, html := c.post("/templates/plastikt-ten/add", true)
-	if resp.StatusCode == 200 {
-		t.Fatalf("unknown template accepted: %s", html)
+	_, html = c.get("/templates?q=jog")
+	if !strings.Contains(html, `href="/habits/new?template=joggen"`) || strings.Contains(html, "/add") {
+		t.Fatalf("a template opens the form: %s", html)
 	}
-	resp, html = c.post("/templates/joggen/add?q=jog", true)
-	if resp.StatusCode != 200 || !strings.Contains(html, "Aktiv") || strings.Contains(html, "<html") {
-		t.Fatalf("%s %s", resp.Status, html)
+	if habits, _ := c.q().Habits(); len(habits) != 0 {
+		t.Fatalf("nothing is added before saving: %+v", habits)
 	}
-	_, _ = c.post("/templates/joggen/add", true)
+	_, html = c.get("/habits/new?template=joggen")
+	if !strings.Contains(html, `value="Joggen"`) || !strings.Contains(html, `href="/templates">Abbrechen`) {
+		t.Fatalf("form: %s", html)
+	}
+	form := url.Values{"csrf": {c.csrf}, "name": {"Joggen im Park"}, "kind": {"build"}, "template": {"joggen"}, "icon": {"heart"}, "area": {c.area()}, "difficulty": {"hard"}, "freq": {"w2"}}
+	if resp, body := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("save: %s %s", resp.Status, body)
+	}
 	habits, _ := c.q().Habits()
-	if len(habits) != 1 || habits[0].Tag != "sport" {
+	if len(habits) != 1 || habits[0].Tag != "sport" || habits[0].Name != "Joggen im Park" || habits[0].WeeklyTarget != 2 {
 		t.Fatalf("habits %+v", habits)
+	}
+	if _, html = c.get("/templates?q=jog"); !strings.Contains(html, "Aktiv") {
+		t.Fatal("saved template should show as active")
 	}
 }
 
@@ -725,13 +739,149 @@ func TestQuantityCardAndValidation(t *testing.T) {
 	}
 }
 
+func TestFoldHabit(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "count", "8", "1", "Gläser")
+	fold := fmt.Sprintf("/habits/%d/fold", id)
+	_, html := c.post(fold, true)
+	if !strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser aufklappen") {
+		t.Fatalf("folded: %s", html)
+	}
+	if _, html = c.get("/"); !strings.Contains(html, "hcard collapsed") {
+		t.Fatal("folding is not stored")
+	}
+	if _, html = c.post(fmt.Sprintf("/habits/%d/add", id), true); !strings.Contains(html, "1/8") || !strings.Contains(html, "hcard collapsed") {
+		t.Fatalf("a folded counter keeps its value: %s", html)
+	}
+	if _, html = c.post(fold, true); strings.Contains(html, "hcard collapsed") || !strings.Contains(html, "Wasser einklappen") {
+		t.Fatalf("unfolded: %s", html)
+	}
+	if resp, _ := c.post("/habits/9999/fold", true); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown habit: %s", resp.Status)
+	}
+}
+
+func TestWeeklyGoalFoldsForTheWeek(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	if _, html := c.get("/habits/new?custom=1"); !strings.Contains(html, "1× / Woche") {
+		t.Fatal("once a week is not on offer")
+	}
+	today := c.svc.Today()
+	if today.WeekdayIndex() == 0 {
+		t.Skip("needs an earlier day in the same week")
+	}
+	form := url.Values{"csrf": {c.csrf}, "name": {"Idee"}, "kind": {"build"}, "freq": {"w1"}, "difficulty": {"easy"}, "icon": {"book"}, "area": {c.area()}}
+	if resp, body := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("create: %s %s", resp.Status, body)
+	}
+	habits, err := c.q().Habits()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := habits[0]
+	if _, html := c.get("/"); !strings.Contains(html, "Idee") || strings.Contains(html, "hcard collapsed") {
+		t.Fatal("an open goal shows the full card")
+	}
+	c.post(fmt.Sprintf("/habits/%d/check?date=%s", h.ID, (today-1).String()), true)
+	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") || strings.Contains(html, "Idee einklappen") {
+		t.Fatalf("a met weekly goal folds: %s", html)
+	}
+}
+
+func TestWeeklyAmountGoal(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	form := url.Values{"csrf": {c.csrf}, "name": {"Idee"}, "kind": {"build"}, "freq": {"daily"}, "difficulty": {"easy"}, "icon": {"book"}, "area": {c.area()},
+		"measure": {"count"}, "goal_period": {"week"}, "target": {"2"}, "step": {"1"}, "unit": {"Ideen"}}
+	if resp, body := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("create: %s %s", resp.Status, body)
+	}
+	habits, err := c.q().Habits()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := habits[0]
+	if !h.GoalWeek || h.Frequency != model.FreqWeekly || h.WeeklyTarget != 1 {
+		t.Fatalf("stored: %+v", h)
+	}
+	add := fmt.Sprintf("/habits/%d/add", h.ID)
+	undo := fmt.Sprintf("/habits/%d/undo", h.ID)
+	xp := c.xp()
+	if _, html := c.post(add, true); !strings.Contains(html, "<b>1/2</b>") || strings.Contains(html, "hcard collapsed") {
+		t.Fatalf("half way: %s", html)
+	}
+	if c.xp() != xp {
+		t.Fatal("no xp before the goal of the week")
+	}
+	c.post(add, true)
+	for {
+		if resp, _ := c.get("/celebrate"); resp.StatusCode == http.StatusSeeOther {
+			break
+		}
+		c.post("/celebrate", false)
+	}
+	reached := c.xp()
+	if reached <= xp {
+		t.Fatal("reaching the goal pays")
+	}
+	if _, html := c.get("/"); !strings.Contains(html, "hcard collapsed") {
+		t.Fatal("a reached weekly goal folds")
+	}
+	c.post(add, true)
+	if c.xp() != reached {
+		t.Fatal("a click past the goal pays nothing")
+	}
+	checkins := func() int {
+		w, err := c.svc.World(c.q())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(service.Find(w, h.ID).Done)
+	}
+	if checkins() != 1 {
+		t.Fatalf("one check-in per week: %d", checkins())
+	}
+	c.post(undo, true)
+	c.post(undo, true)
+	if checkins() != 0 || c.xp() != xp {
+		t.Fatalf("falling below takes it back: %d, xp %d", checkins(), c.xp())
+	}
+	_, html := c.get(fmt.Sprintf("/habits/%d/edit", h.ID))
+	if !strings.Contains(html, ">Wochenziel<") {
+		t.Fatal("the form names the weekly goal")
+	}
+	_, html = c.get(fmt.Sprintf("/habits/%d?view=week", h.ID))
+	if !strings.Contains(html, "2 Ideen pro Woche") || !strings.Contains(html, "Ziel 2 Ideen") || strings.Contains(html, "goal-line") {
+		t.Fatalf("detail: %s", html)
+	}
+}
+
+func TestHabitOffTodayStaysVisible(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	tomorrow := (c.svc.Today() + 1).WeekdayIndex()
+	form := url.Values{"csrf": {c.csrf}, "name": {"Bewerbung"}, "kind": {"build"}, "freq": {"custom"}, "days": {strconv.Itoa(tomorrow)},
+		"difficulty": {"easy"}, "icon": {"book"}, "area": {c.area()}}
+	if resp, body := c.do("POST", "/habits/new", form, nil); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("create: %s %s", resp.Status, body)
+	}
+	_, html := c.get("/")
+	for _, want := range []string{"Heute frei", "Bewerbung", "wieder am " + weekNames[tomorrow], "hcard collapsed"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("missing %q: %s", want, html)
+		}
+	}
+}
+
 func TestCalendarFillsMeasuredDay(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
 	id := c.meterHabit("Wasser", "count", "8", "1", "Gläser")
 	c.post(fmt.Sprintf("/habits/%d/check", id), false)
 	_, html := c.get("/")
-	if !strings.Contains(html, "8/8") {
+	if !strings.Contains(html, "hcard collapsed") {
 		t.Fatalf("check fills the goal: %s", html)
 	}
 	c.post(fmt.Sprintf("/habits/%d/check", id), false)
@@ -950,7 +1100,7 @@ func TestDetailChartsFollowTheEntries(t *testing.T) {
 	add := fmt.Sprintf("/habits/%d/add", id)
 	c.post(add, true)
 	_, html := c.get(fmt.Sprintf("/habits/%d?view=week", id))
-	for _, want := range []string{"Ziel 20′", "5 Min. · Ø 5′", "<b class=\"\">5′</b>", "Rekord", "Quote 30 T.", "0/0</b><span>Ziel erreicht"} {
+	for _, want := range []string{"Ziel 20 Min.", "Minuten pro Tag", "<b class=\"\">5′</b>", "5 Min.", "Ø pro Tag", "0/0</b><span>Ziel erreicht"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("week: missing %q", want)
 		}
@@ -963,7 +1113,7 @@ func TestDetailChartsFollowTheEntries(t *testing.T) {
 		c.post(add, true)
 	}
 	_, html = c.get(fmt.Sprintf("/habits/%d?view=year", id))
-	for _, want := range []string{"1 Tage erledigt", "20 Min.</b><span>insgesamt", "100%", "Quote pro Monat"} {
+	for _, want := range []string{"<b>20</b> <span>Minuten</span>", "<b>100%</b>", "Stunden pro Monat", "bester Monat"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("year: missing %q", want)
 		}

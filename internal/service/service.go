@@ -218,7 +218,11 @@ func (s *Service) Check(ctx context.Context, habitID int64, d model.Day) error {
 			return ErrNotAllowed
 		}
 		var trigger *Trigger
-		if _, done := h.Done[d]; done {
+		if h.GoalWeek {
+			if trigger, err = s.toggleWeekDay(q, w, h, d); err != nil {
+				return err
+			}
+		} else if _, done := h.Done[d]; done {
 			if err := s.removeCheckin(q, h, d); err != nil {
 				return err
 			}
@@ -246,6 +250,39 @@ func (s *Service) removeCheckin(q *db.Q, h *game.HabitData, d model.Day) error {
 	}
 	delete(h.Done, d)
 	return s.reverse(q, checkinRef(h.ID, d))
+}
+
+// toggleWeekDay clears a day of a weekly goal, or books one click on it. Days are
+// only parts of the week here, so a tap never fills the whole goal.
+func (s *Service) toggleWeekDay(q *db.Q, w *game.World, h *game.HabitData, d model.Day) (*Trigger, error) {
+	if h.Entries[d] > 0 {
+		if err := q.DeleteDayEntries(h.ID, d); err != nil {
+			return nil, err
+		}
+		h.Entries[d] = 0
+	} else {
+		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: h.Step, CreatedAt: s.atDay(d)}); err != nil {
+			return nil, err
+		}
+		h.Entries[d] = h.Step
+	}
+	trigger, _, err := s.syncGoal(q, w, h, d)
+	return trigger, err
+}
+
+// syncGoal aligns the check-in with the entries: reaching the goal adds it,
+// falling below takes it back.
+func (s *Service) syncGoal(q *db.Q, w *game.World, h *game.HabitData, d model.Day) (*Trigger, bool, error) {
+	day, done := h.GoalCheckin(d)
+	met := h.GoalTotal(d) >= h.Target
+	switch {
+	case met && !done:
+		trigger, err := s.addCheckin(q, w, h, d)
+		return trigger, true, err
+	case done && !met:
+		return nil, true, s.removeCheckin(q, h, day)
+	}
+	return nil, false, nil
 }
 
 // fillDay tops a counter or quantity habit up to its goal, for days marked done
@@ -292,16 +329,13 @@ func (s *Service) AddEntry(ctx context.Context, habitID int64) error {
 		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: h.Step, CreatedAt: s.Now()}); err != nil {
 			return err
 		}
-		totals, err := q.DayTotals(d)
+		h.Entries[d] = model.RoundAmount(h.Entries[d] + h.Step)
+		trigger, changed, err := s.syncGoal(q, w, h, d)
 		if err != nil {
 			return err
 		}
-		if _, done := h.Done[d]; done || totals[h.ID] < h.Target {
+		if !changed {
 			return s.evaluate(q, nil, false) // amount badges count every click
-		}
-		trigger, err := s.addCheckin(q, w, h, d)
-		if err != nil {
-			return err
 		}
 		if err := s.updateQuest(q, w); err != nil {
 			return err
@@ -329,10 +363,9 @@ func (s *Service) UndoEntry(ctx context.Context, habitID int64) error {
 		if err != nil {
 			return err
 		}
-		if _, done := h.Done[d]; !done || totals[h.ID] >= h.Target {
-			return nil
-		}
-		if err := s.removeCheckin(q, h, d); err != nil {
+		h.Entries[d] = totals[h.ID]
+		_, changed, err := s.syncGoal(q, w, h, d)
+		if err != nil || !changed {
 			return err
 		}
 		if err := s.updateQuest(q, w); err != nil {

@@ -145,14 +145,14 @@ func (q *Q) DeleteArea(id int64) error {
 	return q.execOne(`DELETE FROM areas WHERE id = ? AND user_id = ?`, id, q.uid)
 }
 
-const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit`
+const habitColumns = `id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit, collapsed, goal_week`
 
 func scanHabit(s interface{ Scan(...any) error }) (model.Habit, error) {
 	var h model.Habit
 	var created string
 	var template sql.NullString
 	err := s.Scan(&h.ID, &template, &h.Name, &h.Kind, &h.Frequency, &h.WeeklyTarget, &h.DaysMask, &h.Icon, &h.Tag,
-		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort, &h.Measure, &h.Target, &h.Step, &h.Unit)
+		&h.AreaID, &h.Difficulty, &h.Archived, &created, &h.Sort, &h.Measure, &h.Target, &h.Step, &h.Unit, &h.Collapsed, &h.GoalWeek)
 	h.CreatedAt = parseTime(created)
 	h.TemplateID = template.String
 	return h, err
@@ -194,16 +194,16 @@ func (q *Q) SaveHabit(h model.Habit) (int64, error) {
 	h = h.Normalized()
 	if h.ID != 0 {
 		err := q.exec(`UPDATE habits SET template_id = ?, name = ?, kind = ?, frequency = ?, weekly_target = ?, days_mask = ?, icon = ?,
-			tag = ?, area_id = ?, difficulty = ?, archived = ?, measure = ?, target = ?, step = ?, unit = ? WHERE id = ? AND user_id = ?`,
+			tag = ?, area_id = ?, difficulty = ?, archived = ?, measure = ?, target = ?, step = ?, unit = ?, goal_week = ? WHERE id = ? AND user_id = ?`,
 			nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived),
-			h.Measure, h.Target, h.Step, h.Unit, h.ID, q.uid)
+			h.Measure, h.Target, h.Step, h.Unit, b2i(h.GoalWeek), h.ID, q.uid)
 		return h.ID, err
 	}
 	res, err := q.r.ExecContext(q.ctx, `INSERT INTO habits
-		(user_id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, measure, target, step, unit, sort)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort), 0) + 1 FROM habits WHERE user_id = ?))`,
+		(user_id, template_id, name, kind, frequency, weekly_target, days_mask, icon, tag, area_id, difficulty, archived, created_at, measure, target, step, unit, goal_week, sort)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort), 0) + 1 FROM habits WHERE user_id = ?))`,
 		q.uid, nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, h.AreaID, h.Difficulty, b2i(h.Archived), formatTime(h.CreatedAt),
-		h.Measure, h.Target, h.Step, h.Unit, q.uid)
+		h.Measure, h.Target, h.Step, h.Unit, b2i(h.GoalWeek), q.uid)
 	if err != nil {
 		return 0, fmt.Errorf("insert habit: %w", err)
 	}
@@ -213,6 +213,11 @@ func (q *Q) SaveHabit(h model.Habit) (int64, error) {
 // SetHabitArchived archives or restores a habit.
 func (q *Q) SetHabitArchived(id int64, archived bool) error {
 	return q.execOne(`UPDATE habits SET archived = ? WHERE id = ? AND user_id = ?`, b2i(archived), id, q.uid)
+}
+
+// SetHabitCollapsed folds or unfolds a habit on the Today screen.
+func (q *Q) SetHabitCollapsed(id int64, collapsed bool) error {
+	return q.execOne(`UPDATE habits SET collapsed = ? WHERE id = ? AND user_id = ?`, b2i(collapsed), id, q.uid)
 }
 
 // MoveHabit swaps the habit with its neighbour among the active habits.
@@ -976,10 +981,10 @@ func (q *Q) RestoreAll(e *Export) error {
 	for _, h := range e.Habits {
 		h = h.Normalized()
 		res, err := q.r.ExecContext(q.ctx, `INSERT INTO habits (user_id, template_id, name, kind, frequency, weekly_target, days_mask,
-			icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			icon, tag, area_id, difficulty, archived, created_at, sort, measure, target, step, unit, collapsed, goal_week)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			q.uid, nullableText(h.TemplateID), h.Name, h.Kind, h.Frequency, h.WeeklyTarget, h.DaysMask, h.Icon, h.Tag, areas[h.AreaID], h.Difficulty,
-			b2i(h.Archived), formatTime(h.CreatedAt), h.Sort, h.Measure, h.Target, h.Step, h.Unit)
+			b2i(h.Archived), formatTime(h.CreatedAt), h.Sort, h.Measure, h.Target, h.Step, h.Unit, b2i(h.Collapsed), b2i(h.GoalWeek))
 		if err != nil {
 			return fmt.Errorf("restore habit: %w", err)
 		}

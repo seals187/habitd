@@ -1,10 +1,16 @@
 {{define "content"}}<main id="page" class="page detail">{{template "habit-body" .}}</main>{{end}}
 
-{{define "habit-body"}}{{$d := .Data}}<div class="detail-body" style="--c:{{$d.Area.Color}}">
+{{define "habit-body"}}{{$d := .Data}}<div class="detail-body view-{{$d.View}}{{if $d.Amount}} amounts{{end}}" style="--c:{{$d.Area.Color}}">
 <div class="detail-nav">{{template "back" "/"}}<a class="round" href="/habits/{{$d.Habit.ID}}/edit" aria-label="Habit bearbeiten">{{icon "pencil" 18}}</a></div>
 <p class="meta"><i class="dot big"></i><em class="accent">{{$d.Area.Name}}</em> · {{$d.Frequency}} · seit {{$d.Since}}</p>
 <h1>{{$d.Habit.Name}}</h1>
-<section class="hero">
+{{if $d.Amount}}{{template "view-seg" $d}}
+{{with $d.Amount}}<section class="card amount-hero">
+<div class="amount-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="hero-track" cx="60" cy="60" r="56"/>{{if .Percent}}<circle class="hero-fill" cx="60" cy="60" r="56" stroke-dasharray="{{dash 56.0 .Percent}}" transform="rotate(-90 60 60)"/>{{end}}</svg><div>{{icon $d.Habit.Icon 22}}<b>{{.Percent}}%</b></div></div>
+<div class="amount-main"><p><b>{{.Value}}</b>{{with .Unit}} <span>{{.}}</span>{{end}}</p><small>{{.Sub}}</small></div>
+<div class="amount-side"><b class="{{.Side.Class}}">{{.Side.Value}}</b><small>{{.Side.Label}}</small></div>
+</section>{{end}}
+{{else}}<section class="hero">
 <div class="hero-ring"><svg viewBox="0 0 150 150" aria-hidden="true"><circle class="hero-track" cx="75" cy="75" r="71"/>{{if $d.Ring}}<circle class="hero-fill" cx="75" cy="75" r="71" stroke-dasharray="{{dash 71.0 $d.Ring}}" transform="rotate(-90 75 75)"/>{{end}}</svg>
 <div class="hero-center"><span class="orange">{{icon "flame" 22}}</span><b>{{$d.Streak.Current}}</b><small>{{streakUnit $d.Streak}} Serie</small></div></div>
 <dl class="hero-stats">
@@ -14,13 +20,9 @@
 </dl>
 </section>
 {{if $d.Strip}}<section class="card strip">{{range $d.Strip}}<div class="strip-day"><span>{{.Letter}}</span>{{template "dot" dict "Cell" . "D" $d}}</div>{{end}}</section>{{end}}
-<nav class="seg seg-3" aria-label="Ansicht">
-<a href="/habits/{{$d.Habit.ID}}?view=week" {{if eq $d.View "week"}}class="on"{{end}}>Woche</a>
-<a href="/habits/{{$d.Habit.ID}}?view=month" {{if eq $d.View "month"}}class="on"{{end}}>Monat</a>
-<a href="/habits/{{$d.Habit.ID}}?view=year" {{if eq $d.View "year"}}class="on"{{end}}>Jahr</a>
-</nav>
+{{template "view-seg" $d}}{{end}}
 {{if eq $d.View "week"}}<section class="card chart">
-<div class="chart-head"><strong>{{$d.Chart.Title}}</strong><span class="accent">{{$d.Chart.Summary}}</span></div>
+<div class="chart-head"><strong>{{$d.Chart.Title}}</strong><span class="{{if $d.Amount}}muted{{else}}accent{{end}}">{{$d.Chart.Summary}}</span></div>
 <div class="week-bars">
 {{if $d.Chart.GoalAt}}<div class="goal-area"><div class="goal-line{{if gt $d.Chart.GoalAt 85}} high{{end}}" style="bottom:{{$d.Chart.GoalAt}}%"><span>{{$d.Chart.GoalLabel}}</span></div></div>{{end}}
 {{range $d.Chart.Bars}}<div class="week-bar{{if .Today}} today{{end}}"><b class="{{if .Reached}}accent{{end}}">{{.Label}}</b><div class="week-track">{{if .Future}}<i class="future"></i>{{else if not .Empty}}<i class="{{if .Reached}}reached{{end}}" style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Name}}</span></div>{{end}}
@@ -30,8 +32,14 @@
 <div class="cal-head"><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.PrevMonth}}" aria-label="Voriger Monat">{{icon "chevron-left" 22}}</a><strong>{{$d.MonthTitle}}</strong><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.NextMonth}}" aria-label="Nächster Monat">{{icon "chevron-right" 22}}</a></div>
 <div class="cal-grid cal-letters"><span>M</span><span>D</span><span>M</span><span>D</span><span>F</span><span>S</span><span>S</span></div>
 {{range $d.Weeks}}<div class="cal-grid">{{range .}}{{template "day" dict "Cell" . "D" $d}}{{end}}</div>{{end}}
+{{with $d.Amount}}{{with .Hint}}<p class="muted heat-hint">{{.}}</p>{{end}}{{end}}
 </section>{{end}}
-{{if eq $d.View "year"}}<section class="card chart">
+{{if eq $d.View "year"}}{{with $d.Amount}}<section class="card chart amount-chart">
+<div class="chart-head"><strong>{{.Title}}</strong><span class="muted">{{.Goal}}</span></div>
+<div class="amount-bars">{{range .Bars}}<div class="amount-bar{{if .Current}} current{{end}}{{if .Stub}} stub{{end}}"><div class="amount-track"><b style="bottom:calc({{.Height}}% + 5px)">{{.Label}}</b><i style="height:{{.Height}}%"></i></div><span>{{.Name}}</span></div>{{end}}</div>
+</section>
+{{with .Note}}<section class="card amount-note"><span class="reward-tile">{{icon $d.Habit.Icon 22}}</span><p>{{range .}}{{if .Bold}}<b>{{.Text}}</b>{{else}}{{.Text}}{{end}}{{end}}</p></section>{{end}}
+{{else}}<section class="card chart">
 <div class="chart-head"><strong>Letzte 12 Monate</strong><span class="accent">{{$d.YearDone}} Tage erledigt</span></div>
 <div class="heat" role="img" aria-label="Kalender der letzten 12 Monate">{{range $d.Heat}}<div class="heat-col"><span>{{.Month}}</span>{{range .Cells}}<i class="{{.Class}}" title="{{.Title}}"></i>{{end}}</div>{{end}}</div>
 {{with $d.StartHint}}<p class="muted heat-hint">{{.}}</p>{{end}}
@@ -39,13 +47,19 @@
 <section class="card chart">
 <div class="chart-head"><strong>Quote pro Monat</strong></div>
 <div class="month-bars">{{range $d.MonthBars}}<div class="month-bar{{if .Current}} current{{end}}"><div class="month-track">{{if .Empty}}<i class="stub"></i>{{else}}<b>{{.Label}}</b><i style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Letter}}</span></div>{{end}}</div>
-</section>{{end}}
+</section>{{end}}{{end}}
 {{if $d.Stats}}<div class="stats-3">{{range $d.Stats}}<div class="card stat"><b class="{{.Class}}">{{.Value}}</b><span>{{.Label}}</span></div>{{end}}</div>{{end}}
 {{range $d.Rewards}}<section class="card note goal"><span class="gold">{{icon "gift" 18}}</span><div><p><b>{{.Title}}</b> <span class="muted">{{.Progress}} / {{.Target}} Tage</span></p><div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div></div></section>{{end}}
 </div>{{end}}
+
+{{define "view-seg"}}{{$d := .}}<nav class="seg seg-3" aria-label="Ansicht">
+<a href="/habits/{{$d.Habit.ID}}?view=week" {{if eq $d.View "week"}}class="on"{{end}}>Woche</a>
+<a href="/habits/{{$d.Habit.ID}}?view=month" {{if eq $d.View "month"}}class="on"{{end}}>Monat</a>
+<a href="/habits/{{$d.Habit.ID}}?view=year" {{if eq $d.View "year"}}class="on"{{end}}>Jahr</a>
+</nav>{{end}}
 
 {{define "day-attrs"}}hx-post="/habits/{{.D.Habit.ID}}/{{if .D.Avoid}}relapse{{else}}check{{end}}?date={{.Cell.Date}}&from=detail&view={{.D.View}}&m={{.D.MonthParam}}" hx-target="#page" aria-label="{{.Cell.Date}}"{{end}}
 
 {{define "dot"}}{{$c := .Cell}}{{if $c.Editable}}<button class="strip-dot {{$c.State}}" {{template "day-attrs" .}}>{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</button>{{else}}<span class="strip-dot {{$c.State}}">{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</span>{{end}}{{end}}
 
-{{define "day"}}{{$c := .Cell}}{{if not $c.Label}}<span class="day blank"></span>{{else if $c.Editable}}<button class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%" {{template "day-attrs" .}}><span>{{$c.Label}}</span></button>{{else}}<span class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%"><span>{{$c.Label}}</span></span>{{end}}{{end}}
+{{define "day"}}{{$c := .Cell}}{{if not $c.Label}}<span class="day blank"></span>{{else if $c.Editable}}<button class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%" {{template "day-attrs" .}}><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</button>{{else}}<span class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%"><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</span>{{end}}{{end}}

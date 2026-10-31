@@ -1,5 +1,5 @@
 {{define "content"}}{{$d := .Data}}<main class="page form-page" x-data="habitForm" data-config='{{$d.Config}}'>
-<header class="form-head"><a href="{{if $d.New}}/{{else}}/habits/{{$d.Habit.ID}}{{end}}">Abbrechen</a><h1>{{.Title}}</h1><button type="submit" form="habit-form">Sichern</button></header>
+<header class="form-head"><a href="{{if $d.Habit.ID}}/habits/{{$d.Habit.ID}}{{else if $d.Habit.TemplateID}}/templates{{else}}/{{end}}">Abbrechen</a><h1>{{.Title}}</h1><button type="submit" form="habit-form">Sichern</button></header>
 {{with $d.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <form id="habit-form" method="post">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
@@ -24,19 +24,26 @@
 <label><input type="radio" name="measure" value="amount" x-model="measure" {{if eq $d.Habit.Measure "amount"}}checked{{end}}><span>{{icon "chart-column" 24}}<b>Menge</b><small>z. B. 10.000 Schritte</small></span></label>
 </div>
 <div class="only-measure">
+<p class="field-label">Ziel gilt pro</p>
+<div class="seg seg-2 goal-period">
+<label><input type="radio" name="goal_period" value="day" x-model="goalPeriod" {{if not $d.Habit.GoalWeek}}checked{{end}}><span>Tag</span></label>
+<label><input type="radio" name="goal_period" value="week" x-model="goalPeriod" {{if $d.Habit.GoalWeek}}checked{{end}}><span>Woche</span></label>
+</div>
 <div class="measure-fields">
-<div><label class="field-label" for="target">Tagesziel</label>
-<div class="num-step"><button type="button" class="step" @click="decTarget" aria-label="Tagesziel verringern">{{icon "minus" 18}}</button><input id="target" name="target" type="number" min="0.001" max="1000000" step="any" inputmode="decimal" x-model="target"><button type="button" class="step" @click="incTarget" aria-label="Tagesziel erhöhen">{{icon "plus" 18}}</button></div></div>
+<div><label class="field-label" for="target" x-text="goalLabel">{{if $d.Habit.GoalWeek}}Wochenziel{{else}}Tagesziel{{end}}</label>
+<div class="num-step"><button type="button" class="step" @click="decTarget" aria-label="Ziel verringern">{{icon "minus" 18}}</button><input id="target" name="target" type="number" min="0.001" max="1000000" step="any" inputmode="decimal" x-model="target"><button type="button" class="step" @click="incTarget" aria-label="Ziel erhöhen">{{icon "plus" 18}}</button></div></div>
 <div><label class="field-label" for="step">Pro Klick</label>
 <div class="num-step"><button type="button" class="step" @click="decStep" aria-label="Pro Klick verringern">{{icon "minus" 18}}</button><input id="step" name="step" type="number" min="0.001" max="1000000" step="any" inputmode="decimal" x-model="step"><button type="button" class="step" @click="incStep" aria-label="Pro Klick erhöhen">{{icon "plus" 18}}</button></div></div>
 </div>
 <label class="field-label" for="unit">Einheit</label>
 <input class="input" id="unit" name="unit" value="{{$d.Habit.Unit}}" placeholder="Gläser, Schritte oder Min." maxlength="16" autocomplete="off">
-<p class="hint">XP, Taler und Serie gibt es, sobald das Tagesziel erreicht ist.</p>
+<p class="hint" x-text="goalHint">XP, Taler und Serie gibt es, sobald das {{if $d.Habit.GoalWeek}}Wochenziel{{else}}Tagesziel{{end}} erreicht ist.</p>
 </div>
+<div class="only-rhythm">
 <p class="field-label">Wie oft?</p>
 <div class="pills">{{range $d.Freqs}}<label class="pill"><input type="radio" name="freq" value="{{.Value}}" {{if .Checked}}checked{{end}}><span>{{.Label}}</span></label>{{end}}</div>
 <div class="pills only-custom">{{range $d.Days}}<label class="pill small"><input type="checkbox" name="days" value="{{.Bit}}" {{if .Checked}}checked{{end}}><span>{{.Label}}</span></label>{{end}}</div>
+</div>
 </div>
 <p class="field-label">Icon</p>
 <div class="icons">{{range $d.Icons}}<label class="icon-pick"><input type="radio" name="icon" value="{{.Name}}" {{if eq .Name $d.Habit.Icon}}checked{{end}} aria-label="Icon {{.Name}}"><span>{{icon .Name 24}}</span></label>{{end}}</div>
@@ -49,8 +56,8 @@
 <label><input type="radio" name="difficulty" value="hard" x-model="difficulty" {{if eq $d.Habit.Difficulty "hard"}}checked{{end}}><span>Schwer</span></label>
 </div>
 <div class="preview">
-<div><b class="green" x-text="xpLabel">+10 XP</b><span>pro Tag</span></div>
-<div><b class="gold" x-text="coinLabel">+3 Taler</b><span>pro Tag</span></div>
+<div><b class="green" x-text="xpLabel">+10 XP</b><span x-text="payLabel">{{if $d.Habit.GoalWeek}}pro Woche{{else}}pro Tag{{end}}</span></div>
+<div><b class="gold" x-text="coinLabel">+3 Taler</b><span x-text="payLabel">{{if $d.Habit.GoalWeek}}pro Woche{{else}}pro Tag{{end}}</span></div>
 <div><b class="orange">×1,5</b><span>ab 7 Tagen</span></div>
 </div>
 </div>

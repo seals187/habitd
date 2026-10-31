@@ -22,6 +22,7 @@ type dayCell struct {
 	Date     string
 	State    string // done, part, joker, missed, open or none
 	Fill     int    // filled height of a partly reached day, in percent
+	Value    string // amount of the day, for habits with a unit
 	Today    bool
 	Editable bool
 }
@@ -105,6 +106,8 @@ type detailData struct {
 	StartHint string
 	MonthBars []monthBar
 
+	Amount *amountData // set for habits with a unit, replaces the streak
+
 	Stats   []statBox
 	Rewards []linkedReward
 }
@@ -165,7 +168,7 @@ func cellFor(h *game.HabitData, d, today model.Day, totals map[model.Day]float64
 		default:
 			c.State = "done"
 		}
-	case hasDone(h, d):
+	case hasDone(h, d) && !h.GoalWeek:
 		c.State = "done"
 	case h.Joker[d]:
 		c.State = "joker"
@@ -281,17 +284,10 @@ func valueOn(h *game.HabitData, d, today model.Day, totals map[model.Day]float64
 	if h.Measured() {
 		v = totals[d]
 	}
-	if hasDone(h, d) {
+	if hasDone(h, d) && !h.GoalWeek {
 		v = max(v, goalOf(h))
 	}
 	return v
-}
-
-func amountLabel(h *game.HabitData, v float64) string {
-	if view.IsMinutes(h.Unit) {
-		return view.Decimal(v) + "′"
-	}
-	return view.Decimal(v)
 }
 
 func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
@@ -322,21 +318,34 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 		Habit: h.Habit, Area: areaMap(areas)[h.AreaID], Frequency: view.FrequencyLabel(h.Habit), Since: sinceLabel(h.Start, w.Today),
 		Streak: streak, Avoid: h.Kind == model.KindAvoid, Ring: ringPercent(streak.Days), Quote: percent(done, plan), XPTotal: xp, CoinsTotal: coins,
 	}
+	unit := amountUnitOf(h.Unit)
 	if d.Avoid {
 		d.Frequency = "vermeiden"
+	} else if h.GoalWeek {
+		d.Frequency = unit.label(h.Target) + " pro Woche"
+	} else if h.Measured() {
+		d.Frequency += " " + unit.label(h.Target)
 	}
 	if d.View, err = rememberedView(q, id, r.FormValue("view")); err != nil {
 		return nil, err
 	}
 	switch d.View {
 	case "week":
-		buildStrip(d, h, w.Today, totals)
+		if !h.Measured() {
+			buildStrip(d, h, w.Today, totals)
+		}
 		buildWeek(d, h, w.Today, totals)
 	case "year":
-		buildYear(d, h, w.Today, totals)
+		if h.Measured() {
+			buildYearAmount(d, h, unit, w.Today, totals)
+		} else {
+			buildYear(d, h, w.Today, totals)
+		}
 	default:
 		d.View = "month"
-		buildStrip(d, h, w.Today, totals)
+		if !h.Measured() {
+			buildStrip(d, h, w.Today, totals)
+		}
 		if err := buildMonth(d, h, w.Today, r.FormValue("m"), totals); err != nil {
 			return nil, err
 		}
@@ -363,7 +372,11 @@ func buildStrip(d *detailData, h *game.HabitData, today model.Day, totals map[mo
 func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64) {
 	start := today.WeekStart()
 	goal := goalOf(h)
+	unit := amountUnitOf(h.Unit)
 	top := goal
+	if h.GoalWeek { // a single day says nothing about the goal of the week
+		top = h.Step
+	}
 	for x := start; x <= today; x++ {
 		top = max(top, valueOn(h, x, today, totals))
 	}
@@ -380,10 +393,11 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 			v := valueOn(h, x, today, totals)
 			sum += v
 			days++
-			bar.Height, bar.Reached = max(int(v*100/top), 3), v >= goal
-			if h.Measured() {
-				bar.Label = amountLabel(h, v)
-			} else if v > 0 {
+			bar.Height, bar.Reached = max(int(v*100/top), 3), v >= goal || (h.GoalWeek && v > 0)
+			switch {
+			case h.Measured() && v > 0:
+				bar.Label = unit.bare(v)
+			case !h.Measured() && v > 0:
 				bar.Label = "✓"
 			}
 			if v > bestValue {
@@ -395,14 +409,15 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 	_, week := today.Time().ISOWeek()
 	d.Chart.Title = fmt.Sprintf("KW %d · %s", week, rangeLabel(start, min(start+6, today)))
 	if h.Measured() {
-		d.Chart.GoalAt = int(goal * 100 / top)
-		d.Chart.GoalLabel = "Ziel " + amountLabel(h, goal)
-		unit := view.Decimal(sum) + " " + h.Unit
-		d.Chart.Summary = fmt.Sprintf("%s · Ø %s", unit, amountLabel(h, sum/float64(max(days, 1))))
-	} else {
-		d.Chart.Summary = fmt.Sprintf("%d von %d Tagen", int(sum), days)
-		best = bestWeekday(h, today-364, today)
+		if !h.GoalWeek {
+			d.Chart.GoalAt = int(goal * 100 / top)
+			d.Chart.GoalLabel = "Ziel " + unit.label(goal)
+		}
+		buildWeekAmount(d, h, unit, today, totals)
+		return
 	}
+	d.Chart.Summary = fmt.Sprintf("%d von %d Tagen", int(sum), days)
+	best = bestWeekday(h, today-364, today)
 	done, plan := planned(h, start, lastSettledDay(h, today))
 	d.Stats = []statBox{
 		{Value: fmt.Sprintf("%d/%d", done, plan), Label: "Ziel erreicht", Class: "accent"},
@@ -452,6 +467,7 @@ func bestWeekday(h *game.HabitData, from, today model.Day) string {
 }
 
 func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string, totals map[model.Day]float64) error {
+	unit := amountUnitOf(h.Unit)
 	year, month := today.Year(), today.Month()
 	if param != "" {
 		t, err := time.Parse("2006-01", param)
@@ -469,7 +485,11 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 
 	week := make([]dayCell, first.WeekdayIndex())
 	for x := first; x <= last; x++ {
-		week = append(week, cellFor(h, x, today, totals))
+		cell := cellFor(h, x, today, totals)
+		if v := valueOn(h, x, today, totals); h.Measured() && v > 0 {
+			cell.Value = unit.bare(v)
+		}
+		week = append(week, cell)
 		if len(week) == 7 {
 			d.Weeks = append(d.Weeks, week)
 			week = nil
@@ -477,6 +497,9 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 	}
 	if len(week) > 0 {
 		d.Weeks = append(d.Weeks, append(week, make([]dayCell, 7-len(week))...))
+	}
+	if h.Measured() {
+		buildMonthAmount(d, h, unit, first, last, today, totals)
 	}
 	return nil
 }

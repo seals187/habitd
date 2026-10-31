@@ -94,6 +94,34 @@ func (h *HabitData) WeekMet(w model.Day) bool {
 	return done+joker >= h.WeekTarget()
 }
 
+// GoalTotal is what counts towards the goal of day d: the day itself, or the
+// whole week when the goal adds up over a week.
+func (h *HabitData) GoalTotal(d model.Day) float64 {
+	if !h.GoalWeek {
+		return h.Entries[d]
+	}
+	sum := 0.0
+	for x := d.WeekStart(); x < d.WeekStart()+7; x++ {
+		sum += h.Entries[x]
+	}
+	return model.RoundAmount(sum)
+}
+
+// GoalCheckin finds the check-in that belongs to the goal of day d. A weekly goal
+// has one, on the day it was reached.
+func (h *HabitData) GoalCheckin(d model.Day) (model.Day, bool) {
+	if !h.GoalWeek {
+		_, done := h.Done[d]
+		return d, done
+	}
+	for x := d.WeekStart(); x < d.WeekStart()+7; x++ {
+		if _, done := h.Done[x]; done {
+			return x, true
+		}
+	}
+	return d, false
+}
+
 // DueOn reports whether the habit still asks for a check-in on day d: planned
 // for that day, or a weekly rhythm that has not reached its target yet.
 func (h *HabitData) DueOn(d model.Day) bool {
