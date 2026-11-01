@@ -419,8 +419,12 @@ document.addEventListener("click", (e) => {
 // History pages come fresh from the server, htmx keeps no scroll position for them.
 const scrolls = new Map();
 history.scrollRestoration = "manual";
-document.addEventListener("htmx:beforeHistorySave", (e) => scrolls.set(e.detail.path, scrollY));
-document.addEventListener("htmx:historyRestore", (e) => scrollTo(0, scrolls.get(e.detail.path) || 0));
+const scroller = () => {
+  const app = document.querySelector(".app.has-tabs");
+  return app && getComputedStyle(app).overflowY === "auto" ? app : document.documentElement;
+};
+document.addEventListener("htmx:beforeHistorySave", (e) => scrolls.set(e.detail.path, scroller().scrollTop));
+document.addEventListener("htmx:historyRestore", (e) => { scroller().scrollTop = scrolls.get(e.detail.path) || 0; });
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});

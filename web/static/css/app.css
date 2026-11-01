@@ -1567,3 +1567,11 @@ html:has(dialog.sheet[open]) { overflow: hidden; }
 .streak-kind { flex: none; color: var(--orange); }
 .streak-kind.weeks { color: var(--gold); }
 .streak-kind.zero { color: var(--muted); }
+
+/* On phones the content scrolls instead of the window. The browser then keeps its
+   toolbar in place, and a toolbar on the move is what makes a fixed tab bar jump. */
+@media (max-width: 600px) {
+  html:has(.app.has-tabs), html:has(.app.has-tabs) body { height: 100%; overflow: hidden; }
+  .app.has-tabs { display: block; max-width: none; height: 100dvh; min-height: 0; overflow-y: auto; overscroll-behavior-y: none; }
+  .app.has-tabs > .page { max-width: 480px; margin-inline: auto; }
+}
