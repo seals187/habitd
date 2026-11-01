@@ -1112,3 +1112,118 @@ func (q *Q) HabitEntries(habitID int64, from model.Day) ([]model.Entry, error) {
 	}
 	return out, rows.Err()
 }
+
+// XPByDay sums the XP per calendar day of a range, keyed by the date.
+func (q *Q) XPByDay(from, to model.Day) (map[string]int, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT substr(at, 1, 10), sum(amount) FROM ledger
+		WHERE user_id = ? AND kind = 'xp' AND substr(at, 1, 10) >= ? AND substr(at, 1, 10) <= ?
+		GROUP BY substr(at, 1, 10)`, q.uid, from.String(), to.String())
+	if err != nil {
+		return nil, fmt.Errorf("xp by day: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var day string
+		var sum int
+		if err := rows.Scan(&day, &sum); err != nil {
+			return nil, fmt.Errorf("scan xp by day: %w", err)
+		}
+		out[day] = sum
+	}
+	return out, rows.Err()
+}
+
+// EarnedCoins sums the Taler earned in a range, spending excluded.
+func (q *Q) EarnedCoins(from, to model.Day) (int, error) {
+	var sum int
+	err := q.r.QueryRowContext(q.ctx, `SELECT coalesce(sum(amount), 0) FROM ledger WHERE user_id = ? AND `+earnedFilter+`
+		AND substr(at, 1, 10) >= ? AND substr(at, 1, 10) <= ?`, q.uid, from.String(), to.String()).Scan(&sum)
+	if err != nil {
+		return 0, fmt.Errorf("earned coins: %w", err)
+	}
+	return sum, nil
+}
+
+// XPByHabit sums the XP each habit brought in during a range.
+func (q *Q) XPByHabit(from, to model.Day) (map[int64]int, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT ref, sum(amount) FROM ledger
+		WHERE user_id = ? AND kind = 'xp' AND substr(at, 1, 10) >= ? AND substr(at, 1, 10) <= ?
+		AND (ref LIKE 'checkin:%' OR ref LIKE 'avoid:%') GROUP BY ref`, q.uid, from.String(), to.String())
+	if err != nil {
+		return nil, fmt.Errorf("xp by habit: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64]int{}
+	for rows.Next() {
+		var ref string
+		var sum int
+		if err := rows.Scan(&ref, &sum); err != nil {
+			return nil, fmt.Errorf("scan xp by habit: %w", err)
+		}
+		parts := strings.Split(ref, ":")
+		if len(parts) < 2 {
+			continue
+		}
+		if id, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
+			out[id] += sum
+		}
+	}
+	return out, rows.Err()
+}
+
+// LedgerGroup is what one ref booked on a day.
+type LedgerGroup struct {
+	Ref    string
+	At     time.Time // first booking of the day
+	XP     int
+	Coins  int
+	Jokers int
+}
+
+// DayLedger groups the bookings of a day by ref. Bookings for this day made
+// later, like an undo, count towards the ref as well.
+func (q *Q) DayLedger(d model.Day) ([]LedgerGroup, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT ref, min(at),
+		coalesce(sum(CASE WHEN kind = 'xp' THEN amount END), 0),
+		coalesce(sum(CASE WHEN kind = 'coins' THEN amount END), 0),
+		coalesce(sum(CASE WHEN kind = 'joker' THEN amount END), 0)
+		FROM ledger WHERE user_id = ? AND ref <> '' AND (substr(at, 1, 10) = ? OR ref LIKE ?)
+		GROUP BY ref ORDER BY min(at)`, q.uid, d.String(), "%:"+d.String())
+	if err != nil {
+		return nil, fmt.Errorf("day ledger: %w", err)
+	}
+	defer rows.Close()
+	var out []LedgerGroup
+	for rows.Next() {
+		var g LedgerGroup
+		var at string
+		if err := rows.Scan(&g.Ref, &at, &g.XP, &g.Coins, &g.Jokers); err != nil {
+			return nil, fmt.Errorf("scan day ledger: %w", err)
+		}
+		g.At = parseTime(at)
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// DayEntries lists the clicks of a day, oldest first.
+func (q *Q) DayEntries(d model.Day) ([]model.Entry, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT habit_id, amount, created_at FROM habit_entries
+		WHERE date = ? AND user_id = ? ORDER BY id`, d.String(), q.uid)
+	if err != nil {
+		return nil, fmt.Errorf("day entries: %w", err)
+	}
+	defer rows.Close()
+	var out []model.Entry
+	for rows.Next() {
+		var at string
+		e := model.Entry{Date: d}
+		if err := rows.Scan(&e.HabitID, &e.Amount, &at); err != nil {
+			return nil, fmt.Errorf("scan day entry: %w", err)
+		}
+		e.CreatedAt = parseTime(at)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}

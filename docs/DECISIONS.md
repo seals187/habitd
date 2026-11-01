@@ -85,6 +85,23 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Rückfall melden:** Tippen auf den Kreis bei „Kein Alkohol“, mit Rückfrage.
 - **Nachtragen:** Tage der letzten 7 Tage sind in Woche und Monat antippbar.
 
+- **Mein Level:** Die Statistik rechnet aus dem Hauptbuch, „+X XP“ passt also zur Level-Karte.
+  - Verglichen wird gleich lang: Diese Woche bis heute gegen dieselben Tage der Vorwoche.
+  - Die Erfüllungsquote zählt offene Tage und laufende Wochen erst, wenn sie erreicht oder
+    vorbei sind. Nur „Heute“ zählt das Offene mit, sonst wäre die Zahl morgens immer 100 %.
+  - „Längste Serien“ zeigt die laufenden Serien, nicht die alten Rekorde, denn das Fenster
+    „Deine Serien“ dahinter zeigt, was gerade läuft. Rekorde stehen je Habit dort.
+  - „Heute“ zeigt im Diagramm die Woche, ein einzelner Balken sagt nichts.
+- **Levelweg:** Das Bild zeigt nur einige Stufen. Gezeigt werden Level mit neuem Titel oder
+  Abzeichen, dazu das aktuelle und das nächste. Titel und XP kommen aus der Level-Tabelle
+  der Administration, die Beispielnamen aus dem Bild ersetzen sie nicht.
+- **Verlauf:** Der Streifen zeigt die letzten 7 Tage statt der Kalenderwoche, sonst wäre am
+  Montag nur ein Tag wählbar. Zwischenstände einer Quest werden nicht gespeichert, deshalb
+  erscheint sie erst, wenn sie geschafft ist. Nachgetragenes steht ohne Uhrzeit unten.
+- **Deine Serien:** Wochen-Habits gelten als in Gefahr, sobald die restlichen Tage gerade
+  noch reichen, davor stehen sie bei „Sicher“. Ziele sind die Serien-Abzeichen, bei
+  abgeschalteten Abzeichen deren Längen.
+
 ## Technik
 
 - **Benutzer:** `HABITD_USER` gilt bei jedem Start, `HABITD_PASSWORD` nur beim ersten.

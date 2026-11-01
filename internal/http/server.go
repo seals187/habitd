@@ -170,6 +170,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /celebrate", s.celebrateNext)
 
 	handle("GET /quest", s.questDetail)
+	handle("GET /level", s.level)
 	handle("GET /profile", s.profile)
 	handle("GET /settings/areas", s.areas)
 	handle("POST /settings/areas", s.areaSave)

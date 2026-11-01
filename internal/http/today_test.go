@@ -1,7 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +30,46 @@ func TestBarStatus(t *testing.T) {
 		if got, _ := barStatus(h, d, today); got != want {
 			t.Fatalf("%v: got %q, want %q", d, got, want)
 		}
+	}
+}
+
+func TestWeekGoalStatus(t *testing.T) {
+	today := model.NewDay(2026, time.November, 1)
+	h := game.NewHabitData(model.Habit{Kind: model.KindBuild, Frequency: model.FreqWeekly, WeeklyTarget: 1, Measure: model.MeasureCount, Target: 3, Step: 1, GoalWeek: true}, today-30)
+	morning := time.Date(2026, time.October, 27, 7, 15, 0, 0, time.UTC)
+	backfilled := time.Date(2026, time.October, 28, 12, 0, 0, 0, time.UTC)
+	clicks := lastClicks([]model.Entry{
+		{Date: today - 5, CreatedAt: morning.Add(-time.Hour)},
+		{Date: today - 5, CreatedAt: morning},
+		{Date: today - 4, CreatedAt: backfilled},
+	})
+	for d, want := range map[model.Day]string{today - 5: "✓07:15", today - 4: "✓", today - 3: "", today: "läuft"} {
+		if got, _ := weekGoalStatus(h, d, today, clicks); got != want {
+			t.Fatalf("%v: got %q, want %q", d, got, want)
+		}
+	}
+	h.Done[today-1] = morning
+	if got, _ := weekGoalStatus(h, today, today, clicks); got != "" {
+		t.Fatalf("a reached goal has nothing left to run: %q", got)
+	}
+}
+
+func TestWeekGoalShowsTheTime(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Krafttraining", model.MeasureCount, "3", "1", "")
+	habit, err := c.q().Habit(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	habit.GoalWeek, habit.Frequency, habit.WeeklyTarget = true, model.FreqWeekly, 1
+	if _, err := c.q().SaveHabit(habit); err != nil {
+		t.Fatal(err)
+	}
+	c.post(fmt.Sprintf("/habits/%d/add", id), true)
+	body := c.page(fmt.Sprintf("/habits/%d?view=week", id))
+	if !strings.Contains(body, `class="bar-status done">✓`) {
+		t.Fatal("the day of a click must say when it happened")
 	}
 }
 

@@ -17,6 +17,8 @@
 <div class="level-bar" aria-hidden="true">{{range .Segments}}<i{{if .}} class="on"{{end}}></i>{{end}}</div>
 {{range .Quests}}<a class="quest-row{{if .State.Complete}} done{{end}}" href="/quest" style="--c:{{.Color}}">{{icon .Icon 18}}<p><b>Tagesquest</b> · {{if .State.Complete}}geschafft{{else}}{{.Label}}{{end}}</p><span class="quest-dots" aria-label="{{.State.Done}} von {{.State.Total}}">{{range .Dots}}<i{{if .}} class="on"{{end}}></i>{{end}}</span><em>{{.Reward}}</em></a>
 {{end}}
+{{with .Next}}<div class="level-next"><span class="next-tile">{{.Level}}</span><p><b>Als Nächstes: {{.Title}}</b>{{with .Line}}<small>{{.}}</small>{{end}}</p></div>{{end}}
+<nav class="level-links" aria-label="Mein Level">{{range .Links}}<a href="/level?tab={{.Key}}">{{.Label}}{{icon "chevron-right" 14}}</a>{{end}}</nav>
 </section>
 {{if or .Build .Reached .Avoid .Rest}}<ul class="week-legend" aria-label="Legende">
 <li><i class="wd"><b style="height:100%"></b></i>erreicht</li>

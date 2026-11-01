@@ -11,6 +11,26 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.2] - 2026-11-01
+
+### Added
+
+- **Mein Level:** a new page with three tabs, linked from the level card.
+  - **Statistik** shows XP, the completion rate, the longest streaks with their habits and the Taler earned for today, the week, the month or all time, with XP per day and per area.
+  - **Levelweg** shows the way ahead, with new titles, badges and rewards and how long the next level takes at your pace.
+  - **Verlauf** shows the last seven days and a timeline of each day with check-ins, clicks, quests, levels and badges.
+- **Deine Serien:** a tap on the longest streaks opens all streaks, sorted into in danger, safe and to start again, with the next goal and a filter.
+- **Level card:** the open card names the next level with its reward and has links to the three tabs.
+
+### Changed
+
+- The folded level card has smaller text beside the figure, so `+2 Joker` is no longer cut off.
+- The README shows four strong screenshots instead of eight.
+
+### Fixed
+
+- Goals that add up over the week show the time of the last click in the week view, like every other habit. Days without a click no longer look unfinished.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added
@@ -176,6 +196,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.2]: https://github.com/seals187/habitd/releases/tag/v0.1.2
 [0.1.1]: https://github.com/seals187/habitd/releases/tag/v0.1.1
 [0.1.0]: https://github.com/seals187/habitd/releases/tag/v0.1.0
 [0.0.9]: https://github.com/seals187/habitd/releases/tag/v0.0.9

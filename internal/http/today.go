@@ -272,6 +272,9 @@ type todayData struct {
 	Figure   figure
 	Stage    int // stage of the figure, 0 hides it
 
+	Next  *levelNext // the level after this one, nil at the end
+	Links []levelTab
+
 	LevelFolded bool // this device shows the level card as one line
 	ReachedSum  reachedLine
 }
@@ -425,7 +428,11 @@ func (s *Server) fillToday(q *db.Q, d *todayData, w *game.World) error {
 	for i := range levelSegments {
 		d.Segments = append(d.Segments, i < filled)
 	}
-	var err error
+	rate, err := xpRate(q, w)
+	if err != nil {
+		return err
+	}
+	d.Next, d.Links = newLevelNext(rules, d.Level, rate), levelTabs
 	if d.Quests, err = s.questCards(q, w); err != nil {
 		return err
 	}

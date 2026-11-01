@@ -478,3 +478,14 @@ function setupPush() {
 
 setupPush();
 document.addEventListener("htmx:afterSettle", setupPush);
+
+// Sheets open from a button and close on their handle or beside them.
+document.addEventListener("click", (e) => {
+  const opener = e.target.closest("[data-open-sheet]");
+  if (opener) {
+    document.getElementById(opener.dataset.openSheet)?.showModal();
+    return;
+  }
+  const sheet = e.target.closest("dialog.sheet");
+  if (sheet && (e.target === sheet || e.target.closest("[data-close-sheet]"))) sheet.close();
+});

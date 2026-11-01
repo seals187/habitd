@@ -422,3 +422,19 @@ func amountNote(h *game.HabitData, u amountUnit, total float64) []noteSpan {
 	}
 	return nil
 }
+
+// step is an amount with its unit on a line of text: 0,5 L or 5′.
+func (u amountUnit) step(v float64) string {
+	if u.kind == unitTime {
+		return u.bare(v)
+	}
+	return u.label(v)
+}
+
+// value is the running amount in front of its goal: 2,5 in 2,5 / 3 L.
+func (u amountUnit) value(v float64) string {
+	if u.kind == unitTime {
+		return view.Number(int(math.Round(v)))
+	}
+	return compact(v)
+}

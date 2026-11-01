@@ -1,0 +1,67 @@
+{{define "content"}}{{$d := .Data}}<main id="page" class="page level-page">
+<header class="sub-head center">{{template "back" "/"}}<h1>Mein Level</h1></header>
+<nav class="seg seg-3 level-seg" aria-label="Ansicht">{{range $d.Tabs}}<a href="/level?tab={{.Key}}"{{if eq .Key $d.Tab}} class="on" aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>
+{{with $d.Stats}}{{template "level-stats" .}}{{end}}
+{{with $d.Path}}{{template "level-path" .}}{{end}}
+{{with $d.History}}{{template "level-history" .}}{{end}}
+</main>{{end}}
+
+{{define "delta"}}<small class="delta{{with .}} {{.Dir}}{{end}}">{{with .}}<i></i>{{.Text}}{{end}}</small>{{end}}
+
+{{define "level-stats"}}{{$s := .}}<nav class="range-pills" aria-label="Zeitraum">{{range .Ranges}}<a href="/level?tab=stats&range={{.Key}}"{{if eq .Key $s.Range.Key}} class="on" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</nav>
+<div class="level-tiles">
+<div class="card level-tile-box"><b class="blue">{{num .XP}} XP</b><span>{{.Range.Label}}</span>{{template "delta" .XPDelta}}</div>
+<div class="card level-tile-box"><b class="green">{{.Quote}}</b><span>Erfüllungsquote</span>{{template "delta" .QuoteUp}}</div>
+<button type="button" class="card level-tile-box streak-tile" data-open-sheet="streaks" aria-haspopup="dialog">{{if .Sheet.Best}}<b class="orange">{{range $i, $b := .Sheet.Best}}{{if $i}} · {{end}}{{$b.Line}}{{end}}</b>{{else}}<b class="orange">–</b>{{end}}<span>längste Serien</span>{{range .Sheet.Best}}<small><em>{{.Line}}</em> {{.Habit}}</small>{{end}}</button>
+<div class="card level-tile-box"><b class="gold">+{{num .Coins}}</b><span>Taler verdient</span></div>
+</div>
+<h2 class="section">{{.Heading}}</h2>
+<section class="card xp-chart{{if .Dense}} dense{{end}}" role="img" aria-label="{{.Heading}}">{{range .Bars}}<div class="xp-bar{{if .Current}} current{{end}}"><div class="xp-track">{{if not .Future}}{{with .Label}}<small>{{.}}</small>{{end}}<i style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Name}}</span></div>{{end}}</section>
+{{if .Areas}}<h2 class="section">XP nach Bereich</h2>
+<section class="card area-xp">{{range .Areas}}<div class="area-line" style="--c:{{.Color}}">{{icon .Icon 18}}<span>{{.Name}}</span><div class="bar"><i style="width:{{.Width}}%"></i></div><em>{{num .XP}} XP</em></div>{{end}}</section>{{end}}
+{{template "streak-sheet" .Sheet}}{{end}}
+
+{{define "streak-sheet"}}<dialog id="streaks" class="sheet" aria-labelledby="streaks-title"><div class="sheet-body" tabindex="-1" autofocus>
+<button type="button" class="sheet-grip" data-close-sheet aria-label="Schließen"></button>
+<h2 id="streaks-title">Deine Serien</h2>
+<section class="streak-hero">
+<div class="streak-top">{{with .Day}}<span class="streak-flame">{{icon "flame" 24}}</span><div class="streak-main"><p><b>{{.Long}}</b>{{if .Record}}<em class="record">{{icon "star" 11}}Rekord</em>{{end}}</p><small>{{.Habit}}</small></div>{{else}}<span class="streak-flame">{{icon "flame" 24}}</span><div class="streak-main"><p><b>Noch keine</b></p><small>laufende Tages-Serie</small></div>{{end}}
+{{with .Other}}<div class="streak-other"><b>{{icon "calendar" 16}}{{.Value}} {{.Unit}}</b><small>{{.Habit}}</small></div>{{end}}</div>
+{{with .Goal}}<div class="streak-goal">{{icon "award" 16}}<p>Noch <b>{{.Left}} {{if eq .Left 1}}Tag{{else}}Tage{{end}}</b> bis „{{.Name}}“</p><div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div></div>{{end}}
+</section>
+<div class="streak-filter" role="radiogroup" aria-label="Serien filtern">
+<input type="radio" name="streak-filter" id="sf-all" checked><label for="sf-all">Alle <em>{{.Total}}</em></label>
+<input type="radio" name="streak-filter" id="sf-risk"><label for="sf-risk" class="risk">Gefahr <em>{{.Risk}}</em></label>
+<input type="radio" name="streak-filter" id="sf-safe"><label for="sf-safe" class="safe">Sicher <em>{{.Safe}}</em></label>
+<input type="radio" name="streak-filter" id="sf-new"><label for="sf-new">Neu <em>{{.New}}</em></label>
+</div>
+<div class="streak-list">{{range .Groups}}<section class="streak-group {{.Key}}"><h3>{{.Title}}</h3>
+{{range .Rows}}<a class="streak-row" href="/habits/{{.ID}}"><span class="streak-ring{{if .Weeks}} weeks{{end}}{{if not .Value}} zero{{end}}"><svg viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/>{{if .Ring}}<circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Ring}}" transform="rotate(-90 28 28)"/>{{end}}</svg><b>{{.Value}}</b></span><p><b>{{.Name}}</b><small>{{if .Record}}<em>★ Rekord</em>{{if .Detail}} · {{end}}{{end}}{{.DetailLine}}</small></p><i class="streak-kind{{if not .Value}} zero{{end}}{{if .Weeks}} weeks{{end}}">{{if .Weeks}}{{icon "calendar" 16}}{{else}}{{icon "flame" 16}}{{end}}</i></a>{{end}}
+</section>{{end}}
+{{if not .Risk}}<p class="streak-none risk">Gerade ist keine Serie in Gefahr.</p>{{end}}{{if not .Safe}}<p class="streak-none safe">Heute ist noch keine Serie gesichert.</p>{{end}}{{if not .New}}<p class="streak-none new">Alle Serien laufen.</p>{{end}}</div>
+</div></dialog>{{end}}
+
+{{define "level-path"}}<section class="card level-card path-hero">
+<div class="level-top"><span class="level-tile">{{.Level}}</span><div class="level-text"><strong>{{.Title}}</strong><small>{{num .XP}} XP gesamt{{if .Rate}} · Ø {{num .Rate}} XP pro Tag{{end}}</small></div>
+{{if .Stage}}<img class="path-figure" src="{{figure .Figure.Key .Stage}}" width="56" height="56" alt="{{.Figure.Name}}, Stufe {{.Stage}} von 8">{{end}}</div>
+</section>
+<ol class="level-way">{{range .Steps}}<li class="way-step {{.State}}">
+<span class="way-tile">{{.Level}}</span>
+<div class="way-text"><div class="way-head"><strong>{{.Title}}</strong><small>{{num .XP}} XP</small></div>
+{{if .Sub}}<p>{{.Sub}}</p>{{end}}
+{{if eq .State "now"}}{{if .Cost}}<div class="bar way-bar"><i style="width:{{.Percent}}%"></i></div>
+<small class="way-now">{{num .Into}} / {{num .Cost}} XP{{with .ETA}} · {{.}}{{end}}</small>{{end}}{{end}}</div>
+</li>{{end}}</ol>{{end}}
+
+{{define "level-history"}}<nav class="day-strip" aria-label="Tag wählen">{{range .Days}}<a href="/level?tab=history&day={{.Date}}" class="{{.State}}{{if .Current}} on{{end}}"{{if .Current}} aria-current="date"{{end}}><span>{{.Name}}</span><b>{{.Dom}}</b><i></i></a>{{end}}</nav>
+<div class="day-tiles">
+<div class="card level-tile-box"><b class="blue">{{signed .XP}}</b><span>XP{{if .IsToday}} heute{{end}}</span></div>
+<div class="card level-tile-box"><b class="gold">{{signed .Coins}}</b><span>Taler</span></div>
+<div class="card level-tile-box"><b class="green">{{.Done}}/{{.Planned}}</b><span>Habits</span></div>
+</div>
+<h2 class="section">{{.Date}}</h2>
+{{if .Events}}<ol class="timeline">{{range .Events}}<li class="event{{if .Open}} open{{end}}" style="--c:{{.Color}}">
+<time>{{.Time}}</time><i class="event-mark"></i>
+<div class="event-text"><strong>{{.Title}}</strong><p><i class="dot"></i><em>{{.Tag}}</em> · {{.Detail}}</p></div>
+<div class="event-gain">{{if .XP}}<b class="xp">{{signed .XP}} XP</b>{{end}}{{if .Coins}}<b class="coins">{{signed .Coins}} Taler</b>{{end}}{{if .Jokers}}<b class="coins">{{signed .Jokers}} Joker</b>{{end}}</div>
+</li>{{end}}</ol>{{else}}<p class="muted timeline-empty">An diesem Tag ist nichts passiert.</p>{{end}}{{end}}

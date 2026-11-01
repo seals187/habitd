@@ -19,6 +19,8 @@ The screenshots show the app with demo data. The UI language is German.
 - **Jokers** that bridge a missed day, used automatically or by hand
 - **Rewards** paid with coins ("Taler") or unlocked by a streak
 - **Statistics:** week, month and year views with heatmap; habits with a unit show totals, period goals and comparisons
+- **Level page:** XP and completion rate per period, the way through the levels, a daily timeline and all streaks at a glance
+- **Patterns and tips** calculated from your own entries by fixed rules, without AI
 - **PWA:** installable, with offline shell and Web Push reminders
 - **JSON export and import**, plus a small JSON API
 - **Several users:** roles, invite links, private data per user and an admin area for levels and badges

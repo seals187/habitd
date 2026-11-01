@@ -344,7 +344,13 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 		if !h.Measured() {
 			buildStrip(d, h, w.Today, totals)
 		}
-		buildWeek(d, h, w.Today, totals)
+		var clicks []model.Entry
+		if h.GoalWeek {
+			if clicks, err = q.HabitEntries(h.ID, w.Today.WeekStart()); err != nil {
+				return nil, err
+			}
+		}
+		buildWeek(d, h, w.Today, totals, lastClicks(clicks))
 	case "year":
 		if h.Measured() {
 			buildYearAmount(d, h, unit, w.Today, totals)
@@ -435,13 +441,38 @@ func barStatus(h *game.HabitData, x, today model.Day) (string, string) {
 	return "", ""
 }
 
+// lastClicks finds the last click of each day.
+func lastClicks(entries []model.Entry) map[model.Day]time.Time {
+	out := map[model.Day]time.Time{}
+	for _, e := range entries {
+		out[e.Date] = e.CreatedAt
+	}
+	return out
+}
+
+// weekGoalStatus is barStatus for a goal that adds up over the week: every day
+// with a click counts towards it, and a day without one is not missed.
+func weekGoalStatus(h *game.HabitData, x, today model.Day, clicks map[model.Day]time.Time) (string, string) {
+	at, clicked := clicks[x]
+	_, reached := h.GoalCheckin(today)
+	switch {
+	case clicked && realMoment(at, x):
+		return "✓" + at.Format("15:04"), "done"
+	case clicked:
+		return "✓", "done"
+	case x == today && !reached:
+		return "läuft", ""
+	}
+	return "", ""
+}
+
 func buildStrip(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64) {
 	for x := today.WeekStart(); x < today.WeekStart()+7; x++ {
 		d.Strip = append(d.Strip, cellFor(h, x, today, totals))
 	}
 }
 
-func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64) {
+func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64, clicks map[model.Day]time.Time) {
 	start := today.WeekStart()
 	goal := goalOf(h)
 	unit := amountUnitOf(h.Unit)
@@ -453,7 +484,7 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 		top = max(top, valueOn(h, x, today, totals))
 	}
 	sum, days, best, bestValue := 0.0, 0, "–", 0.0
-	d.Chart.Timed = h.Kind != model.KindAvoid && !h.GoalWeek
+	d.Chart.Timed = h.Kind != model.KindAvoid
 	for i, name := range dayNames {
 		x := start + model.Day(i)
 		bar := barDay{Name: name, Label: "–", Today: x == today}
@@ -477,7 +508,11 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 				best, bestValue = name, v
 			}
 			if d.Chart.Timed {
-				bar.Status, bar.StatusClass = barStatus(h, x, today)
+				if h.GoalWeek {
+					bar.Status, bar.StatusClass = weekGoalStatus(h, x, today, clicks)
+				} else {
+					bar.Status, bar.StatusClass = barStatus(h, x, today)
+				}
 			}
 		}
 		if d.Chart.Timed && !h.Measured() { // a tick says it all with its time
