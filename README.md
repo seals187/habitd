@@ -3,18 +3,10 @@
 A lightweight, self-hosted habit tracker with rewards. Build good habits, break bad ones, and treat yourself when you stick with it. Runs as a single Docker container.
 
 <p>
-  <img src="docs/screenshots/01-Heute.png" width="220" alt="Today screen">
-  <img src="docs/screenshots/02-Statistik.png" width="220" alt="Habit statistics">
-  <img src="docs/screenshots/03-Tagesquest.png" width="220" alt="Daily quest">
-</p>
-<p>
-  <img src="docs/screenshots/04-Goenn-dir.png" width="220" alt="Reward shop">
-  <img src="docs/screenshots/05-Abzeichen.png" width="220" alt="Badges">
-  <img src="docs/screenshots/06-Vorlagen.png" width="220" alt="Template library">
-</p>
-<p>
-  <img src="docs/screenshots/07-Admin-Levels.png" width="440" alt="Admin: levels">
-  <img src="docs/screenshots/08-Admin-Tagesquests.png" width="440" alt="Admin: daily quests">
+  <img src="docs/screenshots/01-Heute.png" width="200" alt="Today with level card and habits">
+  <img src="docs/screenshots/02-Mein-Level.png" width="200" alt="Level statistics">
+  <img src="docs/screenshots/03-Serien.png" width="200" alt="Streak overview">
+  <img src="docs/screenshots/04-Muster-Tipps.png" width="200" alt="Habit week view with patterns and tips">
 </p>
 
 The screenshots show the app with demo data. The UI language is German.
