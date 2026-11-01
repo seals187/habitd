@@ -3,9 +3,9 @@
 A lightweight, self-hosted habit tracker with rewards. Build good habits, break bad ones, and treat yourself when you stick with it. Runs as a single Docker container.
 
 <p>
-  <img src="docs/screenshots/01-Heute.png" width="200" alt="Today with level card and habits">
+  <img src="docs/screenshots/01-Heute-kompakt.png" width="200" alt="Today with level card and habits">
   <img src="docs/screenshots/02-Mein-Level.png" width="200" alt="Level statistics">
-  <img src="docs/screenshots/03-Serien.png" width="200" alt="Streak overview">
+  <img src="docs/screenshots/03-Serien-sicher.png" width="200" alt="Streak overview">
   <img src="docs/screenshots/04-Verlauf.png" width="200" alt="Timeline of a day">
 </p>
 
