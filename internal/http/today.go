@@ -271,6 +271,21 @@ type todayData struct {
 	Zoom     int // size of the habit cards in percent
 	Figure   figure
 	Stage    int // stage of the figure, 0 hides it
+
+	LevelFolded bool // this device shows the level card as one line
+}
+
+// TopQuest is the quest the folded level card names: the first one still open.
+func (d *todayData) TopQuest() *questCard {
+	for i := range d.Quests {
+		if !d.Quests[i].State.Complete {
+			return &d.Quests[i]
+		}
+	}
+	if len(d.Quests) > 0 {
+		return &d.Quests[0]
+	}
+	return nil
 }
 
 func allFolded(cards []habitCard) bool {
@@ -297,6 +312,12 @@ func habitZoom(r *http.Request) int {
 		return 100
 	}
 	return zoom
+}
+
+// levelFolded reads whether this device keeps the level card folded.
+func levelFolded(r *http.Request) bool {
+	c, err := r.Cookie("level_folded")
+	return err == nil && c.Value == "1"
 }
 
 // cardFolds reads which cards this device keeps folded and which reached cards
@@ -375,7 +396,7 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 	}
 	byID := areaMap(areas)
 	_, kw := w.Today.Time().ISOWeek()
-	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances, Zoom: habitZoom(r)}
+	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances, Zoom: habitZoom(r), LevelFolded: levelFolded(r)}
 	folded, opened := cardFolds(r, w.Today)
 	for _, h := range w.Habits {
 		if h.Archived || w.Today < h.Start {

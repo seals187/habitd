@@ -11,6 +11,17 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.0.9] - 2026-11-01
+
+### Added
+
+- **Fold the level card:** a chevron on the card folds it into one line with a ring around the figure, the level as a badge, the XP to the next level, the first open daily quest and the day's XP. The state is remembered per device.
+
+### Changed
+
+- Narrow screens drop the extras of the folded card one by one: `heute`, then the quest reward, then the quest.
+- Long level titles end with `…` instead of running into the figure.
+
 ## [0.0.8] - 2026-10-31
 
 ### Added
@@ -143,6 +154,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.0.9]: https://github.com/seals187/habitd/releases/tag/v0.0.9
 [0.0.8]: https://github.com/seals187/habitd/releases/tag/v0.0.8
 [0.0.7]: https://github.com/seals187/habitd/releases/tag/v0.0.7
 [0.0.6]: https://github.com/seals187/habitd/releases/tag/v0.0.6

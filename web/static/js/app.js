@@ -326,6 +326,16 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// Folds the level card. Each device keeps its own state, the server reads the cookie.
+document.addEventListener("click", (e) => {
+  const button = e.target.closest("[data-fold-level]");
+  if (!button) return;
+  const folded = button.closest(".level-card").classList.toggle("folded");
+  saveCookie("level_folded", folded ? 1 : 0);
+  button.setAttribute("aria-expanded", String(!folded));
+  button.setAttribute("aria-label", `Level-Anzeige ${folded ? "aufklappen" : "einklappen"}`);
+});
+
 // Size of the habit cards. Each device keeps its own, the server reads the cookie.
 document.addEventListener("click", (e) => {
   const button = e.target.closest("[data-zoom]");

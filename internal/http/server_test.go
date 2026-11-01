@@ -764,6 +764,27 @@ func TestFoldHabit(t *testing.T) {
 	}
 }
 
+func TestLevelFold(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "count", "8", "1", "Gläser")
+	if _, html := c.get("/"); strings.Contains(html, "level-card folded") || !strings.Contains(html, "Level-Anzeige einklappen") {
+		t.Fatalf("starts open: %s", html)
+	}
+	headers := map[string]string{"Cookie": "level_folded=1"}
+	_, html := c.do("GET", "/", nil, headers)
+	if !strings.Contains(html, "level-card folded") || !strings.Contains(html, "Level-Anzeige aufklappen") || !strings.Contains(html, "XP bis Lv 2") {
+		t.Fatalf("folded on this device: %s", html)
+	}
+	headers = map[string]string{"Cookie": "level_folded=1", "HX-Request": "true", "X-CSRF-Token": c.csrf}
+	if _, html = c.do("POST", fmt.Sprintf("/habits/%d/add", id), url.Values{"csrf": {c.csrf}}, headers); !strings.Contains(html, "level-card folded") {
+		t.Fatalf("stays folded after a check-in: %s", html)
+	}
+	if _, html = c.do("GET", "/", nil, map[string]string{"Cookie": "level_folded=0"}); strings.Contains(html, "level-card folded") {
+		t.Fatalf("opened again: %s", html)
+	}
+}
+
 func TestHabitZoom(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()

@@ -172,7 +172,8 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Erreichte Karten** lassen sich aufklappen. Das gilt nur für den laufenden Tag, am nächsten Tag
   klappt eine weiterhin erreichte Karte wieder ein, damit „Heute“ übersichtlich bleibt.
 - **Ein- und Aufklappen** liegt pro Gerät in Cookies statt in der Datenbank. Der Klick ändert nur
-  die Karte im Browser und braucht keinen Server, gerendert wird wieder aus den Cookies.
+  die Karte im Browser und braucht keinen Server, gerendert wird wieder aus den Cookies. Das gilt
+  auch für die Level-Anzeige, die eingeklappt mit einer Zeile auskommt.
 - **Quest-Habits:** Der Quest-Pool gehört der Instanz und wird im Admin-Bereich angepasst, Habits
   gehören den Nutzern. Darum wählt jeder selbst, welche Habits für die „Alle Habits“-Quests zählen.
   Die Wahl gilt ab sofort auch für die Quest des Tages, vergangene Tage bleiben, wie sie sind.
