@@ -303,11 +303,24 @@ function foldCard(button, folded) {
 }
 
 // The button of a group offers what most helps: folding as long as a card is open.
+// Reached habits open as a compact list, so there the list itself counts as open.
+const anyOpen = (group) => {
+  if (group.querySelector("[data-fold-reached]")) return !group.classList.contains("shut");
+  return [...group.querySelectorAll("[data-fold]")].some((b) => !isFolded(b));
+};
+
 function labelGroup(group) {
   const all = group?.querySelector("[data-fold-all]");
-  if (!all) return;
-  const open = [...group.querySelectorAll("[data-fold]")].some((b) => !isFolded(b));
-  all.textContent = open ? "Alle einklappen" : "Alle aufklappen";
+  if (all) all.textContent = anyOpen(group) ? "Alle einklappen" : "Alle aufklappen";
+}
+
+// The line of the reached habits hides their list. Like an opened reached card,
+// an opened list only stays open for this day on this device.
+function shutReached(button, shut) {
+  button.closest(".habit-group").classList.toggle("shut", shut);
+  saveCookie("reached_open", shut ? "" : button.dataset.day);
+  button.setAttribute("aria-expanded", String(!shut));
+  button.setAttribute("aria-label", button.getAttribute("aria-label").replace(/\w+klappen$/, shut ? "aufklappen" : "einklappen"));
 }
 
 document.addEventListener("click", (e) => {
@@ -316,15 +329,49 @@ document.addEventListener("click", (e) => {
     foldCard(button, !isFolded(button));
     labelGroup(button.closest(".habit-group"));
   }
+  const line = e.target.closest("[data-fold-reached]");
+  if (line) {
+    const group = line.closest(".habit-group");
+    shutReached(line, !group.classList.contains("shut"));
+    labelGroup(group);
+  }
   const all = e.target.closest("[data-fold-all]");
   if (all) {
     const group = all.closest(".habit-group");
-    const buttons = [...group.querySelectorAll("[data-fold]")];
-    const fold = buttons.some((b) => !isFolded(b));
-    buttons.forEach((b) => foldCard(b, fold));
+    const fold = anyOpen(group);
+    const reached = group.querySelector("[data-fold-reached]");
+    group.querySelectorAll("[data-fold]").forEach((b) => foldCard(b, fold || Boolean(reached)));
+    if (reached) shutReached(reached, fold);
     labelGroup(group);
   }
 });
+
+// Today follows what happens on other devices. It asks while it is visible and at
+// once on coming back, and leaves the page alone while someone is working on it.
+const LIVE_MS = 15000;
+let liveStamp = 0;
+const touchLive = () => liveStamp++;
+document.addEventListener("click", touchLive);
+document.addEventListener("htmx:beforeRequest", touchLive);
+document.addEventListener("htmx:afterRequest", touchLive);
+
+const liveBusy = (page) => document.hidden || document.querySelector("dialog[open], .htmx-request") || page.querySelector("details[open]");
+
+async function refreshToday() {
+  const page = document.getElementById("page");
+  if (!page?.querySelector(".today-head") || liveBusy(page)) return;
+  const stamp = liveStamp;
+  const res = await fetch("/today/live").catch(() => null);
+  if (!res?.ok || res.redirected) return;
+  const html = await res.text();
+  if (stamp !== liveStamp || liveBusy(page)) return; // this answer may be older than the page
+  const fresh = document.createElement("template");
+  fresh.innerHTML = html;
+  if (fresh.innerHTML !== page.innerHTML) htmx.swap(page, html, { swapStyle: "innerHTML" });
+}
+
+setInterval(refreshToday, LIVE_MS);
+document.addEventListener("visibilitychange", refreshToday);
 
 // Folds the level card. Each device keeps its own state, the server reads the cookie.
 document.addEventListener("click", (e) => {

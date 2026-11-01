@@ -11,6 +11,13 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.0] - 2026-11-01
+
+### Added
+
+- **Reached habits on one line:** Erreicht now starts as a single line with a tile per area, the count of today's goals, the best running streak and what today's check-ins earned in XP and Taler. A click or `Alle aufklappen` opens the compact list, and each card in it still opens on its own. An open list lasts for the day and is remembered per device.
+- **Today updates itself:** the visible page checks for changes every 15 seconds and at once when you come back to the tab, so a tick on the phone shows up on the desktop. It waits while a dialog or menu is open or a click is running. Other pages still update when they are opened.
+
 ## [0.0.9] - 2026-11-01
 
 ### Added
@@ -154,6 +161,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.0]: https://github.com/seals187/habitd/releases/tag/v0.1.0
 [0.0.9]: https://github.com/seals187/habitd/releases/tag/v0.0.9
 [0.0.8]: https://github.com/seals187/habitd/releases/tag/v0.0.8
 [0.0.7]: https://github.com/seals187/habitd/releases/tag/v0.0.7

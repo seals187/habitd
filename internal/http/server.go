@@ -127,6 +127,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("POST /invite/{token}", s.inviteAccept)
 
 	handle("GET /{$}", s.today)
+	handle("GET /today/live", s.todayLive)
 	handle("GET /onboarding", s.onboarding)
 	handle("POST /onboarding", s.onboardingFinish)
 	handle("POST /onboarding/skip", s.onboardingSkip)

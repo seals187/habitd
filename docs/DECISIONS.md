@@ -174,6 +174,14 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Ein- und Aufklappen** liegt pro Gerät in Cookies statt in der Datenbank. Der Klick ändert nur
   die Karte im Browser und braucht keinen Server, gerendert wird wieder aus den Cookies. Das gilt
   auch für die Level-Anzeige, die eingeklappt mit einer Zeile auskommt.
+- **Erreichte Habits** teilen sich eine Zeile mit Bereichen, Fortschritt des Tages, bester Serie und
+  dem, was die Check-ins von heute gebracht haben. Ein Klick und „Alle aufklappen“ öffnen die
+  kompakte Liste, Details öffnet jede Karte einzeln. Eine offene Liste gilt wie eine offene Karte nur für diesen Tag und dieses
+  Gerät.
+- **Heute aktualisiert sich selbst:** Alle 15 Sekunden fragt die sichtbare Seite ihren Stand ab und
+  tauscht ihn nur bei einer Änderung, beim Zurückkehren in den Tab sofort. Polling statt Server-Sent
+  Events, weil es ohne offene Verbindungen und ohne Änderungen am Dienst auskommt. Offene Dialoge,
+  Menüs und laufende Klicks haben Vorrang, die Antwort wird dann verworfen.
 - **Quest-Habits:** Der Quest-Pool gehört der Instanz und wird im Admin-Bereich angepasst, Habits
   gehören den Nutzern. Darum wählt jeder selbst, welche Habits für die „Alle Habits“-Quests zählen.
   Die Wahl gilt ab sofort auch für die Quest des Tages, vergangene Tage bleiben, wie sie sind.

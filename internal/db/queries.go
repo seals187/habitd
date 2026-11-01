@@ -672,6 +672,18 @@ func (q *Q) LedgerHas(ref string) (bool, error) {
 	return n > 0, nil
 }
 
+// CheckinEarnings sums the XP and Taler the check-ins of a day brought in.
+func (q *Q) CheckinEarnings(d model.Day) (xp, coins int, err error) {
+	err = q.r.QueryRowContext(q.ctx, `SELECT
+		coalesce(sum(CASE WHEN kind = 'xp' THEN amount END), 0),
+		coalesce(sum(CASE WHEN kind = 'coins' THEN amount END), 0)
+		FROM ledger WHERE user_id = ? AND ref LIKE ?`, q.uid, "checkin:%:"+d.String()).Scan(&xp, &coins)
+	if err != nil {
+		return 0, 0, fmt.Errorf("checkin earnings: %w", err)
+	}
+	return xp, coins, nil
+}
+
 // Spending reasons do not count as earned Taler.
 const earnedFilter = `kind = 'coins' AND reason NOT IN ('redeem', 'joker_buy')`
 

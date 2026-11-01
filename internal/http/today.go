@@ -273,6 +273,46 @@ type todayData struct {
 	Stage    int // stage of the figure, 0 hides it
 
 	LevelFolded bool // this device shows the level card as one line
+	ReachedSum  reachedLine
+}
+
+// areaTile is one tile on the line of the reached habits.
+type areaTile struct {
+	model.Area
+	Count int // reached habits of this area
+}
+
+// reachedLine sums up the reached habits on one line above their list.
+type reachedLine struct {
+	Areas  []areaTile
+	Done   int
+	Total  int    // goals of today, open and reached
+	Ring   int    // percent
+	Streak string // best running streak, empty without one
+	XP     int    // earned by today's check-ins
+	Coins  int
+	Open   bool   // this device shows the list today
+	Day    string // today, the open list only stays open for this day
+}
+
+// newReachedLine sums up the reached cards. Their areas keep the order of the cards.
+func newReachedLine(d *todayData) reachedLine {
+	line := reachedLine{Done: len(d.Reached), Total: len(d.Build) + len(d.Reached)}
+	line.Ring = percent(line.Done, line.Total)
+	best, seen := 0, map[int64]int{}
+	for _, c := range d.Reached {
+		if c.Streak.Days > best {
+			best, line.Streak = c.Streak.Days, c.StreakLabel
+		}
+		i, ok := seen[c.Area.ID]
+		if !ok {
+			i = len(line.Areas)
+			seen[c.Area.ID] = i
+			line.Areas = append(line.Areas, areaTile{Area: c.Area})
+		}
+		line.Areas[i].Count++
+	}
+	return line
 }
 
 // TopQuest is the quest the folded level card names: the first one still open.
@@ -294,7 +334,7 @@ func allFolded(cards []habitCard) bool {
 
 // BuildFolded, ReachedFolded and AvoidFolded choose the label of the buttons of the groups.
 func (d *todayData) BuildFolded() bool   { return allFolded(d.Build) }
-func (d *todayData) ReachedFolded() bool { return allFolded(d.Reached) }
+func (d *todayData) ReachedFolded() bool { return !d.ReachedSum.Open }
 func (d *todayData) AvoidFolded() bool   { return allFolded(d.Avoid) }
 
 // Scale is the size of the habit cards as a CSS factor.
@@ -318,6 +358,12 @@ func habitZoom(r *http.Request) int {
 func levelFolded(r *http.Request) bool {
 	c, err := r.Cookie("level_folded")
 	return err == nil && c.Value == "1"
+}
+
+// reachedOpen reads whether this device opened the list of reached habits today.
+func reachedOpen(r *http.Request, today model.Day) bool {
+	c, err := r.Cookie("reached_open")
+	return err == nil && c.Value == today.String()
 }
 
 // cardFolds reads which cards this device keeps folded and which reached cards
@@ -460,6 +506,11 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 		}
 		d.Build = append(d.Build, card)
 	}
+	d.ReachedSum = newReachedLine(d)
+	d.ReachedSum.Open, d.ReachedSum.Day = reachedOpen(r, w.Today), w.Today.String()
+	if d.ReachedSum.XP, d.ReachedSum.Coins, err = q.CheckinEarnings(w.Today); err != nil {
+		return nil, err
+	}
 	fig, on, err := userFigure(q)
 	if err != nil {
 		return nil, err
@@ -495,6 +546,16 @@ func (s *Server) today(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return s.view.Render(w, http.StatusOK, "today", s.page(r, "Heute", "today", d))
+}
+
+// todayLive answers the open Today screen, which asks for its content to follow
+// what happens on other devices.
+func (s *Server) todayLive(w http.ResponseWriter, r *http.Request) error {
+	d, err := s.todayData(r)
+	if err != nil {
+		return err
+	}
+	return s.view.Fragment(w, "today", "today-body", s.page(r, "Heute", "today", d))
 }
 
 // afterHabitChange answers a check-in: a pending celebration wins, otherwise

@@ -152,6 +152,27 @@ h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02e
 .zoom button::after { content: ""; position: absolute; inset: -7px 0; }
 .zoom button:disabled { color: #4a4e4b; }
 .zoom b { min-width: 38px; color: var(--muted); font-size: 12px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+/* Reached habits share one line until the list is opened. */
+.habit-group.shut > .hcard { display: none; }
+.reached-sum { zoom: var(--habit-zoom, 1); container-type: inline-size; width: 100%; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 7px 10px 7px 12px; color: var(--text); font-size: 15px; font-weight: 700; text-align: left; white-space: nowrap; }
+.reached-sum > .i { color: var(--muted); rotate: -90deg; }
+.shut > .reached-sum > .i { rotate: 90deg; }
+.sum-areas { flex: 1; min-width: 0; display: flex; gap: 6px; padding: 7px 0 3px; overflow: hidden; }
+.sum-area { position: relative; flex: none; width: 28px; height: 28px; display: grid; place-items: center; margin-right: 2px; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+.sum-area b { position: absolute; top: -7px; right: -2px; min-width: 15px; height: 15px; display: grid; place-items: center; padding: 0 3px; border-radius: 8px; background: var(--c); color: var(--bg); font-size: 10.5px; font-weight: 800; }
+.sum-ring { position: relative; flex: none; width: 36px; height: 36px; display: grid; place-items: center; font-size: 10px; letter-spacing: -.02em; }
+.sum-ring .ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sum-ring b { position: relative; font-weight: 700; }
+.sum-streak, .sum-coins { flex: none; display: flex; align-items: center; gap: 3px; }
+.sum-streak { color: var(--orange); }
+.sum-xp { flex: none; color: var(--blue); }
+.sum-coins { color: var(--gold); }
+@container (max-width: 400px) {
+  .sum-coins { display: none; }
+  .sum-areas { gap: 4px; }
+  .sum-area { width: 24px; height: 24px; margin-right: 0; border-radius: 7px; }
+}
+@container (max-width: 300px) { .sum-streak { display: none; } }
 .hcard { zoom: var(--habit-zoom, 1); position: relative; display: flex; align-items: center; gap: 16px; min-height: 80px; margin-bottom: 10px; padding: 9px 16px 9px 14px; }
 .hcard.treat { zoom: 1; }
 .hcard:has(.hbars) { padding-bottom: 17px; }

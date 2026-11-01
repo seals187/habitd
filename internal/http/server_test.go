@@ -764,6 +764,34 @@ func TestFoldHabit(t *testing.T) {
 	}
 }
 
+func TestReachedLine(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	done := c.meterHabit("Wasser", "count", "1", "1", "Gläser")
+	second := c.meterHabit("Tee", "count", "1", "1", "Tassen")
+	c.meterHabit("Saft", "count", "5", "1", "Gläser")
+	c.post(fmt.Sprintf("/habits/%d/add", done), true)
+	c.post(fmt.Sprintf("/habits/%d/add", second), true)
+	today := c.svc.Today().String()
+
+	_, html := c.get("/")
+	for _, want := range []string{`habit-group shut`, `<b>2/3</b>`, `+20 XP`, `+6`, `2 von 3 erreicht, Liste aufklappen`, "Wasser aufklappen"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("starts shut, missing %q in %s", want, html)
+		}
+	}
+	open := func(value string) string {
+		_, html := c.do("GET", "/", nil, map[string]string{"Cookie": "reached_open=" + value})
+		return html
+	}
+	if html := open(today); strings.Contains(html, "habit-group shut") || !strings.Contains(html, "Liste einklappen") || strings.Count(html, "Alle einklappen") != 2 {
+		t.Fatalf("opens on this device: %s", html)
+	}
+	if html := open("2020-01-01"); !strings.Contains(html, "habit-group shut") {
+		t.Fatalf("an open list only lasts the day: %s", html)
+	}
+}
+
 func TestLevelFold(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
@@ -782,6 +810,26 @@ func TestLevelFold(t *testing.T) {
 	}
 	if _, html = c.do("GET", "/", nil, map[string]string{"Cookie": "level_folded=0"}); strings.Contains(html, "level-card folded") {
 		t.Fatalf("opened again: %s", html)
+	}
+}
+
+func TestTodayLive(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", "count", "8", "1", "Gläser")
+	_, html := c.get("/today/live")
+	if !strings.Contains(html, "today-head") || !strings.Contains(html, "0/8") || strings.Contains(html, "<html") {
+		t.Fatalf("content of Today without the page around it: %s", html)
+	}
+	c.post(fmt.Sprintf("/habits/%d/add", id), false)
+	if _, html = c.get("/today/live"); !strings.Contains(html, "1/8") {
+		t.Fatalf("shows a change from another device: %s", html)
+	}
+	if _, html = c.do("GET", "/today/live", nil, map[string]string{"Cookie": "level_folded=1"}); !strings.Contains(html, "level-card folded") {
+		t.Fatalf("keeps the folds of this device: %s", html)
+	}
+	if _, html = c.do("GET", "/", nil, nil); !strings.Contains(html, `id="page"`) {
+		t.Fatalf("the full page stays: %s", html)
 	}
 }
 
