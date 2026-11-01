@@ -11,6 +11,12 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.4] - 2026-11-01
+
+### Fixed
+
+- The page no longer bounces at its end on phones, which lifted the tab bar and made it look twice as high. Pull to refresh is off with it, Today updates itself anyway.
+
 ## [0.1.3] - 2026-11-01
 
 ### Changed
@@ -206,6 +212,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.4]: https://github.com/seals187/habitd/releases/tag/v0.1.4
 [0.1.3]: https://github.com/seals187/habitd/releases/tag/v0.1.3
 [0.1.2]: https://github.com/seals187/habitd/releases/tag/v0.1.2
 [0.1.1]: https://github.com/seals187/habitd/releases/tag/v0.1.1

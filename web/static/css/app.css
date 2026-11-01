@@ -31,8 +31,9 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { background: var(--bg); -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+html { background: var(--bg); -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; overscroll-behavior-y: none; }
 body {
+  overscroll-behavior-y: none; /* no rubber band: it lifts the tab bar and leaves empty space below it */
   margin: 0;
   background: var(--bg);
   color: var(--text);
