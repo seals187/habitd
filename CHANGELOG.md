@@ -11,6 +11,21 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.1] - 2026-11-01
+
+### Added
+
+- **Patterns & tips:** the habit page shows when you are active from 6 to 24 o'clock and up to three hints sorted by relevance, such as the usual time, the strongest and weakest weekday, the trend against last week, a streak that still waits for today or a record in reach. Counters, avoid habits and weekly goals have rules of their own. Everything is calculated by fixed rules from your own entries, without AI. Hints about days start after 7 days, hints about the time of day after 5 entries.
+- **Week view:** every day says how it went, with the time the goal was reached, `verpasst` or `läuft`.
+- **Size of saving goals:** `−` and `+` beside Sparziele scale them from 80 to 120 percent, remembered per device.
+
+### Changed
+
+- The line of reached habits shows the best streaks per rhythm in one pill, such as `12 T | 3 Wo`.
+- The week view of amounts shows the reached days of the week at the top, the comparison with last week moved to the small boxes.
+- The goal line in the week view no longer has a label, the goal stands in the head.
+- The tab bar on phones is lower with smaller icons.
+
 ## [0.1.0] - 2026-11-01
 
 ### Added
@@ -161,6 +176,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.1]: https://github.com/seals187/habitd/releases/tag/v0.1.1
 [0.1.0]: https://github.com/seals187/habitd/releases/tag/v0.1.0
 [0.0.9]: https://github.com/seals187/habitd/releases/tag/v0.0.9
 [0.0.8]: https://github.com/seals187/habitd/releases/tag/v0.0.8

@@ -383,7 +383,7 @@ document.addEventListener("click", (e) => {
   button.setAttribute("aria-label", `Level-Anzeige ${folded ? "aufklappen" : "einklappen"}`);
 });
 
-// Size of the habit cards. Each device keeps its own, the server reads the cookie.
+// Size of the habit cards and the saving goals. Each device keeps its own, the server reads the cookie.
 document.addEventListener("click", (e) => {
   const button = e.target.closest("[data-zoom]");
   if (!button || button.disabled) return;
@@ -392,8 +392,8 @@ document.addEventListener("click", (e) => {
   box.dataset.value = zoom;
   box.querySelector("b").textContent = `${zoom}%`;
   box.querySelectorAll("button").forEach((b) => (b.disabled = zoom === Number(b.dataset.stop)));
-  document.getElementById("page").style.setProperty("--habit-zoom", zoom / 100);
-  saveCookie("habit_zoom", zoom);
+  document.getElementById("page").style.setProperty(box.dataset.var, zoom / 100);
+  saveCookie(box.dataset.cookie, zoom);
 });
 
 // Role select of the user list.

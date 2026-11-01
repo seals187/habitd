@@ -1,15 +1,18 @@
 package server
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/seals187/habitd/internal/db"
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
+	"github.com/seals187/habitd/internal/tips"
 	"github.com/seals187/habitd/internal/view"
 )
 
@@ -29,21 +32,30 @@ type dayCell struct {
 
 // barDay is one bar of the week chart.
 type barDay struct {
-	Name    string
-	Label   string
-	Height  int
-	Reached bool
-	Today   bool
-	Future  bool
-	Empty   bool // before the habit started
+	Name        string
+	Label       string
+	Height      int
+	Reached     bool
+	Today       bool
+	Future      bool
+	Empty       bool   // before the habit started
+	Status      string // how the day went, such as ✓18:40
+	StatusClass string
 }
 
 type weekChart struct {
-	Title     string
-	Summary   string
-	Bars      []barDay
-	GoalAt    int // height of the goal line in percent, 0 hides it
-	GoalLabel string
+	Title   string
+	Summary string
+	Bars    []barDay
+	GoalAt  int  // height of the goal line in percent, 0 hides it
+	Timed   bool // the bars say how their day went
+}
+
+// patternData is the box with the hints of a habit.
+type patternData struct {
+	Label string
+	Hours []int // level per hour from 6 to 24, nil hides the strip
+	Tips  []tips.Tip
 }
 
 type heatCell struct {
@@ -108,8 +120,9 @@ type detailData struct {
 
 	Amount *amountData // set for habits with a unit, replaces the streak
 
-	Stats   []statBox
-	Rewards []linkedReward
+	Patterns *patternData
+	Stats    []statBox
+	Rewards  []linkedReward
 }
 
 var dayNames = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
@@ -347,6 +360,9 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 			return nil, err
 		}
 	}
+	if d.Patterns, err = s.patterns(q, h, streak, w.Today); err != nil {
+		return nil, err
+	}
 	states, err := s.svc.RewardStates(q, w)
 	if err != nil {
 		return nil, err
@@ -358,6 +374,65 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 		}
 	}
 	return d, nil
+}
+
+// realMoment tells a time of day from a day filled in afterwards, which is stored
+// at noon of that day.
+func realMoment(at time.Time, d model.Day) bool {
+	const noon = "12:00:00"
+	return model.DayOf(at, at.Location()) == d && at.Format("15:04:05") != noon
+}
+
+// patterns collects what really happened lately and asks the rules about it.
+func (s *Server) patterns(q *db.Q, h *game.HabitData, streak game.Streak, today model.Day) (*patternData, error) {
+	unit := amountUnitOf(h.Unit)
+	from := today - tips.Window
+	in := tips.Input{Habit: h, Streak: streak, Today: today, Now: s.svc.Now(), Format: unit.label, Drink: unit.kind == unitVolume}
+	for day, at := range h.Done {
+		if day >= from && realMoment(at, day) {
+			in.Done = append(in.Done, tips.Stamp{Day: day, At: at, Amount: 1})
+		}
+	}
+	slices.SortFunc(in.Done, func(a, b tips.Stamp) int { return cmp.Compare(a.Day, b.Day) })
+	in.Stamps = in.Done
+	if h.Measured() {
+		entries, err := q.HabitEntries(h.ID, from)
+		if err != nil {
+			return nil, err
+		}
+		in.Stamps = nil
+		for _, e := range entries {
+			if realMoment(e.CreatedAt, e.Date) {
+				in.Stamps = append(in.Stamps, tips.Stamp{Day: e.Date, At: e.CreatedAt, Amount: e.Amount})
+			}
+		}
+	}
+	p := &patternData{Label: "wann du es erledigst", Hours: tips.Hours(in), Tips: tips.For(in)}
+	if in.Drink {
+		p.Label = "wann du trinkst"
+	}
+	if len(p.Tips) == 0 && p.Hours == nil {
+		return nil, nil
+	}
+	return p, nil
+}
+
+// barStatus says how a day of the week went: when the goal was reached, or why not.
+func barStatus(h *game.HabitData, x, today model.Day) (string, string) {
+	at, done := h.Done[x]
+	switch {
+	case done && realMoment(at, x):
+		return "✓" + at.Format("15:04"), "done"
+	case done:
+		return "✓", "done"
+	case h.Joker[x]:
+		return "Joker", "joker"
+	case x == today:
+		return "läuft", ""
+	case h.Scheduled(x):
+		return "verpasst", "missed"
+	}
+	return "", ""
 }
 
 func buildStrip(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64) {
@@ -378,6 +453,7 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 		top = max(top, valueOn(h, x, today, totals))
 	}
 	sum, days, best, bestValue := 0.0, 0, "–", 0.0
+	d.Chart.Timed = h.Kind != model.KindAvoid && !h.GoalWeek
 	for i, name := range dayNames {
 		x := start + model.Day(i)
 		bar := barDay{Name: name, Label: "–", Today: x == today}
@@ -400,6 +476,12 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 			if v > bestValue {
 				best, bestValue = name, v
 			}
+			if d.Chart.Timed {
+				bar.Status, bar.StatusClass = barStatus(h, x, today)
+			}
+		}
+		if d.Chart.Timed && !h.Measured() { // a tick says it all with its time
+			bar.Label = ""
 		}
 		d.Chart.Bars = append(d.Chart.Bars, bar)
 	}
@@ -408,7 +490,6 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 	if h.Measured() {
 		if !h.GoalWeek {
 			d.Chart.GoalAt = int(goal * 100 / top)
-			d.Chart.GoalLabel = "Ziel " + unit.label(goal)
 		}
 		buildWeekAmount(d, h, unit, today, totals)
 		return

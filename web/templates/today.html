@@ -47,12 +47,12 @@
 <a class="add-link" href="/habits/new">{{icon "plus" 18}}Neues Habit</a>
 {{template "undo-toast" .Undo}}{{end}}{{end}}
 
-{{define "habit-head"}}<div class="habit-head"><h2 class="section">{{.Title}}{{with .Count}} <em>{{.}}</em>{{end}}</h2>{{if .Group}}<button type="button" class="fold-all" data-fold-all>{{if .Folded}}Alle aufklappen{{else}}Alle einklappen{{end}}</button>{{end}}{{if .Tools}}<span class="zoom" role="group" aria-label="Größe der Habits" data-value="{{.Zoom}}"><button type="button" data-zoom="-5" data-stop="80" aria-label="Habits kleiner" {{if eq .Zoom 80}}disabled{{end}}>{{icon "minus" 14}}</button><b>{{.Zoom}}%</b><button type="button" data-zoom="5" data-stop="120" aria-label="Habits größer" {{if eq .Zoom 120}}disabled{{end}}>{{icon "plus" 14}}</button></span>{{end}}</div>{{end}}
+{{define "habit-head"}}<div class="habit-head"><h2 class="section">{{.Title}}{{with .Count}} <em>{{.}}</em>{{end}}</h2>{{if .Group}}<button type="button" class="fold-all" data-fold-all>{{if .Folded}}Alle aufklappen{{else}}Alle einklappen{{end}}</button>{{end}}{{if .Tools}}{{template "zoom-tool" (dict "Name" "Habits" "Zoom" .Zoom "Cookie" "habit_zoom" "Var" "--habit-zoom")}}{{end}}</div>{{end}}
 
 {{define "reached-sum"}}<button type="button" class="card reached-sum" data-fold-reached data-day="{{.Day}}" aria-expanded="{{if .Open}}true{{else}}false{{end}}" aria-label="{{.Done}} von {{.Total}} erreicht, Liste {{if .Open}}einklappen{{else}}aufklappen{{end}}">
 <span class="sum-areas">{{range .Areas}}<span class="sum-area" style="--c:{{.Color}}">{{if .Icon}}{{icon .Icon 16}}{{end}}{{if gt .Count 1}}<b>{{.Count}}</b>{{end}}</span>{{end}}</span>
 <span class="sum-ring"><svg class="ring" viewBox="0 0 56 56" aria-hidden="true"><circle class="ring-track" cx="28" cy="28" r="25"/><circle class="ring-fill" cx="28" cy="28" r="25" stroke-dasharray="{{dash 25.0 .Ring}}" transform="rotate(-90 28 28)"/></svg><b>{{.Done}}/{{.Total}}</b></span>
-{{with .Streak}}<span class="sum-streak">{{icon "flame" 14}}{{.}}</span>{{end}}
+{{with .Streaks}}<span class="sum-streak">{{icon "flame" 14}}{{range $i, $s := .}}{{if $i}}<i></i>{{end}}<b>{{$s.Value}}</b><small>{{$s.Unit}}</small>{{end}}</span>{{end}}
 <span class="sum-xp">+{{num .XP}} XP</span>
 <span class="sum-coins">{{icon "coin" 14}}+{{num .Coins}}</span>
 {{icon "chevron-right" 18}}</button>{{end}}

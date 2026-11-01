@@ -123,7 +123,7 @@ func TestDetailShowsAmounts(t *testing.T) {
 		t.Fatal("the streak hero should give way to the amount")
 	}
 	week := view2(c, id, "week")
-	for _, want := range []string{"Liter pro Tag", "Ziel 3 L", "Ø pro Tag", "bester Tag", "Ziel erreicht", "vs. Vorwoche"} {
+	for _, want := range []string{"Liter pro Tag", "goal-line", "Ø pro Tag", "bester Tag", "Ziel erreicht", "vs. Vorwoche"} {
 		if !strings.Contains(week, want) {
 			t.Fatalf("week misses %q: %s", want, week)
 		}

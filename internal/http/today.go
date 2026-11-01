@@ -284,26 +284,52 @@ type areaTile struct {
 
 // reachedLine sums up the reached habits on one line above their list.
 type reachedLine struct {
-	Areas  []areaTile
-	Done   int
-	Total  int    // goals of today, open and reached
-	Ring   int    // percent
-	Streak string // best running streak, empty without one
-	XP     int    // earned by today's check-ins
-	Coins  int
-	Open   bool   // this device shows the list today
-	Day    string // today, the open list only stays open for this day
+	Areas   []areaTile
+	Done    int
+	Total   int // goals of today, open and reached
+	Ring    int // percent
+	Streaks []streakPart
+	XP      int // earned by today's check-ins
+	Coins   int
+	Open    bool   // this device shows the list today
+	Day     string // today, the open list only stays open for this day
+}
+
+// streakPart is the best running streak of one rhythm.
+type streakPart struct {
+	Value int
+	Unit  string
+}
+
+// bestStreaks picks the longest running streak per rhythm. Days and weeks do not
+// add up, so each gets its own value.
+func bestStreaks(cards []habitCard) []streakPart {
+	var days, weeks, months int
+	for _, c := range cards {
+		switch {
+		case c.Streak.Monthly:
+			months = max(months, c.Streak.Current)
+		case c.Streak.Weekly:
+			weeks = max(weeks, c.Streak.Current)
+		default:
+			days = max(days, c.Streak.Current)
+		}
+	}
+	var out []streakPart
+	for _, p := range []streakPart{{days, "T"}, {weeks, "Wo"}, {months, "Mo"}} {
+		if p.Value > 0 {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // newReachedLine sums up the reached cards. Their areas keep the order of the cards.
 func newReachedLine(d *todayData) reachedLine {
-	line := reachedLine{Done: len(d.Reached), Total: len(d.Build) + len(d.Reached)}
+	line := reachedLine{Done: len(d.Reached), Total: len(d.Build) + len(d.Reached), Streaks: bestStreaks(d.Reached)}
 	line.Ring = percent(line.Done, line.Total)
-	best, seen := 0, map[int64]int{}
+	seen := map[int64]int{}
 	for _, c := range d.Reached {
-		if c.Streak.Days > best {
-			best, line.Streak = c.Streak.Days, c.StreakLabel
-		}
 		i, ok := seen[c.Area.ID]
 		if !ok {
 			i = len(line.Areas)
@@ -340,10 +366,10 @@ func (d *todayData) AvoidFolded() bool   { return allFolded(d.Avoid) }
 // Scale is the size of the habit cards as a CSS factor.
 func (d *todayData) Scale() float64 { return float64(d.Zoom) / 100 }
 
-// habitZoom reads the card size of this device. It lives in a cookie, because a
+// zoomOf reads a size of this device from its cookie. It lives there because a
 // phone wants other sizes than a desktop, and the server renders it without a jump.
-func habitZoom(r *http.Request) int {
-	c, err := r.Cookie("habit_zoom")
+func zoomOf(r *http.Request, name string) int {
+	c, err := r.Cookie(name)
 	if err != nil {
 		return 100
 	}
@@ -442,7 +468,7 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 	}
 	byID := areaMap(areas)
 	_, kw := w.Today.Time().ISOWeek()
-	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances, Zoom: habitZoom(r), LevelFolded: levelFolded(r)}
+	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances, Zoom: zoomOf(r, "habit_zoom"), LevelFolded: levelFolded(r)}
 	folded, opened := cardFolds(r, w.Today)
 	for _, h := range w.Habits {
 		if h.Archived || w.Today < h.Start {

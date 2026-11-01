@@ -250,9 +250,9 @@ func buildWeekAmount(d *detailData, h *game.HabitData, u amountUnit, today model
 	sum := sumAmounts(h, start, start+6, today, totals)
 	before := sumAmounts(h, start-7, today-7, today, totals)
 	d.Amount = newAmount(u, sum.Total, periodGoal(h, start, start+6), "diese Woche")
-	d.Amount.Side = versus(u, sum.Total, before.Total, "vs. Vorwoche")
+	done, plan := planned(h, start, start+6)
+	d.Amount.Side = statBox{Value: fmt.Sprintf("%d/%d", done, plan), Label: "Ziel erreicht", Class: "green"}
 	d.Chart.Summary = u.heading("Tag")
-	done, plan := planned(h, start, lastSettledDay(h, today))
 	bestName := "bester Tag"
 	if sum.Best > 0 {
 		bestName += " · " + dayNames[sum.BestDay.WeekdayIndex()]
@@ -260,7 +260,7 @@ func buildWeekAmount(d *detailData, h *game.HabitData, u amountUnit, today model
 	d.Stats = []statBox{
 		{Value: averageLabel(u, sum), Label: "Ø pro Tag", Class: "accent"},
 		{Value: bestLabel(u, sum), Label: bestName},
-		{Value: fmt.Sprintf("%d/%d", done, plan), Label: "Ziel erreicht", Class: "green"},
+		versus(u, sum.Total, before.Total, "vs. Vorwoche"),
 	}
 }
 

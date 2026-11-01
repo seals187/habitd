@@ -1087,3 +1087,28 @@ func remapRef(ref string, habits, rewards map[int64]int64) string {
 	}
 	return strings.Join(parts, ":")
 }
+
+// HabitEntries lists the clicks of a habit from a day on, oldest first.
+func (q *Q) HabitEntries(habitID int64, from model.Day) ([]model.Entry, error) {
+	rows, err := q.r.QueryContext(q.ctx, `SELECT date, amount, created_at FROM habit_entries
+		WHERE habit_id = ? AND date >= ? AND user_id = ? ORDER BY id`, habitID, from.String(), q.uid)
+	if err != nil {
+		return nil, fmt.Errorf("habit entries: %w", err)
+	}
+	defer rows.Close()
+	var out []model.Entry
+	for rows.Next() {
+		var date, at string
+		e := model.Entry{HabitID: habitID}
+		if err := rows.Scan(&date, &e.Amount, &at); err != nil {
+			return nil, fmt.Errorf("scan habit entry: %w", err)
+		}
+		d, err := model.ParseDay(date)
+		if err != nil {
+			return nil, err
+		}
+		e.Date, e.CreatedAt = d, parseTime(at)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}

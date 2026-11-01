@@ -174,10 +174,16 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Ein- und Aufklappen** liegt pro Gerät in Cookies statt in der Datenbank. Der Klick ändert nur
   die Karte im Browser und braucht keinen Server, gerendert wird wieder aus den Cookies. Das gilt
   auch für die Level-Anzeige, die eingeklappt mit einer Zeile auskommt.
-- **Erreichte Habits** teilen sich eine Zeile mit Bereichen, Fortschritt des Tages, bester Serie und
-  dem, was die Check-ins von heute gebracht haben. Ein Klick und „Alle aufklappen“ öffnen die
-  kompakte Liste, Details öffnet jede Karte einzeln. Eine offene Liste gilt wie eine offene Karte nur für diesen Tag und dieses
-  Gerät.
+- **Erreichte Habits** teilen sich eine Zeile mit Bereichen, Fortschritt des Tages, besten Serien und
+  dem, was die Check-ins von heute gebracht haben. Die Serien stehen getrennt nach Tagen und Wochen,
+  weil sich beides nicht vergleichen lässt. Ein Klick und „Alle aufklappen“ öffnen die kompakte
+  Liste, Details öffnet jede Karte einzeln. Eine offene Liste gilt wie eine offene Karte nur für
+  diesen Tag und dieses Gerät.
+- **Muster & Tipps** rechnet `internal/tips` nur aus den eigenen Daten, ohne KI und ohne dass etwas
+  den Server verlässt. Jede Regel ist eine kleine Funktion mit Test. Regeln über den Tag brauchen
+  7 Tage Laufzeit, Regeln über die Uhrzeit 5 echte Zeitstempel. Nachgetragene Tage liegen auf 12:00
+  und zählen dafür nicht. Rückfälle haben keine Uhrzeit, Vermeiden kennt darum keinen Stundenstreifen.
+- **Größe der Sparziele** gilt für alle Sparziele zusammen und pro Gerät, wie bei den Habits.
 - **Heute aktualisiert sich selbst:** Alle 15 Sekunden fragt die sichtbare Seite ihren Stand ab und
   tauscht ihn nur bei einer Änderung, beim Zurückkehren in den Tab sofort. Polling statt Server-Sent
   Events, weil es ohne offene Verbindungen und ohne Änderungen am Dienst auskommt. Offene Dialoge,

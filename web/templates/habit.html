@@ -23,9 +23,9 @@
 {{template "view-seg" $d}}{{end}}
 {{if eq $d.View "week"}}<section class="card chart">
 <div class="chart-head"><strong>{{$d.Chart.Title}}</strong><span class="{{if $d.Amount}}muted{{else}}accent{{end}}">{{$d.Chart.Summary}}</span></div>
-<div class="week-bars">
-{{if $d.Chart.GoalAt}}<div class="goal-area"><div class="goal-line{{if gt $d.Chart.GoalAt 85}} high{{end}}" style="bottom:{{$d.Chart.GoalAt}}%"><span>{{$d.Chart.GoalLabel}}</span></div></div>{{end}}
-{{range $d.Chart.Bars}}<div class="week-bar{{if .Today}} today{{end}}"><b class="{{if .Reached}}accent{{end}}">{{.Label}}</b><div class="week-track">{{if .Future}}<i class="future"></i>{{else if not .Empty}}<i class="{{if .Reached}}reached{{end}}" style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Name}}</span></div>{{end}}
+<div class="week-bars{{if $d.Chart.Timed}} timed{{end}}">
+{{if $d.Chart.GoalAt}}<div class="goal-area"><div class="goal-line" style="bottom:{{$d.Chart.GoalAt}}%"></div></div>{{end}}
+{{range $d.Chart.Bars}}<div class="week-bar{{if .Today}} today{{end}}">{{if $d.Chart.Timed}}<small class="bar-status {{.StatusClass}}">{{.Status}}</small>{{end}}<b class="{{if .Reached}}accent{{end}}">{{.Label}}</b><div class="week-track">{{if .Future}}<i class="future"></i>{{else if not .Empty}}<i class="{{if .Reached}}reached{{end}}" style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Name}}</span></div>{{end}}
 </div>
 </section>{{end}}
 {{if eq $d.View "month"}}<section class="card calendar">
@@ -48,6 +48,12 @@
 <div class="chart-head"><strong>Quote pro Monat</strong></div>
 <div class="month-bars">{{range $d.MonthBars}}<div class="month-bar{{if .Current}} current{{end}}"><div class="month-track">{{if .Empty}}<i class="stub"></i>{{else}}<b>{{.Label}}</b><i style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Letter}}</span></div>{{end}}</div>
 </section>{{end}}{{end}}
+{{with $d.Patterns}}<section class="card patterns">
+<div class="chart-head"><strong>Muster &amp; Tipps</strong>{{with .Hours}}<span class="muted">{{$d.Patterns.Label}}</span>{{end}}</div>
+{{with .Hours}}<div class="hours" aria-hidden="true">{{range .}}<i class="l{{.}}"></i>{{end}}</div>
+<div class="hour-marks" aria-hidden="true"><span>6 Uhr</span><span>12</span><span>18</span><span>24</span></div>{{end}}
+{{range .Tips}}<div class="tip"><span class="tip-icon {{.Tone}}">{{icon .Icon 18}}</span><p><b>{{.Title}}</b><small>{{.Detail}}</small></p></div>{{end}}
+</section>{{end}}
 {{if $d.Stats}}<div class="stats-3">{{range $d.Stats}}<div class="card stat"><b class="{{.Class}}">{{.Value}}</b><span>{{.Label}}</span></div>{{end}}</div>{{end}}
 {{range $d.Rewards}}<section class="card note goal"><span class="gold">{{icon "gift" 18}}</span><div><p><b>{{.Title}}</b> <span class="muted">{{.Progress}} / {{.Target}} Tage</span></p><div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div></div></section>{{end}}
 </div>{{end}}

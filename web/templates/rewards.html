@@ -1,4 +1,4 @@
-{{define "content"}}<main id="page" class="page">{{template "rewards-body" .}}</main>{{end}}
+{{define "content"}}<main id="page" class="page" style="--goal-zoom:{{.Data.GoalScale}}">{{template "rewards-body" .}}</main>{{end}}
 
 {{define "rewards-body"}}{{$d := .Data}}<header class="rewards-head"><h1>Gönn dir</h1><a class="round light" href="/rewards/new" aria-label="Neue Belohnung">{{icon "plus" 22}}</a></header>
 <section class="card purse">
@@ -22,8 +22,8 @@
 {{if .WeekLocked}}<span class="muted reward-wait">nächste Woche wieder</span>{{else}}<button class="pill-btn light" hx-post="/rewards/{{.ID}}/redeem" hx-target="#page">Einlösen</button>{{end}}
 {{template "reward-menu" dict "R" . "CSRF" $.CSRF}}
 </article>{{end}}</section>{{end}}
-{{if $d.Goals}}<h2 class="section with-count">Sparziele<em>{{len $d.Goals}}</em></h2>
-<section class="reward-list">{{range $d.Goals}}<article class="reward-row" style="--c:{{.Color}}">
+{{if $d.Goals}}<div class="habit-head"><h2 class="section with-count">Sparziele<em>{{len $d.Goals}}</em></h2>{{template "zoom-tool" (dict "Name" "Sparziele" "Zoom" $d.Zoom "Cookie" "goal_zoom" "Var" "--goal-zoom")}}</div>
+<section class="reward-list goal-list">{{range $d.Goals}}<article class="reward-row" style="--c:{{.Color}}">
 <a class="reward-tile" href="/rewards/{{.ID}}/edit">{{icon .Icon 22}}</a>
 <div class="reward-text"><div class="reward-goal"><strong>{{.Title}}</strong><b class="gold">{{num $d.Bal.Coins}}/{{num .Price}}</b></div>
 <div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div><small>{{.Note}}</small></div>

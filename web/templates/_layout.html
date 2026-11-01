@@ -46,3 +46,5 @@
 {{define "back"}}<a class="round" href="{{.}}" aria-label="Zurück">{{icon "chevron-left" 22}}</a>{{end}}
 
 {{define "subhead"}}<header class="sub-head">{{template "back" .Back}}<h1>{{.Title}}</h1></header>{{end}}
+
+{{define "zoom-tool"}}<span class="zoom" role="group" aria-label="Größe der {{.Name}}" data-value="{{.Zoom}}" data-cookie="{{.Cookie}}" data-var="{{.Var}}"><button type="button" data-zoom="-5" data-stop="80" aria-label="{{.Name}} kleiner" {{if eq .Zoom 80}}disabled{{end}}>{{icon "minus" 14}}</button><b>{{.Zoom}}%</b><button type="button" data-zoom="5" data-stop="120" aria-label="{{.Name}} größer" {{if eq .Zoom 120}}disabled{{end}}>{{icon "plus" 14}}</button></span>{{end}}

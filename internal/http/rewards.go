@@ -91,7 +91,11 @@ type rewardsData struct {
 	AtLimit    bool
 	Missing    int
 	Undo       *undoToast
+	Zoom       int // size of the saving goals in percent
 }
+
+// GoalScale is the size of the saving goals as a CSS factor.
+func (d *rewardsData) GoalScale() float64 { return float64(d.Zoom) / 100 }
 
 func rewardRhythm(rw model.Reward) string {
 	switch {
@@ -147,7 +151,7 @@ func (s *Server) rewardsData(r *http.Request) (*rewardsData, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &rewardsData{Tab: r.FormValue("tab"), Bal: w.Balances, Rate: rate, JokerPrice: game.JokerPrice, MaxJokers: game.MaxJokers}
+	d := &rewardsData{Tab: r.FormValue("tab"), Bal: w.Balances, Rate: rate, JokerPrice: game.JokerPrice, MaxJokers: game.MaxJokers, Zoom: zoomOf(r, "goal_zoom")}
 	if d.Tab != "joker" && d.Tab != "history" {
 		d.Tab = "rewards"
 	}

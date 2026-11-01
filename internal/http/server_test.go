@@ -775,7 +775,7 @@ func TestReachedLine(t *testing.T) {
 	today := c.svc.Today().String()
 
 	_, html := c.get("/")
-	for _, want := range []string{`habit-group shut`, `<b>2/3</b>`, `+20 XP`, `+6`, `2 von 3 erreicht, Liste aufklappen`, "Wasser aufklappen"} {
+	for _, want := range []string{`habit-group shut`, `<b>2/3</b>`, `+20 XP`, `+6`, `<b>1</b><small>T</small>`, `2 von 3 erreicht, Liste aufklappen`, "Wasser aufklappen"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("starts shut, missing %q in %s", want, html)
 		}
@@ -830,6 +830,19 @@ func TestTodayLive(t *testing.T) {
 	}
 	if _, html = c.do("GET", "/", nil, nil); !strings.Contains(html, `id="page"`) {
 		t.Fatalf("the full page stays: %s", html)
+	}
+}
+
+func TestGoalZoom(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	c.reward(model.Reward{Title: "Fernweh", Price: 5000})
+	if _, html := c.get("/rewards"); !strings.Contains(html, "--goal-zoom:1") || !strings.Contains(html, "Sparziele kleiner") {
+		t.Fatalf("default size: %s", html)
+	}
+	_, html := c.do("GET", "/rewards", nil, map[string]string{"Cookie": "goal_zoom=115"})
+	if !strings.Contains(html, "--goal-zoom:1.15") || !strings.Contains(html, "<b>115%</b>") {
+		t.Fatalf("stored size: %s", html)
 	}
 }
 
@@ -1325,13 +1338,16 @@ func TestMonthCountsAFinishedToday(t *testing.T) {
 	id := c.meterHabit("Lesen", "amount", "5", "5", "Min.")
 	stat := func() string {
 		_, html := c.get(fmt.Sprintf("/habits/%d?view=week", id))
-		return regexp.MustCompile(`(\d+/\d+)</b><span>Ziel erreicht`).FindStringSubmatch(html)[1]
+		return regexp.MustCompile(`(\d+)/\d+</b><small>Ziel erreicht`).FindStringSubmatch(html)[1]
 	}
-	if got := stat(); got != "0/0" {
-		t.Fatalf("an open first day is not missed: %s", got)
+	if got := stat(); got != "0" {
+		t.Fatalf("an open first day is not done: %s", got)
+	}
+	if _, html := c.get(fmt.Sprintf("/habits/%d", id)); strings.Contains(html, "Muster") {
+		t.Fatalf("a fresh habit has no patterns yet: %s", html)
 	}
 	c.post(fmt.Sprintf("/habits/%d/add", id), true)
-	if got := stat(); got != "1/1" {
+	if got := stat(); got != "1" {
 		t.Fatalf("finished today: %s", got)
 	}
 	avoid := c.habit("Kein Zucker", "avoid")
@@ -1387,7 +1403,7 @@ func TestDetailChartsFollowTheEntries(t *testing.T) {
 	add := fmt.Sprintf("/habits/%d/add", id)
 	c.post(add, true)
 	_, html := c.get(fmt.Sprintf("/habits/%d?view=week", id))
-	for _, want := range []string{"Ziel 20 Min.", "Minuten pro Tag", "<b class=\"\">5′</b>", "5 Min.", "Ø pro Tag", "0/0</b><span>Ziel erreicht"} {
+	for _, want := range []string{"goal-line", "Minuten pro Tag", "<b class=\"\">5′</b>", "5 Min.", "Ø pro Tag", "Ziel erreicht", "läuft"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("week: missing %q", want)
 		}
