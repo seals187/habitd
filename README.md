@@ -6,7 +6,7 @@ A lightweight, self-hosted habit tracker with rewards. Build good habits, break 
   <img src="docs/screenshots/01-Heute.png" width="200" alt="Today with level card and habits">
   <img src="docs/screenshots/02-Mein-Level.png" width="200" alt="Level statistics">
   <img src="docs/screenshots/03-Serien.png" width="200" alt="Streak overview">
-  <img src="docs/screenshots/04-Muster-Tipps.png" width="200" alt="Habit week view with patterns and tips">
+  <img src="docs/screenshots/04-Verlauf.png" width="200" alt="Timeline of a day">
 </p>
 
 The screenshots show the app with demo data. The UI language is German.
