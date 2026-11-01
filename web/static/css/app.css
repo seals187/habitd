@@ -19,6 +19,7 @@
   --radius-input: 14px;
   --gutter: 20px;
   --tabbar: 84px;
+  --safe-bottom: env(safe-area-inset-bottom);
   color-scheme: dark;
 }
 
@@ -64,7 +65,7 @@ small { font-size: 13px; }
   display: flex;
   flex-direction: column;
 }
-.app.has-tabs { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); }
+.app.has-tabs { padding-bottom: calc(var(--tabbar) + var(--safe-bottom)); }
 .page {
   flex: 1;
   width: 100%;
@@ -101,8 +102,8 @@ small { font-size: 13px; }
   z-index: 10;
   display: flex;
   justify-content: center;
-  height: calc(var(--tabbar) + env(safe-area-inset-bottom));
-  padding: 12px 0 env(safe-area-inset-bottom);
+  height: calc(var(--tabbar) + var(--safe-bottom));
+  padding: 12px 0 var(--safe-bottom);
   background: var(--bg);
   border-top: 1px solid var(--border);
 }
@@ -123,6 +124,14 @@ small { font-size: 13px; }
   .tabbar { padding-top: 6px; }
   .tabbar a { min-height: 40px; gap: 1px; font-size: 10px; }
   .tabbar .i { width: 20px; height: 20px; }
+}
+/* In a browser the safe area jumps while its toolbar folds on scrolling, an installed app keeps it. */
+@media (display-mode: browser) {
+  :root { --safe-bottom: 0px; }
+}
+@media (max-width: 600px) and (display-mode: browser) {
+  :root { --tabbar: 60px; }
+  .tabbar { padding-bottom: 6px; }
 }
 
 /* Today */
@@ -770,7 +779,7 @@ form:has(input[name="mode"][value="streak"]:checked) .only-coins { display: none
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tabbar) + 12px + env(safe-area-inset-bottom));
+  bottom: calc(var(--tabbar) + 12px + var(--safe-bottom));
   z-index: 20;
   max-width: 340px;
   padding: 10px 16px;
