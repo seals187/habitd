@@ -11,6 +11,20 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.2.0] - 2026-11-02
+
+### Added
+
+- **Size of the habit page:** `−` and `+` beside Woche, Monat and Jahr scale the whole page from 80 to 120 percent, remembered per device.
+
+### Changed
+
+- The habit page is much more compact, so week, month and year fit on one screen on common phones and on desktop. The title, the head and the figures are smaller.
+- Muster & Tipps starts folded and shows its first hint in one line. Each device remembers whether it is open.
+- The desktop uses the same compact layout as the phone, so the week strip only shows in the week view there too.
+- The bars of the week view no longer stretch on tall screens.
+- In the month view the explanation of the numbers moves beside the last day when at least three days are free, which saves a line.
+
 ## [0.1.9] - 2026-11-02
 
 ### Fixed
@@ -269,6 +283,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.2.0]: https://github.com/seals187/habitd/releases/tag/v0.2.0
 [0.1.9]: https://github.com/seals187/habitd/releases/tag/v0.1.9
 [0.1.8]: https://github.com/seals187/habitd/releases/tag/v0.1.8
 [0.1.7]: https://github.com/seals187/habitd/releases/tag/v0.1.7

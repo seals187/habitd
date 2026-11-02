@@ -1,4 +1,4 @@
-{{define "content"}}<main id="page" class="page detail">{{template "habit-body" .}}</main>{{end}}
+{{define "content"}}<main id="page" class="page detail" style="--detail-zoom:{{.Data.Scale}}">{{template "habit-body" .}}</main>{{end}}
 
 {{define "habit-body"}}{{$d := .Data}}<div class="detail-body view-{{$d.View}}{{if $d.Amount}} amounts{{end}}" style="--c:{{$d.Area.Color}}">
 <div class="detail-nav">{{template "back" "/"}}<a class="round" href="/habits/{{$d.Habit.ID}}/edit" aria-label="Habit bearbeiten">{{icon "pencil" 18}}</a></div>
@@ -32,8 +32,8 @@
 {{if eq $d.View "month"}}<section class="card calendar">
 <div class="cal-head">{{template "period-prev" $d}}<strong>{{$d.MonthTitle}}</strong>{{template "period-next" $d}}</div>
 <div class="cal-grid cal-letters"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
-{{range $d.Weeks}}<div class="cal-grid">{{range .}}{{template "day" dict "Cell" . "D" $d}}{{end}}</div>{{end}}
-{{with $d.Amount}}{{with .Hint}}<p class="muted heat-hint">{{.}}</p>{{end}}{{end}}
+{{range $i, $week := $d.Weeks}}<div class="cal-grid">{{range $week}}{{template "day" dict "Cell" . "D" $d}}{{end}}{{if and $d.HintSpan (eq (add $i 1) (len $d.Weeks))}}<p class="muted cal-hint" style="grid-column:span {{$d.HintSpan}}">{{$d.Amount.Hint}}</p>{{end}}</div>{{end}}
+{{if not $d.HintSpan}}{{with $d.Amount}}{{with .Hint}}<p class="muted heat-hint">{{.}}</p>{{end}}{{end}}{{end}}
 </section>{{end}}
 {{if eq $d.View "year"}}<div class="period">{{template "period-prev" $d}}<strong>{{$d.YearTitle}}</strong>{{template "period-next" $d}}
 <nav class="seg seg-2 span-seg" aria-label="Zeitraum">{{template "span-link" dict "D" $d "Months" 6}}{{template "span-link" dict "D" $d "Months" 12}}</nav></div>
@@ -53,21 +53,21 @@
 </section>{{end}}{{end}}
 </div>
 <div id="day-slot"></div>
-{{with $d.Patterns}}<section class="card patterns">
-<div class="chart-head"><strong>Muster &amp; Tipps</strong>{{with .Hours}}<span class="muted">{{$d.Patterns.Label}}</span>{{end}}</div>
+{{with $d.Patterns}}<details class="card patterns" data-patterns {{if $d.PatternsOpen}}open{{end}}>
+<summary class="chart-head"><strong>Muster &amp; Tipps</strong><span class="muted patterns-hint">{{if .Tips}}{{(index .Tips 0).Title}}{{else}}{{.Label}}{{end}}</span>{{icon "chevron-right" 16}}</summary>
 {{with .Hours}}<div class="hours" aria-hidden="true">{{range .}}<i class="l{{.}}"></i>{{end}}</div>
 <div class="hour-marks" aria-hidden="true"><span>6 Uhr</span><span>12</span><span>18</span><span>24</span></div>{{end}}
 {{range .Tips}}<div class="tip"><span class="tip-icon {{.Tone}}">{{icon .Icon 18}}</span><p><b>{{.Title}}</b><small>{{.Detail}}</small></p></div>{{end}}
-</section>{{end}}
+</details>{{end}}
 {{if $d.Stats}}<div class="stats-3">{{range $d.Stats}}<div class="card stat"><b class="{{.Class}}">{{.Value}}</b><span>{{.Label}}</span></div>{{end}}</div>{{end}}
 {{range $d.Rewards}}<section class="card note goal"><span class="gold">{{icon "gift" 18}}</span><div><p><b>{{.Title}}</b> <span class="muted">{{.Progress}} / {{.Target}} Tage</span></p><div class="bar gold-bar"><i style="width:{{.Percent}}%"></i></div></div></section>{{end}}
 </div>{{end}}
 
-{{define "view-seg"}}{{$d := .}}<nav class="seg seg-3" aria-label="Ansicht">
+{{define "view-seg"}}{{$d := .}}<div class="view-row"><nav class="seg seg-3" aria-label="Ansicht">
 <a href="/habits/{{$d.Habit.ID}}?view=week" {{if eq $d.View "week"}}class="on"{{end}}>Woche</a>
 <a href="/habits/{{$d.Habit.ID}}?view=month" {{if eq $d.View "month"}}class="on"{{end}}>Monat</a>
 <a href="/habits/{{$d.Habit.ID}}?view=year" {{if eq $d.View "year"}}class="on"{{end}}>Jahr</a>
-</nav>{{end}}
+</nav>{{template "zoom-tool" dict "Name" "Ansicht" "Zoom" $d.Zoom "Cookie" "detail_zoom" "Var" "--detail-zoom"}}</div>{{end}}
 
 {{define "day-sheet"}}{{$d := .Data}}<dialog class="sheet day-sheet" aria-labelledby="day-title"><div class="sheet-body" tabindex="-1" autofocus>
 <button type="button" class="sheet-grip" data-close-sheet aria-label="Schließen"></button>

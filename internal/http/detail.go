@@ -23,6 +23,9 @@ const (
 	spanLong  = 12
 )
 
+// minHintSpan is how many free days the hint of a month needs beside the last day.
+const minHintSpan = 3
+
 // dayCell is one day of the week strip or the month grid.
 type dayCell struct {
 	Label    int
@@ -112,6 +115,7 @@ type detailData struct {
 	CoinsTotal int
 	Strip      []dayCell
 
+	HintSpan   int    // free days after the last one that hold the hint, 0 keeps it below
 	Prev       string // link to the period before
 	Next       string // link to the period after, empty for the running one
 	WeekParam  string
@@ -132,9 +136,20 @@ type detailData struct {
 
 	Amount *amountData // set for habits with a unit, replaces the streak
 
-	Patterns *patternData
-	Stats    []statBox
-	Rewards  []linkedReward
+	Patterns     *patternData
+	PatternsOpen bool
+	Stats        []statBox
+	Rewards      []linkedReward
+	Zoom         int // size of the page in percent, per device
+}
+
+// Scale is the size of the page as a CSS factor.
+func (d *detailData) Scale() float64 { return float64(d.Zoom) / 100 }
+
+// patternsOpen reads whether this device keeps the hints of a habit open.
+func patternsOpen(r *http.Request) bool {
+	c, err := r.Cookie("patterns_open")
+	return err == nil && c.Value == "1"
 }
 
 var dayNames = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
@@ -392,6 +407,7 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 	d := &detailData{
 		Habit: h.Habit, Area: areaMap(areas)[h.AreaID], Frequency: view.FrequencyLabel(h.Habit), Since: sinceLabel(h.Start, w.Today),
 		Streak: streak, Avoid: h.Kind == model.KindAvoid, Ring: ringPercent(streak.Days), Quote: percent(done, plan), XPTotal: xp, CoinsTotal: coins,
+		Zoom: zoomOf(r, "detail_zoom"), PatternsOpen: patternsOpen(r),
 	}
 	unit := amountUnitOf(h.Unit)
 	if d.Avoid {
@@ -716,8 +732,11 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 			week = nil
 		}
 	}
-	if len(week) > 0 {
-		d.Weeks = append(d.Weeks, append(week, make([]dayCell, 7-len(week))...))
+	if left := 7 - len(week); left >= minHintSpan && left < 7 && h.Measured() {
+		d.HintSpan = left // the hint moves into the free days, which saves its line
+		d.Weeks = append(d.Weeks, week)
+	} else if left < 7 {
+		d.Weeks = append(d.Weeks, append(week, make([]dayCell, left)...))
 	}
 	if h.Measured() {
 		buildMonthAmount(d, h, unit, first, last, today, totals)

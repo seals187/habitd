@@ -195,6 +195,10 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Rückbuchungen:** Sie landen auf dem Tag der Buchung, die sie zurücknehmen, nicht auf dem Tag des
   Klicks. Sonst läse „heute“ negativ, obwohl nur ein alter Tag korrigiert wurde. Migration 013
   verschiebt ältere Rückbuchungen ebenso, die Summen bleiben gleich.
+- **Habit-Seite ohne Scrollen:** Sie ist auf allen Geräten gleich kompakt aufgebaut. „Muster & Tipps“
+  startet zugeklappt und zeigt den wichtigsten Hinweis in einer Zeile, offen oder zu merkt sich jedes
+  Gerät. Dazu kommt `−`/`+` neben Woche, Monat und Jahr (80 bis 120 %), weil Bildschirme sehr
+  unterschiedlich hoch sind. Sie skaliert die ganze Seite per CSS `zoom`.
 - **Tage im Kalender:** Eine Zelle zeigt Tag, Wert mit Einheit (`2,8l`, `20min`) und Uhrzeit. Die
   Uhrzeit ist die des Erreichens, sonst die des letzten Eintrags. Ein Tag ohne bekannte Uhrzeit
   bleibt ohne, gerechnet wird mit Dezimalkomma wie im Rest der App.

@@ -564,6 +564,11 @@ document.addEventListener("htmx:afterSwap", (e) => {
   if (e.detail.target.id === "day-slot") e.detail.target.querySelector("dialog")?.showModal();
 });
 
+// The hints of a habit stay folded or open per device. Toggle events do not bubble.
+document.addEventListener("toggle", (e) => {
+  if (e.target.matches?.("[data-patterns]")) saveCookie("patterns_open", e.target.open ? 1 : 0);
+}, true);
+
 // The length of the year view is kept per device, the server reads the cookie.
 document.addEventListener("click", (e) => {
   const link = e.target.closest("[data-year-span]");

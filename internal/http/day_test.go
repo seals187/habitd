@@ -234,6 +234,57 @@ func TestDayTag(t *testing.T) {
 	}
 }
 
+func TestMonthHintSitsBesideTheLastDay(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.meterHabit("Wasser", model.MeasureAmount, "3", "1", "l")
+	beside := c.page(fmt.Sprintf("/habits/%d?view=month&m=2026-11", id)) // ends on a Monday
+	if !strings.Contains(beside, `cal-hint" style="grid-column:span 6"`) || strings.Contains(beside, "heat-hint") {
+		t.Fatal("six free days hold the hint")
+	}
+	below := c.page(fmt.Sprintf("/habits/%d?view=month&m=2026-05", id)) // ends on a Sunday
+	if strings.Contains(below, "cal-hint") || !strings.Contains(below, "heat-hint") {
+		t.Fatal("without free days the hint stays below")
+	}
+	few := c.page(fmt.Sprintf("/habits/%d?view=month&m=2026-02", id)) // ends on a Saturday
+	if strings.Contains(few, "cal-hint") {
+		t.Fatal("one free day is too small for the hint")
+	}
+}
+
+func TestHabitPageKeepsItsSizePerDevice(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.habit("Lesen", "build")
+	path := fmt.Sprintf("/habits/%d?view=month", id)
+	if html := c.page(path); !strings.Contains(html, "--detail-zoom:1") || !strings.Contains(html, `data-cookie="detail_zoom"`) {
+		t.Fatal("the page starts at its normal size, with the tool to change it")
+	}
+	_, html := c.do("GET", path, nil, map[string]string{"Cookie": "detail_zoom=85"})
+	if !strings.Contains(html, "--detail-zoom:0.85") || !strings.Contains(html, "<b>85%</b>") {
+		t.Fatal("the device keeps its size")
+	}
+	_, html = c.do("GET", path, nil, map[string]string{"Cookie": "detail_zoom=999"})
+	if !strings.Contains(html, "--detail-zoom:1") {
+		t.Fatal("a size out of range falls back")
+	}
+}
+
+func TestPatternsStayFoldedPerDevice(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	if err := c.svc.Seed(c.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if html := c.page("/habits/1?view=month"); !strings.Contains(html, `data-patterns >`) {
+		t.Fatal("the hints start folded")
+	}
+	_, html := c.do("GET", "/habits/1?view=month", nil, map[string]string{"Cookie": "patterns_open=1"})
+	if !strings.Contains(html, "data-patterns open") {
+		t.Fatal("the device keeps them open")
+	}
+}
+
 func TestFigureIsPartOfTheCard(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
