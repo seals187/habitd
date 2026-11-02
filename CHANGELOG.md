@@ -11,6 +11,21 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.6] - 2026-11-02
+
+### Added
+
+- **Swipe between periods:** in the week, month and year view a swipe over the chart, with a finger or the held mouse button, turns to the period before (to the right) or after it (to the left). Week and year have arrows for it too.
+- **6 or 12 months:** the year view has a switch for its length, remembered per device. It starts with 6 months.
+- **Pull to refresh:** pulling down at the top of a page reloads it, without moving the tab bar. It replaces the gesture of the browser and also works in the installed app.
+
+### Changed
+
+- The year view shows whole months up to the running one instead of the calendar year, and compares them with the months before.
+- Habits with a unit always show the full 6 or 12 months in the year view. Months before the start stay as flat stubs.
+- The month view no longer turns to future months.
+- The week strip of a habit follows the week you are looking at.
+
 ## [0.1.5] - 2026-11-01
 
 ### Fixed
@@ -218,6 +233,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.6]: https://github.com/seals187/habitd/releases/tag/v0.1.6
 [0.1.5]: https://github.com/seals187/habitd/releases/tag/v0.1.5
 [0.1.4]: https://github.com/seals187/habitd/releases/tag/v0.1.4
 [0.1.3]: https://github.com/seals187/habitd/releases/tag/v0.1.3

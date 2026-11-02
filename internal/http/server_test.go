@@ -319,7 +319,7 @@ func TestDetailViews(t *testing.T) {
 			}
 		}
 	}
-	resp, html := c.get("/habits/1?view=year")
+	resp, html := c.get("/habits/1?view=year&span=12")
 	if resp.StatusCode != 200 || !strings.Contains(html, "212 Tage erledigt") {
 		t.Fatalf("year view: %s", html)
 	}

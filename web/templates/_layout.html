@@ -20,6 +20,7 @@
 {{template "content" .}}
 </div>{{end}}
 {{if .Tab}}{{template "tabbar" .}}{{end}}
+<div id="pull" class="pull" aria-hidden="true">{{icon "refresh-cw" 20}}</div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
 <h2 id="confirm-title"></h2>

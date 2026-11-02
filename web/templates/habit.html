@@ -21,33 +21,37 @@
 </section>
 {{if $d.Strip}}<section class="card strip">{{range $d.Strip}}<div class="strip-day"><span>{{.Letter}}</span>{{template "dot" dict "Cell" . "D" $d}}</div>{{end}}</section>{{end}}
 {{template "view-seg" $d}}{{end}}
+<div class="swipe" data-swipe-area>
 {{if eq $d.View "week"}}<section class="card chart">
-<div class="chart-head"><strong>{{$d.Chart.Title}}</strong><span class="{{if $d.Amount}}muted{{else}}accent{{end}}">{{$d.Chart.Summary}}</span></div>
+<div class="chart-head period-head">{{template "period-prev" $d}}<p class="period-title"><strong>{{$d.Chart.Title}}</strong><span class="{{if $d.Amount}}muted{{else}}accent{{end}}">{{$d.Chart.Summary}}</span></p>{{template "period-next" $d}}</div>
 <div class="week-bars{{if $d.Chart.Timed}} timed{{end}}">
 {{if $d.Chart.GoalAt}}<div class="goal-area"><div class="goal-line" style="bottom:{{$d.Chart.GoalAt}}%"></div></div>{{end}}
 {{range $d.Chart.Bars}}<div class="week-bar{{if .Today}} today{{end}}">{{if $d.Chart.Timed}}<small class="bar-status {{.StatusClass}}">{{.Status}}</small>{{end}}<b class="{{if .Reached}}accent{{end}}">{{.Label}}</b><div class="week-track">{{if .Future}}<i class="future"></i>{{else if not .Empty}}<i class="{{if .Reached}}reached{{end}}" style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Name}}</span></div>{{end}}
 </div>
 </section>{{end}}
 {{if eq $d.View "month"}}<section class="card calendar">
-<div class="cal-head"><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.PrevMonth}}" aria-label="Voriger Monat">{{icon "chevron-left" 22}}</a><strong>{{$d.MonthTitle}}</strong><a href="/habits/{{$d.Habit.ID}}?view=month&m={{$d.NextMonth}}" aria-label="Nächster Monat">{{icon "chevron-right" 22}}</a></div>
+<div class="cal-head">{{template "period-prev" $d}}<strong>{{$d.MonthTitle}}</strong>{{template "period-next" $d}}</div>
 <div class="cal-grid cal-letters"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
 {{range $d.Weeks}}<div class="cal-grid">{{range .}}{{template "day" dict "Cell" . "D" $d}}{{end}}</div>{{end}}
 {{with $d.Amount}}{{with .Hint}}<p class="muted heat-hint">{{.}}</p>{{end}}{{end}}
 </section>{{end}}
-{{if eq $d.View "year"}}{{with $d.Amount}}<section class="card chart amount-chart">
+{{if eq $d.View "year"}}<div class="period">{{template "period-prev" $d}}<strong>{{$d.YearTitle}}</strong>{{template "period-next" $d}}
+<nav class="seg seg-2 span-seg" aria-label="Zeitraum">{{template "span-link" dict "D" $d "Months" 6}}{{template "span-link" dict "D" $d "Months" 12}}</nav></div>
+{{with $d.Amount}}<section class="card chart amount-chart">
 <div class="chart-head"><strong>{{.Title}}</strong><span class="muted">{{.Goal}}</span></div>
 <div class="amount-bars">{{range .Bars}}<div class="amount-bar{{if .Current}} current{{end}}{{if .Stub}} stub{{end}}"><div class="amount-track"><b style="bottom:calc({{.Height}}% + 5px)">{{.Label}}</b><i style="height:{{.Height}}%"></i></div><span>{{.Name}}</span></div>{{end}}</div>
 </section>
 {{with .Note}}<section class="card amount-note"><span class="reward-tile">{{icon $d.Habit.Icon 22}}</span><p>{{range .}}{{if .Bold}}<b>{{.Text}}</b>{{else}}{{.Text}}{{end}}{{end}}</p></section>{{end}}
 {{else}}<section class="card chart">
-<div class="chart-head"><strong>Letzte 12 Monate</strong><span class="accent">{{$d.YearDone}} Tage erledigt</span></div>
-<div class="heat" role="img" aria-label="Kalender der letzten 12 Monate">{{range $d.Heat}}<div class="heat-col"><span>{{.Month}}</span>{{range .Cells}}<i class="{{.Class}}" title="{{.Title}}"></i>{{end}}</div>{{end}}</div>
+<div class="chart-head"><strong>{{$d.HeatTitle}}</strong><span class="accent">{{$d.YearDone}} Tage erledigt</span></div>
+<div class="heat" role="img" aria-label="Kalender: {{$d.HeatTitle}}">{{range $d.Heat}}<div class="heat-col"><span>{{.Month}}</span>{{range .Cells}}<i class="{{.Class}}" title="{{.Title}}"></i>{{end}}</div>{{end}}</div>
 {{with $d.StartHint}}<p class="muted heat-hint">{{.}}</p>{{end}}
 </section>
 <section class="card chart">
 <div class="chart-head"><strong>Quote pro Monat</strong></div>
 <div class="month-bars">{{range $d.MonthBars}}<div class="month-bar{{if .Current}} current{{end}}"><div class="month-track">{{if .Empty}}<i class="stub"></i>{{else}}<b>{{.Label}}</b><i style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Letter}}</span></div>{{end}}</div>
 </section>{{end}}{{end}}
+</div>
 {{with $d.Patterns}}<section class="card patterns">
 <div class="chart-head"><strong>Muster &amp; Tipps</strong>{{with .Hours}}<span class="muted">{{$d.Patterns.Label}}</span>{{end}}</div>
 {{with .Hours}}<div class="hours" aria-hidden="true">{{range .}}<i class="l{{.}}"></i>{{end}}</div>
@@ -64,7 +68,15 @@
 <a href="/habits/{{$d.Habit.ID}}?view=year" {{if eq $d.View "year"}}class="on"{{end}}>Jahr</a>
 </nav>{{end}}
 
-{{define "day-attrs"}}hx-post="/habits/{{.D.Habit.ID}}/{{if .D.Avoid}}relapse{{else}}check{{end}}?date={{.Cell.Date}}&from=detail&view={{.D.View}}&m={{.D.MonthParam}}" hx-target="#page" aria-label="{{.Cell.Date}}"{{end}}
+{{define "period-attrs"}}hx-target="#page" hx-select="#page > .detail-body" hx-swap="innerHTML show:none" hx-replace-url="true"{{end}}
+
+{{define "period-prev"}}<a class="period-arrow" href="{{.Prev}}" {{template "period-attrs"}} data-swipe="prev" aria-label="Zeitraum davor">{{icon "chevron-left" 22}}</a>{{end}}
+
+{{define "period-next"}}{{if .Next}}<a class="period-arrow" href="{{.Next}}" {{template "period-attrs"}} data-swipe="next" aria-label="Zeitraum danach">{{icon "chevron-right" 22}}</a>{{else}}<span class="period-arrow off" aria-hidden="true">{{icon "chevron-right" 22}}</span>{{end}}{{end}}
+
+{{define "span-link"}}<a href="/habits/{{.D.Habit.ID}}?view=year&y={{.D.YearParam}}&span={{.Months}}" {{template "period-attrs"}} data-year-span="{{.Months}}" {{if eq .D.Span .Months}}class="on"{{end}}>{{.Months}} Monate</a>{{end}}
+
+{{define "day-attrs"}}hx-post="/habits/{{.D.Habit.ID}}/{{if .D.Avoid}}relapse{{else}}check{{end}}?date={{.Cell.Date}}&from=detail&view={{.D.View}}&m={{.D.MonthParam}}&w={{.D.WeekParam}}" hx-target="#page" aria-label="{{.Cell.Date}}"{{end}}
 
 {{define "dot"}}{{$c := .Cell}}{{if $c.Editable}}<button class="strip-dot {{$c.State}}" {{template "day-attrs" .}}>{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</button>{{else}}<span class="strip-dot {{$c.State}}">{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</span>{{end}}{{end}}
 

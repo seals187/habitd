@@ -59,7 +59,7 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 
 ## Oberfläche
 
-- **Jahr-Heatmap:** 53 Wochen, horizontal scrollbar, beim Öffnen rechts am aktuellen Rand.
+- **Jahr-Heatmap:** die ganzen Monate des gewählten Zeitraums, ohne Scrollen.
   Pro Tag gibt es bei einem einzelnen Habit nur erledigt oder nicht, die Farbstufen zeigen
   daher, wie weit der Tag in einer Serie liegt (1–2, 3–9, ab 10 Tagen).
 - **Serien im Zeitverlauf:** Die Balken zeigen die Lage auf der Zeitachse des Habits, wie im
@@ -182,8 +182,18 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Habits mit Einheit** zeigen in der Statistik die Menge statt der Serie. Alles wird beim Aufruf
   aus den Einträgen berechnet, gespeichert wird nichts zusätzlich. Das Zeitraum-Ziel ist die Zahl
   der geplanten Tage mal Tagesziel und beginnt frühestens am Start des Habits. Ein laufender Monat
-  wird mit denselben Tagen des Vormonats verglichen, ein laufendes Jahr mit demselben Stück des
-  Vorjahres. Die Jahresansicht zeigt das Kalenderjahr, nicht die letzten zwölf Monate.
+  wird mit denselben Tagen des Vormonats verglichen, ein laufender Jahreszeitraum mit demselben
+  Stück des Zeitraums davor.
+- **Jahresansicht:** Sie zeigt 6 oder 12 ganze Monate bis zum laufenden Monat statt des
+  Kalenderjahrs, Vorgabe sind 6. Monate vor dem Start bleiben als Stummel stehen, damit ein neues
+  Habit nicht nur wenige Balken hat. Die Länge liegt pro Gerät im Cookie `year_span`.
+- **Ziehen zum Aktualisieren:** Die Geste des Browsers bleibt aus, weil ihr Überziehen die Menüleiste
+  anhebt und auf Seiten mit Menüleiste das Fenster gar nicht mehr scrollt. Die App bringt eine eigene
+  Geste mit: Ganz oben nach unten ziehen lädt die Seite neu, im Browser wie in der installierten App.
+- **Zeiträume wechseln:** Wischen mit dem Finger oder mit gehaltener Maus nutzt die Pfeile im Kopf
+  der Karte. Nach rechts geht es zurück, nach links vor, aber nicht über den laufenden Zeitraum
+  hinaus. Die Adresse wird ersetzt, damit „Zurück“ das Habit verlässt und nicht jede Woche einzeln
+  durchläuft.
 - **Heute frei:** Habits mit festen Wochentagen bleiben an freien Tagen unten auf „Heute“ sichtbar.
   Ein erreichtes Wochen- oder Monatsziel klappt die Karte bis zum Ende des Zeitraums ein.
 - **Erreichte Karten** lassen sich aufklappen. Das gilt nur für den laufenden Tag, am nächsten Tag

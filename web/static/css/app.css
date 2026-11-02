@@ -483,7 +483,30 @@ form:has(input[name="goal_period"][value="week"]:checked):not(:has(input[name="m
 .goal-line { position: absolute; left: 0; right: 0; border-top: 1px dashed #6e716c; }
 .calendar { margin-top: 12px; padding: 14px; }
 .cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.cal-head a { width: 44px; height: 32px; display: grid; place-items: center; color: var(--muted); }
+.period-arrow { flex: none; width: 32px; height: 32px; display: grid; place-items: center; color: var(--muted); }
+.period-arrow.off { opacity: .3; }
+.cal-head .period-arrow { width: 44px; }
+.chart-head.period-head { align-items: center; gap: 6px; margin-inline: -8px; }
+.period-title { flex: 1; min-width: 0; text-align: center; line-height: 1.25; }
+.period-title strong, .period-title span { display: block; white-space: nowrap; }
+.period-title strong { font-size: 15px; }
+.period { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin-top: 12px; }
+.period strong { flex: 1; min-width: 96px; font-size: 14.5px; font-weight: 600; text-align: center; white-space: nowrap; }
+.detail .seg.span-seg { flex: none; margin: 0 0 0 6px; padding: 3px; }
+.detail .seg.span-seg a { min-height: 28px; padding-inline: 9px; font-size: 12.5px; white-space: nowrap; }
+.detail-body { overflow-x: clip; }
+.swipe { transition: translate .18s ease; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.swipe.swiping { transition: none; }
+#page[data-swiped="prev"] .swipe { animation: swipe-prev .2s ease; }
+#page[data-swiped="next"] .swipe { animation: swipe-next .2s ease; }
+.pull { position: fixed; z-index: 30; top: calc(env(safe-area-inset-top) - 44px); left: 50%; width: 40px; height: 40px; margin-left: -20px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); opacity: 0; pointer-events: none; transition: translate .18s ease, opacity .18s ease; }
+.pull.pulling { opacity: 1; transition: none; }
+.pull.ready { color: var(--green); }
+.pull.loading { opacity: 1; color: var(--green); }
+.pull.loading .i { animation: pull-spin .8s linear infinite; }
+@keyframes pull-spin { to { rotate: 360deg; } }
+@keyframes swipe-prev { from { opacity: .4; translate: -48px; } }
+@keyframes swipe-next { from { opacity: .4; translate: 48px; } }
 .cal-head strong { font-size: 15.5px; font-weight: 600; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
 .cal-letters { color: var(--muted); font-size: 12px; font-weight: 600; text-align: center; }
@@ -543,7 +566,7 @@ form:has(input[name="goal_period"][value="week"]:checked):not(:has(input[name="m
 .amounts .day.done span { color: color-mix(in srgb, var(--bg) 75%, transparent); }
 .amounts .day.part { background: linear-gradient(to top, color-mix(in srgb, var(--c) 50%, var(--track)) var(--fill), var(--track) 0); }
 .amounts .day.part b { color: var(--text); }
-.heat { display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); gap: 1px; padding-top: 18px; }
+.heat { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; padding-top: 18px; }
 .heat-col { position: relative; display: flex; flex-direction: column; gap: 1px; }
 .heat-col span { position: absolute; top: -18px; left: 0; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .heat-col i { display: block; aspect-ratio: 1; border-radius: 1px; background: var(--track); }
@@ -554,7 +577,7 @@ form:has(input[name="goal_period"][value="week"]:checked):not(:has(input[name="m
 .heat-col .joker { background: var(--blue); }
 .heat-col .miss { background: #5a2a24; }
 .heat-hint { margin-top: 10px; font-size: 11.5px; }
-.month-bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+.month-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
 .month-bar { min-width: 0; text-align: center; }
 .month-bar span { color: var(--muted); font-size: 11.5px; }
 .month-track { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; height: 112px; margin-bottom: 4px; }
@@ -1337,6 +1360,12 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
   .note.goal { flex: none; margin-top: 8px; padding: 7px 12px; font-size: 13px; }
   .note.goal .bar { margin-top: 5px; }
 
+  .swipe { flex: none; display: flex; flex-direction: column; min-height: 0; }
+  .view-week .swipe, .amounts.view-year .swipe { flex: 1; }
+  .amounts.view-week .swipe { max-height: 340px; }
+  .amounts.view-year .swipe { max-height: 412px; }
+  .amounts.view-year .swipe:has(.amount-note) { max-height: 480px; }
+  .period { margin-top: 8px; }
   .view-week .chart { flex: 1; display: flex; flex-direction: column; }
   .week-bars { flex: 1; min-height: 96px; }
   .week-track { position: relative; flex: 1; height: auto; }
@@ -1367,7 +1396,7 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
   .heat { padding-top: 16px; }
   .heat-hint { margin-top: 6px; font-size: 11px; }
   .view-year .chart { flex: none; }
-  .month-track { height: clamp(32px, calc(100svh - 546px), 150px); }
+  .month-track { height: clamp(32px, calc(100svh - 590px), 150px); }
 }
 @media (max-width: 359px) {
   .amount-hero { gap: 9px; }
@@ -1509,7 +1538,7 @@ html:has(dialog.sheet[open]) { overflow: hidden; }
 .sheet[open] { display: flex; animation: sheet-up .2s ease-out; }
 .sheet::backdrop { background: #0009; }
 @keyframes sheet-up { from { translate: 0 40px; opacity: .4; } }
-@media (prefers-reduced-motion: reduce) { .sheet[open] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .sheet[open] { animation: none; } .swipe { transition: none; } #page[data-swiped] .swipe { animation: none; } .pull.loading .i { animation: none; } }
 .sheet-body { flex: 1; min-width: 0; display: flex; flex-direction: column; outline: none; padding: 8px 14px 0; }
 .streak-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
 .streak-none { display: none; padding: 24px 12px; color: var(--muted); font-size: 14px; text-align: center; }

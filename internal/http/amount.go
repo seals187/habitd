@@ -245,11 +245,15 @@ func averageLabel(u amountUnit, sum amountSum) string {
 	return u.label(sum.average())
 }
 
-func buildWeekAmount(d *detailData, h *game.HabitData, u amountUnit, today model.Day, totals map[model.Day]float64) {
-	start := today.WeekStart()
+func buildWeekAmount(d *detailData, h *game.HabitData, u amountUnit, start, today model.Day, totals map[model.Day]float64) {
 	sum := sumAmounts(h, start, start+6, today, totals)
-	before := sumAmounts(h, start-7, today-7, today, totals)
-	d.Amount = newAmount(u, sum.Total, periodGoal(h, start, start+6), "diese Woche")
+	before := sumAmounts(h, start-7, min(start+6, today)-7, today, totals)
+	label := "diese Woche"
+	if start != today.WeekStart() {
+		_, week := start.Time().ISOWeek()
+		label = fmt.Sprintf("KW %d", week)
+	}
+	d.Amount = newAmount(u, sum.Total, periodGoal(h, start, start+6), label)
 	done, plan := planned(h, start, start+6)
 	d.Amount.Side = statBox{Value: fmt.Sprintf("%d/%d", done, plan), Label: "Ziel erreicht", Class: "green"}
 	d.Chart.Summary = u.heading("Tag")
@@ -290,25 +294,26 @@ func buildMonthAmount(d *detailData, h *game.HabitData, u amountUnit, first, las
 	}
 }
 
-func buildYearAmount(d *detailData, h *game.HabitData, u amountUnit, today model.Day, totals map[model.Day]float64) {
-	first := model.NewDay(today.Year(), time.January, 1)
-	sum := sumAmounts(h, first, today, today, totals)
-	before := sumAmounts(h, model.NewDay(today.Year()-1, time.January, 1), model.NewDay(today.Year()-1, today.Month(), today.Dom()), today, totals)
-	sub := "dieses Jahr"
-	if h.Start >= first {
+func buildYearAmount(d *detailData, h *game.HabitData, u amountUnit, first, last, today model.Day, totals map[model.Day]float64) {
+	sum := sumAmounts(h, first, last, today, totals)
+	beforeFirst := model.NewDay(first.Year(), first.Month()-time.Month(d.Span), 1)
+	beforeLast := first - 1
+	if today <= last { // a running window against the same stretch of the one before
+		beforeLast = min(beforeFirst+(today-first), beforeLast)
+	}
+	before := sumAmounts(h, beforeFirst, beforeLast, today, totals)
+	sub := d.HeatTitle
+	if h.Start >= first && h.Start <= last {
 		sub = fmt.Sprintf("seit Start · %d %s", sum.Days, dayWord(sum.Days))
 	}
-	goal := periodGoal(h, first, today)
+	goal := periodGoal(h, first, min(last, today))
 	d.Amount = newAmount(u, sum.Total, goal, sub)
-	d.Amount.Side = statBox{Value: strconv.Itoa(today.Year()), Label: "Jahr"}
-	if before.Total > 0 {
-		d.Amount.Side = versus(u, sum.Total, before.Total, "vs. "+strconv.Itoa(today.Year()-1))
-	}
+	d.Amount.Side = versus(u, sum.Total, before.Total, "vs. davor")
 	d.Amount.Title = u.heading("Monat")
 	if sum.Days > 0 {
 		d.Amount.Goal = "Ziel ≈ " + u.label(goal/float64(sum.Days)*30)
 	}
-	bestMonth := buildAmountBars(d.Amount, h, u, first, today, totals)
+	bestMonth := buildAmountBars(d.Amount, h, u, first, d.Span, today, totals)
 	d.Amount.Note = amountNote(h, u, sum.Total)
 	streakLabel := "Rekord-Serie"
 	if h.Frequency == model.FreqDaily {
@@ -335,39 +340,26 @@ func dayWord(n int) string {
 	return "Tage"
 }
 
-// buildAmountBars adds up the months of this year and returns the best one.
-func buildAmountBars(a *amountData, h *game.HabitData, u amountUnit, first, today model.Day, totals map[model.Day]float64) string {
-	from := time.January
-	if h.Start > first {
-		from = h.Start.Month()
-	}
-	count := int(today.Month()-from) + 1
-	if from > time.January {
-		count++
-	}
-	short := func(m time.Month) string {
-		name := []rune(view.Months[m-1])
-		if count > maxNamedBars {
-			return string(name[:1])
-		}
-		return string(name[:3])
-	}
-	if from > time.January {
-		a.Bars = append(a.Bars, amountBar{Name: "…" + short(from-1), Stub: true})
-	}
+// buildAmountBars adds up the months of the window and returns the best one.
+// Months before the start of the habit stay as stubs, so the window keeps its length.
+func buildAmountBars(a *amountData, h *game.HabitData, u amountUnit, from model.Day, count int, today model.Day, totals map[model.Day]float64) string {
+	month := func(i int) model.Day { return model.NewDay(from.Year(), from.Month()+time.Month(i), 1) }
 	top, best := h.Target, "–"
-	sums := make([]float64, 0, 12)
-	for m := from; m <= today.Month(); m++ {
-		start := model.NewDay(today.Year(), m, 1)
-		sum := sumAmounts(h, start, model.NewDay(today.Year(), m+1, 1)-1, today, totals).Total
-		sums = append(sums, sum)
-		if sum > top || (sum == top && sum > 0) {
-			top, best = sum, view.ShortMonths[m-1]
+	sums := make([]float64, count)
+	for i := range count {
+		sums[i] = sumAmounts(h, month(i), month(i+1)-1, today, totals).Total
+		if sums[i] > top || (sums[i] == top && sums[i] > 0) {
+			top, best = sums[i], view.ShortMonths[month(i).Month()-1]
 		}
 	}
 	for i, sum := range sums {
-		m := from + time.Month(i)
-		bar := amountBar{Name: short(m), Current: m == today.Month(), Height: max(int(sum*barSpan/top), 3)}
+		bar := amountBar{Name: monthName(month(i).Month(), count), Current: month(i) <= today && today < month(i+1)}
+		if month(i+1) <= h.Start {
+			bar.Stub = true
+			a.Bars = append(a.Bars, bar)
+			continue
+		}
+		bar.Height = max(int(sum*barSpan/top), 3)
 		bar.Label = u.bare(sum)
 		if count <= maxLabelledBars && u.kind != unitTime {
 			bar.Label = u.label(sum)

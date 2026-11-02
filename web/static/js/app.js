@@ -493,3 +493,146 @@ document.addEventListener("click", (e) => {
   const sheet = e.target.closest("dialog.sheet");
   if (sheet && (e.target === sheet || e.target.closest("[data-close-sheet]"))) sheet.close();
 });
+
+// Pulling down from the top reloads the page. This replaces the gesture of the
+// browser, whose bounce lifts the tab bar, and also works in the installed app.
+const PULL_START = 8;
+const PULL_DRAG = 0.5; // the sign moves slower than the finger
+const PULL_READY = 64;
+const PULL_MAX = 96;
+const PULL_REST = 52; // from out of sight to just below the top edge
+let pull = null;
+
+function showPull(distance) {
+  const sign = document.getElementById("pull");
+  sign.classList.add("pulling");
+  sign.classList.toggle("ready", distance >= PULL_READY);
+  sign.style.translate = `0 ${distance + PULL_REST}px`;
+  sign.style.rotate = `${distance * 3}deg`;
+}
+
+function endPull(reload) {
+  const sign = document.getElementById("pull");
+  const ready = reload && sign.classList.contains("ready");
+  pull = null;
+  sign.classList.remove("pulling", "ready");
+  sign.style.rotate = "";
+  if (ready) {
+    sign.classList.add("loading");
+    location.reload();
+  } else {
+    sign.style.translate = "";
+  }
+}
+
+document.addEventListener("touchstart", (e) => {
+  pull = null;
+  if (e.touches.length !== 1 || scroller().scrollTop > 0 || e.target.closest("dialog")) return;
+  pull = { x: e.touches[0].clientX, y: e.touches[0].clientY, active: false };
+}, { passive: true });
+
+document.addEventListener("touchmove", (e) => {
+  if (!pull) return;
+  if (e.touches.length !== 1) {
+    endPull(false);
+    return;
+  }
+  const dx = e.touches[0].clientX - pull.x;
+  const dy = e.touches[0].clientY - pull.y;
+  if (!pull.active) {
+    if (Math.hypot(dx, dy) < PULL_START) return;
+    if (dy <= 0 || Math.abs(dx) > dy) {
+      pull = null;
+      return;
+    }
+    pull.active = true;
+  }
+  if (dy <= 0) {
+    endPull(false);
+    return;
+  }
+  if (e.cancelable) e.preventDefault();
+  showPull(Math.min(dy * PULL_DRAG, PULL_MAX));
+}, { passive: false });
+
+document.addEventListener("touchend", () => pull?.active && endPull(true));
+document.addEventListener("touchcancel", () => pull?.active && endPull(false));
+
+// The length of the year view is kept per device, the server reads the cookie.
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("[data-year-span]");
+  if (link) saveCookie("year_span", link.dataset.yearSpan);
+});
+
+// A swipe over the chart turns to the period before or after it, with a finger or
+// the held mouse button. It works through the arrows, so it behaves just like them.
+const SWIPE_START = 10;
+const SWIPE_TURN = 56;
+const SWIPE_RESIST = 4; // without a period that way the chart only gives a little
+const SWIPE_SLIDE_MS = 250;
+let swipe = null;
+let turned = null;
+
+const swipeLink = (area, dx) => area.querySelector(`[data-swipe="${dx > 0 ? "prev" : "next"}"]`);
+
+function endSwipe(e, turn) {
+  if (e.pointerId !== swipe?.id) return;
+  const { area, active } = swipe;
+  const dx = e.clientX - swipe.x;
+  swipe = null;
+  if (!active) return;
+  area.classList.remove("swiping");
+  const link = turn && Math.abs(dx) >= SWIPE_TURN ? swipeLink(area, dx) : null;
+  if (link) {
+    turned = link.dataset.swipe;
+    link.click();
+  } else {
+    area.style.translate = "";
+  }
+  // Letting go above a day must not count as a click on it.
+  const swallow = (click) => {
+    click.preventDefault();
+    click.stopImmediatePropagation();
+  };
+  window.addEventListener("click", swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 50);
+}
+
+document.addEventListener("pointerdown", (e) => {
+  const area = e.target.closest("[data-swipe-area]");
+  if (!area || e.button !== 0 || e.target.closest("a, nav")) return;
+  swipe = { area, id: e.pointerId, x: e.clientX, y: e.clientY, active: false };
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== swipe?.id) return;
+  const dx = e.clientX - swipe.x;
+  const dy = e.clientY - swipe.y;
+  if (!swipe.active) {
+    if (Math.hypot(dx, dy) < SWIPE_START) return;
+    if (Math.abs(dy) > Math.abs(dx)) {
+      swipe = null;
+      return;
+    }
+    swipe.active = true;
+    swipe.area.classList.add("swiping");
+  }
+  swipe.area.style.translate = `${swipeLink(swipe.area, dx) ? dx : dx / SWIPE_RESIST}px`;
+});
+
+document.addEventListener("pointerup", (e) => endSwipe(e, true));
+document.addEventListener("pointercancel", (e) => endSwipe(e, false));
+
+// The next chart slides in once, a turn that failed puts the chart back.
+document.addEventListener("htmx:afterSwap", () => {
+  const page = document.getElementById("page");
+  if (!turned || !page) return;
+  page.dataset.swiped = turned;
+  turned = null;
+  setTimeout(() => delete page.dataset.swiped, SWIPE_SLIDE_MS);
+});
+document.addEventListener("htmx:afterRequest", () => {
+  const area = document.querySelector("[data-swipe-area]");
+  if (area && !swipe) area.style.translate = "";
+  turned = null;
+});

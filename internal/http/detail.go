@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/seals187/habitd/internal/db"
@@ -16,7 +17,11 @@ import (
 	"github.com/seals187/habitd/internal/view"
 )
 
-const heatmapWeeks = 53
+// Lengths of the year view in months.
+const (
+	spanShort = 6
+	spanLong  = 12
+)
 
 // dayCell is one day of the week strip or the month grid.
 type dayCell struct {
@@ -105,15 +110,20 @@ type detailData struct {
 	CoinsTotal int
 	Strip      []dayCell
 
+	Prev       string // link to the period before
+	Next       string // link to the period after, empty for the running one
+	WeekParam  string
 	MonthParam string
 	MonthTitle string
-	PrevMonth  string
-	NextMonth  string
 	Weeks      [][]dayCell
 
 	Chart weekChart
 
 	YearDone  int
+	YearParam string
+	YearTitle string
+	HeatTitle string
+	Span      int
 	Heat      []heatColumn
 	StartHint string
 	MonthBars []monthBar
@@ -149,6 +159,58 @@ func sinceLabel(d, today model.Day) string {
 		return dayMonth(d)
 	}
 	return fmt.Sprintf("%s %d", dayMonth(d), d.Year())
+}
+
+// monthsLabel formats whole months like Mai–Okt 2026 or, short for the head of the
+// card, Dez 25–Nov 26.
+func monthsLabel(first, last model.Day) string {
+	from, to := monthName(first.Month(), spanShort), monthName(last.Month(), spanShort)
+	if first.Year() != last.Year() {
+		return fmt.Sprintf("%s %02d–%s %02d", from, first.Year()%100, to, last.Year()%100)
+	}
+	return fmt.Sprintf("%s–%s %d", from, to, last.Year())
+}
+
+// periodLink opens a view of a habit at another period.
+func periodLink(id int64, view, key, value string) string {
+	return fmt.Sprintf("/habits/%d?view=%s&%s=%s", id, view, key, value)
+}
+
+// yearSpan is the length of the year view: asked for by a link or kept on this device.
+func yearSpan(r *http.Request) int {
+	span := r.FormValue("span")
+	if c, err := r.Cookie("year_span"); span == "" && err == nil {
+		span = c.Value
+	}
+	if span == strconv.Itoa(spanLong) {
+		return spanLong
+	}
+	return spanShort
+}
+
+// weekOf finds the Monday of the asked week. The view ends at the running week.
+func weekOf(param string, today model.Day) (model.Day, error) {
+	if param == "" {
+		return today.WeekStart(), nil
+	}
+	d, err := model.ParseDay(param)
+	if err != nil {
+		return 0, badRequest("Ungültige Woche")
+	}
+	return min(d, today).WeekStart(), nil
+}
+
+// yearEnd finds the last month of the year view, at most the running one.
+func yearEnd(param string, today model.Day) (model.Day, error) {
+	running := model.NewDay(today.Year(), today.Month(), 1)
+	if param == "" {
+		return running, nil
+	}
+	t, err := time.Parse("2006-01", param)
+	if err != nil {
+		return 0, badRequest("Ungültiger Zeitraum")
+	}
+	return min(model.NewDay(t.Year(), t.Month(), 1), running), nil
 }
 
 // rangeLabel formats a span like 26.–31. Okt.
@@ -341,26 +403,36 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 	}
 	switch d.View {
 	case "week":
+		start, err := weekOf(r.FormValue("w"), w.Today)
+		if err != nil {
+			return nil, err
+		}
 		if !h.Measured() {
-			buildStrip(d, h, w.Today, totals)
+			buildStrip(d, h, start, w.Today, totals)
 		}
 		var clicks []model.Entry
 		if h.GoalWeek {
-			if clicks, err = q.HabitEntries(h.ID, w.Today.WeekStart()); err != nil {
+			if clicks, err = q.HabitEntries(h.ID, start); err != nil {
 				return nil, err
 			}
 		}
-		buildWeek(d, h, w.Today, totals, lastClicks(clicks))
+		buildWeek(d, h, start, w.Today, totals, lastClicks(clicks))
 	case "year":
+		end, err := yearEnd(r.FormValue("y"), w.Today)
+		if err != nil {
+			return nil, err
+		}
+		first := setYearWindow(d, h.ID, end, yearSpan(r), w.Today)
+		last := model.NewDay(end.Year(), end.Month()+1, 1) - 1
 		if h.Measured() {
-			buildYearAmount(d, h, unit, w.Today, totals)
+			buildYearAmount(d, h, unit, first, last, w.Today, totals)
 		} else {
-			buildYear(d, h, w.Today, totals)
+			buildYear(d, h, first, last, w.Today, totals)
 		}
 	default:
 		d.View = "month"
 		if !h.Measured() {
-			buildStrip(d, h, w.Today, totals)
+			buildStrip(d, h, w.Today.WeekStart(), w.Today, totals)
 		}
 		if err := buildMonth(d, h, w.Today, r.FormValue("m"), totals); err != nil {
 			return nil, err
@@ -466,21 +538,26 @@ func weekGoalStatus(h *game.HabitData, x, today model.Day, clicks map[model.Day]
 	return "", ""
 }
 
-func buildStrip(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64) {
-	for x := today.WeekStart(); x < today.WeekStart()+7; x++ {
+func buildStrip(d *detailData, h *game.HabitData, start, today model.Day, totals map[model.Day]float64) {
+	for x := start; x < start+7; x++ {
 		d.Strip = append(d.Strip, cellFor(h, x, today, totals))
 	}
 }
 
-func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64, clicks map[model.Day]time.Time) {
-	start := today.WeekStart()
+func buildWeek(d *detailData, h *game.HabitData, start, today model.Day, totals map[model.Day]float64, clicks map[model.Day]time.Time) {
+	d.WeekParam = start.String()
+	d.Prev = periodLink(h.ID, "week", "w", (start - 7).String())
+	if start < today.WeekStart() {
+		d.Next = periodLink(h.ID, "week", "w", (start + 7).String())
+	}
+	end := min(start+6, today)
 	goal := goalOf(h)
 	unit := amountUnitOf(h.Unit)
 	top := goal
 	if h.GoalWeek { // a single day says nothing about the goal of the week
 		top = h.Step
 	}
-	for x := start; x <= today; x++ {
+	for x := start; x <= end; x++ {
 		top = max(top, valueOn(h, x, today, totals))
 	}
 	sum, days, best, bestValue := 0.0, 0, "–", 0.0
@@ -520,30 +597,33 @@ func buildWeek(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 		}
 		d.Chart.Bars = append(d.Chart.Bars, bar)
 	}
-	_, week := today.Time().ISOWeek()
-	d.Chart.Title = fmt.Sprintf("KW %d · %s", week, rangeLabel(start, min(start+6, today)))
+	year, week := start.Time().ISOWeek()
+	d.Chart.Title = fmt.Sprintf("KW %d · %s", week, rangeLabel(start, end))
+	if year != today.Year() {
+		d.Chart.Title = fmt.Sprintf("KW %d/%d · %s", week, year, rangeLabel(start, end))
+	}
 	if h.Measured() {
 		if !h.GoalWeek {
 			d.Chart.GoalAt = int(goal * 100 / top)
 		}
-		buildWeekAmount(d, h, unit, today, totals)
+		buildWeekAmount(d, h, unit, start, today, totals)
 		return
 	}
 	d.Chart.Summary = fmt.Sprintf("%d von %d Tagen", int(sum), days)
 	best = bestWeekday(h, today-364, today)
-	done, plan := planned(h, start, lastSettledDay(h, today))
+	done, plan := planned(h, start, min(end, lastSettledDay(h, today)))
 	d.Stats = []statBox{
 		{Value: fmt.Sprintf("%d/%d", done, plan), Label: "Ziel erreicht", Class: "accent"},
-		versusLastWeek(h, today, totals),
+		versusLastWeek(h, start, today, totals),
 		{Value: best, Label: "stärkster Tag"},
 	}
 }
 
 // versusLastWeek compares with the same days of the week before.
-func versusLastWeek(h *game.HabitData, today model.Day, totals map[model.Day]float64) statBox {
+func versusLastWeek(h *game.HabitData, start, today model.Day, totals map[model.Day]float64) statBox {
 	box := statBox{Value: "–", Label: "vs. Vorwoche"}
 	now, before := 0.0, 0.0
-	for x := today.WeekStart(); x <= today; x++ {
+	for x := start; x <= min(start+6, today); x++ {
 		now += valueOn(h, x, today, totals)
 		before += valueOn(h, x-7, today, totals)
 	}
@@ -593,8 +673,10 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 	last := model.NewDay(year, month+1, 1) - 1
 	d.MonthParam = first.String()[:7]
 	d.MonthTitle = fmt.Sprintf("%s %d", view.Months[month-1], year)
-	d.PrevMonth = (first - 1).String()[:7]
-	d.NextMonth = (last + 1).String()[:7]
+	d.Prev = periodLink(h.ID, "month", "m", (first - 1).String()[:7])
+	if last < today {
+		d.Next = periodLink(h.ID, "month", "m", (last + 1).String()[:7])
+	}
 
 	week := make([]dayCell, first.WeekdayIndex())
 	for x := first; x <= last; x++ {
@@ -646,31 +728,51 @@ func heatFor(h *game.HabitData, x, today model.Day, totals map[model.Day]float64
 	return c
 }
 
-func buildYear(d *detailData, h *game.HabitData, today model.Day, totals map[model.Day]float64) {
-	from := today - 364
-	d.YearDone, _ = planned(h, from, lastSettledDay(h, today))
-	if h.Start > from {
+// setYearWindow fills the head of the year view and returns its first day.
+func setYearWindow(d *detailData, id int64, end model.Day, span int, today model.Day) model.Day {
+	first := model.NewDay(end.Year(), end.Month()-time.Month(span-1), 1)
+	last := model.NewDay(end.Year(), end.Month()+1, 1) - 1
+	running := model.NewDay(today.Year(), today.Month(), 1)
+	d.Span, d.YearParam = span, end.String()[:7]
+	d.YearTitle = monthsLabel(first, last)
+	d.HeatTitle = d.YearTitle
+	if end == running {
+		d.HeatTitle = fmt.Sprintf("Letzte %d Monate", span)
+	}
+	d.Prev = periodLink(id, "year", "y", model.NewDay(end.Year(), end.Month()-time.Month(span), 1).String()[:7])
+	if end < running {
+		next := min(model.NewDay(end.Year(), end.Month()+time.Month(span), 1), running)
+		d.Next = periodLink(id, "year", "y", next.String()[:7])
+	}
+	return first
+}
+
+func buildYear(d *detailData, h *game.HabitData, first, last, today model.Day, totals map[model.Day]float64) {
+	d.YearDone, _ = planned(h, first, min(last, lastSettledDay(h, today)))
+	if h.Start > first {
 		d.StartHint = fmt.Sprintf("Grau = vor dem Start (%s) · zählt nicht zur Quote", dayMonth(h.Start))
 	}
-	start := today.WeekStart() - (heatmapWeeks-1)*7
+	start := first.WeekStart()
+	weeks := int(min(last, today).WeekStart()-start)/7 + 1
+	every := d.Span / spanShort // a long window only has room for every other name
 	month := time.Month(0)
 	labels := 0
-	for week := range heatmapWeeks {
+	for week := range weeks {
 		col := heatColumn{}
 		monday := start + model.Day(week*7)
 		for offset := model.Day(0); offset < 7; offset++ {
 			col.Cells = append(col.Cells, heatFor(h, monday+offset, today, totals))
 		}
-		if m := monday.Month(); m != month && week < heatmapWeeks-3 {
-			if labels%2 == 0 {
-				col.Month = string([]rune(view.Months[m-1])[:3])
+		if m := (monday + 6).Month(); m != month && week < weeks-3 {
+			if labels%every == 0 {
+				col.Month = monthName(m, spanShort)
 			}
 			month = m
 			labels++
 		}
 		d.Heat = append(d.Heat, col)
 	}
-	buildMonthBars(d, h, today)
+	buildMonthBars(d, h, first, today)
 	d.Stats = []statBox{
 		{Value: view.Number(d.Streak.Longest), Label: "Rekord-Serie", Class: "orange"},
 		{Value: view.Number(len(d.Streak.Runs)), Label: "Serien gesamt"},
@@ -678,14 +780,22 @@ func buildYear(d *detailData, h *game.HabitData, today model.Day, totals map[mod
 	}
 }
 
-func buildMonthBars(d *detailData, h *game.HabitData, today model.Day) {
+// monthName is the name of a month on its bar: one letter when there are many bars.
+func monthName(m time.Month, bars int) string {
+	name := []rune(view.Months[m-1])
+	if bars > maxNamedBars {
+		return string(name[:1])
+	}
+	return string(name[:3])
+}
+
+func buildMonthBars(d *detailData, h *game.HabitData, from, today model.Day) {
 	settled := lastSettledDay(h, today)
-	letters := []rune("JFMAMJJASOND")
-	for i := 11; i >= 0; i-- {
-		first := model.NewDay(today.Year(), today.Month()-time.Month(i), 1)
+	for i := range d.Span {
+		first := model.NewDay(from.Year(), from.Month()+time.Month(i), 1)
 		last := model.NewDay(first.Year(), first.Month()+1, 1) - 1
 		done, plan := planned(h, first, min(last, settled))
-		bar := monthBar{Letter: string(letters[first.Month()-1]), Current: i == 0, Empty: plan == 0}
+		bar := monthBar{Letter: monthName(first.Month(), d.Span), Current: first <= today && today <= last, Empty: plan == 0}
 		if !bar.Empty {
 			bar.Height = max(percent(done, plan), 3)
 			bar.Label = fmt.Sprintf("%d%%", percent(done, plan))
