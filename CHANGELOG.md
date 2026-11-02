@@ -11,6 +11,23 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.7] - 2026-11-02
+
+### Added
+
+- **Edit a day:** a tap on a day in the month view or the week strip of a habit opens a sheet to mark it as reached or enter its amount, together with the time it was reached. This works for every day since the start of the habit. XP, Taler and streaks follow, and the time shows in the week view. A tap beside the sheet closes it without a change.
+
+### Changed
+
+- A tap on a day never changes it directly any more, so a reached day can no longer be removed by accident.
+- A relapse on the habit page is confirmed first.
+- The login, signup and setup pages show the app logo.
+
+### Fixed
+
+- A day filled in before a habit was created now shows up in the week, month and year view and counts in their sums.
+- Icons no longer blink when a page is reloaded. They are now part of every page, which adds about 30 KB to it.
+
 ## [0.1.6] - 2026-11-02
 
 ### Added
@@ -233,6 +250,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.7]: https://github.com/seals187/habitd/releases/tag/v0.1.7
 [0.1.6]: https://github.com/seals187/habitd/releases/tag/v0.1.6
 [0.1.5]: https://github.com/seals187/habitd/releases/tag/v0.1.5
 [0.1.4]: https://github.com/seals187/habitd/releases/tag/v0.1.4

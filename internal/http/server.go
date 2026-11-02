@@ -141,6 +141,8 @@ func (s *Server) routes(mux *http.ServeMux) {
 	handle("GET /habits/{id}/edit", s.habitEdit)
 	handle("POST /habits/{id}/edit", s.habitSave)
 	handle("POST /habits/{id}/check", s.habitCheck)
+	handle("GET /habits/{id}/day", s.daySheet)
+	handle("POST /habits/{id}/day", s.dayEdit)
 	handle("POST /habits/{id}/add", s.habitAdd)
 	handle("POST /habits/{id}/undo", s.habitUndo)
 	handle("POST /habits/{id}/delete", s.habitDelete)
@@ -282,6 +284,8 @@ func classify(err error) (int, string) {
 		return http.StatusNotFound, "Nicht gefunden"
 	case errors.Is(err, service.ErrOutOfRange):
 		return http.StatusBadRequest, "Nur die letzten 7 Tage können bearbeitet werden"
+	case errors.Is(err, service.ErrFuture):
+		return http.StatusBadRequest, "Diese Uhrzeit liegt in der Zukunft"
 	case errors.Is(err, service.ErrInsufficient):
 		return http.StatusConflict, "Nicht genug Taler"
 	case errors.Is(err, service.ErrLocked):

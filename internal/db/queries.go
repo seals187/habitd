@@ -313,6 +313,13 @@ func (q *Q) DeleteLastEntry(habitID int64, d model.Day) error {
 	return q.exec(`DELETE FROM habit_entries WHERE id = ?`, id)
 }
 
+// MoveLastEntry sets the time of the newest entry of a day.
+func (q *Q) MoveLastEntry(habitID int64, d model.Day, at time.Time) error {
+	return q.exec(`UPDATE habit_entries SET created_at = ? WHERE id = (
+		SELECT id FROM habit_entries WHERE habit_id = ? AND date = ? AND user_id = ? ORDER BY id DESC LIMIT 1)`,
+		formatTime(at), habitID, d.String(), q.uid)
+}
+
 // DeleteDayEntries removes all entries of a day.
 func (q *Q) DeleteDayEntries(habitID int64, d model.Day) error {
 	return q.exec(`DELETE FROM habit_entries WHERE habit_id = ? AND date = ? AND user_id = ?`, habitID, d.String(), q.uid)

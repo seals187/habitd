@@ -16,6 +16,7 @@
 <script src="/static/js/alpine-csp.min.js?v={{.Version}}" defer></script>
 </head>
 <body hx-boost="true" hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
+{{sprite}}
 {{if .Nav}}{{template "admin-shell" .}}{{else}}<div class="app{{if .Tab}} has-tabs{{end}}">
 {{template "content" .}}
 </div>{{end}}
@@ -43,6 +44,8 @@
 </form>{{end}}
 
 {{define "undo-toast"}}{{with .}}<div id="toast" class="toast undo" role="status" aria-live="polite" data-timeout hx-swap-oob="true"><span>{{.Text}}</span><button hx-post="/rewards/redemptions/{{.ID}}/undo?from={{.From}}" hx-target="#page">Rückgängig</button></div>{{end}}{{end}}
+
+{{define "auth-logo"}}<img class="auth-logo" src="/static/icons/icon-192.png" width="72" height="72" alt="">{{end}}
 
 {{define "back"}}<a class="round" href="{{.}}" aria-label="Zurück">{{icon "chevron-left" 22}}</a>{{end}}
 

@@ -252,6 +252,7 @@ document.addEventListener("htmx:beforeSwap", (e) => {
 
 // Other server errors of HTMX requests arrive as short plain text.
 document.addEventListener("htmx:responseError", (e) => {
+  document.querySelector("dialog.day-sheet[open]")?.close(); // it would cover the message
   showToast(e.detail.xhr.responseText || "Das hat nicht geklappt.");
 });
 
@@ -557,6 +558,11 @@ document.addEventListener("touchmove", (e) => {
 
 document.addEventListener("touchend", () => pull?.active && endPull(true));
 document.addEventListener("touchcancel", () => pull?.active && endPull(false));
+
+// The sheet of a day comes from the server and opens as soon as it is there.
+document.addEventListener("htmx:afterSwap", (e) => {
+  if (e.detail.target.id === "day-slot") e.detail.target.querySelector("dialog")?.showModal();
+});
 
 // The length of the year view is kept per device, the server reads the cookie.
 document.addEventListener("click", (e) => {

@@ -178,6 +178,18 @@ func (h *HabitData) first() model.Day {
 	return first
 }
 
+// Since is the first day with anything on it, also an amount below the goal. Days
+// filled in before the habit was created count from here on in the statistics.
+func (h *HabitData) Since() model.Day {
+	first := h.first()
+	for d, amount := range h.Entries {
+		if amount > 0 {
+			first = min(first, d)
+		}
+	}
+	return first
+}
+
 // tally turns a sequence of steps into runs.
 type tally struct {
 	runs []Run

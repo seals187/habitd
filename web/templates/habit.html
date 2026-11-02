@@ -52,6 +52,7 @@
 <div class="month-bars">{{range $d.MonthBars}}<div class="month-bar{{if .Current}} current{{end}}"><div class="month-track">{{if .Empty}}<i class="stub"></i>{{else}}<b>{{.Label}}</b><i style="height:{{.Height}}%"></i>{{end}}</div><span>{{.Letter}}</span></div>{{end}}</div>
 </section>{{end}}{{end}}
 </div>
+<div id="day-slot"></div>
 {{with $d.Patterns}}<section class="card patterns">
 <div class="chart-head"><strong>Muster &amp; Tipps</strong>{{with .Hours}}<span class="muted">{{$d.Patterns.Label}}</span>{{end}}</div>
 {{with .Hours}}<div class="hours" aria-hidden="true">{{range .}}<i class="l{{.}}"></i>{{end}}</div>
@@ -68,6 +69,20 @@
 <a href="/habits/{{$d.Habit.ID}}?view=year" {{if eq $d.View "year"}}class="on"{{end}}>Jahr</a>
 </nav>{{end}}
 
+{{define "day-sheet"}}{{$d := .Data}}<dialog class="sheet day-sheet" aria-labelledby="day-title"><div class="sheet-body" tabindex="-1" autofocus>
+<button type="button" class="sheet-grip" data-close-sheet aria-label="Schließen"></button>
+<h2 id="day-title">{{$d.Title}}</h2>
+<p class="muted">{{$d.Name}}{{with $d.Goal}} · {{.}}{{end}}</p>
+<form hx-post="/habits/{{$d.ID}}/day?date={{$d.Date}}&from=detail&view={{$d.View}}&m={{$d.Month}}&w={{$d.Week}}" hx-target="#page">
+{{if $d.Measured}}<label class="field-label" for="day-amount">{{$d.Label}}</label>
+<input id="day-amount" class="input" type="number" name="amount" min="0" step="any" inputmode="decimal" value="{{$d.Amount}}" required>
+<p class="muted day-hint">Mit 0 entfernst du den Eintrag.</p>
+{{else}}<label class="toggle plain"><span>Erreicht</span><input type="checkbox" name="done" checked><i></i></label>{{end}}
+<label class="field-label" for="day-time">Uhrzeit</label>
+<input id="day-time" class="input" type="time" name="time" value="{{$d.Time}}">
+<button class="btn-primary" type="submit">Speichern</button>
+</form></div></dialog>{{end}}
+
 {{define "period-attrs"}}hx-target="#page" hx-select="#page > .detail-body" hx-swap="innerHTML show:none" hx-replace-url="true"{{end}}
 
 {{define "period-prev"}}<a class="period-arrow" href="{{.Prev}}" {{template "period-attrs"}} data-swipe="prev" aria-label="Zeitraum davor">{{icon "chevron-left" 22}}</a>{{end}}
@@ -76,8 +91,10 @@
 
 {{define "span-link"}}<a href="/habits/{{.D.Habit.ID}}?view=year&y={{.D.YearParam}}&span={{.Months}}" {{template "period-attrs"}} data-year-span="{{.Months}}" {{if eq .D.Span .Months}}class="on"{{end}}>{{.Months}} Monate</a>{{end}}
 
-{{define "day-attrs"}}hx-post="/habits/{{.D.Habit.ID}}/{{if .D.Avoid}}relapse{{else}}check{{end}}?date={{.Cell.Date}}&from=detail&view={{.D.View}}&m={{.D.MonthParam}}&w={{.D.WeekParam}}" hx-target="#page" aria-label="{{.Cell.Date}}"{{end}}
+{{define "sheet-attrs"}}hx-get="/habits/{{.D.Habit.ID}}/day?date={{.Cell.Date}}&view={{.D.View}}&m={{.D.MonthParam}}&w={{.D.WeekParam}}" hx-target="#day-slot" aria-haspopup="dialog" aria-label="{{.Cell.Date}} bearbeiten"{{end}}
 
-{{define "dot"}}{{$c := .Cell}}{{if $c.Editable}}<button class="strip-dot {{$c.State}}" {{template "day-attrs" .}}>{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</button>{{else}}<span class="strip-dot {{$c.State}}">{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</span>{{end}}{{end}}
+{{define "day-attrs"}}hx-post="/habits/{{.D.Habit.ID}}/relapse?date={{.Cell.Date}}&from=detail&view={{.D.View}}&m={{.D.MonthParam}}&w={{.D.WeekParam}}" hx-target="#page" hx-confirm="{{if eq .Cell.State "missed"}}Rückfall entfernen?{{else}}Rückfall eintragen?{{end}}" data-yes="Ja" aria-label="{{.Cell.Date}}"{{end}}
 
-{{define "day"}}{{$c := .Cell}}{{if not $c.Label}}<span class="day blank"></span>{{else if $c.Editable}}<button class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%" {{template "day-attrs" .}}><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</button>{{else}}<span class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%"><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</span>{{end}}{{end}}
+{{define "dot"}}{{$c := .Cell}}{{if $c.Sheet}}<button class="strip-dot {{$c.State}}" {{template "sheet-attrs" .}}>{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</button>{{else if $c.Editable}}<button class="strip-dot {{$c.State}}" {{template "day-attrs" .}}>{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</button>{{else}}<span class="strip-dot {{$c.State}}">{{if eq $c.State "done"}}{{icon "check" 18}}{{else if eq $c.State "joker"}}{{icon "shield" 16}}{{end}}</span>{{end}}{{end}}
+
+{{define "day"}}{{$c := .Cell}}{{if not $c.Label}}<span class="day blank"></span>{{else if $c.Sheet}}<button class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%" {{template "sheet-attrs" .}}><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</button>{{else if $c.Editable}}<button class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%" {{template "day-attrs" .}}><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</button>{{else}}<span class="day {{$c.State}}{{if $c.Today}} today{{end}}" style="--fill:{{$c.Fill}}%"><span>{{$c.Label}}</span>{{with $c.Value}}<b>{{.}}</b>{{end}}</span>{{end}}{{end}}

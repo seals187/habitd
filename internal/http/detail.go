@@ -33,6 +33,7 @@ type dayCell struct {
 	Value    string // amount of the day, for habits with a unit
 	Today    bool
 	Editable bool
+	Sheet    bool // a tap opens the sheet of the day
 }
 
 // barDay is one bar of the week chart.
@@ -372,6 +373,7 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 	if h == nil {
 		return nil, db.ErrNotFound
 	}
+	h.Start = h.Since() // a day filled in before the habit was created belongs to it
 	areas, err := q.Areas()
 	if err != nil {
 		return nil, err
@@ -540,7 +542,9 @@ func weekGoalStatus(h *game.HabitData, x, today model.Day, clicks map[model.Day]
 
 func buildStrip(d *detailData, h *game.HabitData, start, today model.Day, totals map[model.Day]float64) {
 	for x := start; x < start+7; x++ {
-		d.Strip = append(d.Strip, cellFor(h, x, today, totals))
+		cell := cellFor(h, x, today, totals)
+		cell.Sheet = service.DayEditable(h, x, today)
+		d.Strip = append(d.Strip, cell)
 	}
 }
 
@@ -681,6 +685,7 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 	week := make([]dayCell, first.WeekdayIndex())
 	for x := first; x <= last; x++ {
 		cell := cellFor(h, x, today, totals)
+		cell.Sheet = service.DayEditable(h, x, today)
 		if v := valueOn(h, x, today, totals); h.Measured() && v > 0 {
 			cell.Value = unit.bare(v)
 		}

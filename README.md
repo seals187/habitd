@@ -14,7 +14,7 @@ The screenshots show the app with demo data. The UI language is German.
 ## Features
 
 - **Guided start:** a short onboarding and 200 ready-made habit templates with search
-- **Habits to build or avoid:** daily, n times per week or month, or on chosen weekdays, counters and amounts with a daily or weekly goal, with 7 days of backfill
+- **Habits to build or avoid:** daily, n times per week or month, or on chosen weekdays, counters and amounts with a daily or weekly goal, with every past day editable in the month view, including the amount and the time
 - **Gamification:** XP, levels, titles, streak bonuses, configurable daily quests, and 96 badges in 16 categories
 - **Jokers** that bridge a missed day, used automatically or by hand
 - **Rewards** paid with coins ("Taler") or unlocked by a streak

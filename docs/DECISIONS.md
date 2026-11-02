@@ -83,7 +83,12 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   „Verlauf“ bei Gönn dir, 18 statt 6 Icons, Wochentag-Auswahl bei „Eigene“. Die Kennzahlen
   und die Ziel-Belohnung stehen im Habit-Detail unter dem jeweiligen Bild-Inhalt.
 - **Rückfall melden:** Tippen auf den Kreis bei „Kein Alkohol“, mit Rückfrage.
-- **Nachtragen:** Tage der letzten 7 Tage sind in Woche und Monat antippbar.
+- **Nachtragen:** Ein Tag in Kalender oder Wochenleiste ändert nichts direkt, er öffnet ein Fenster
+  für Erreicht oder Wert und Uhrzeit, und zwar bis zurück zum Start des Habits. Ein Klick daneben
+  schließt es ohne Änderung, damit kein erreichter Tag aus Versehen verschwindet. XP, Taler und Serien folgen wie bei einem Klick an dem Tag, nachgetragen wird also bewusst
+  auch belohnt. Der Wert ersetzt die Summe des Tages. Eingetragene Uhrzeiten zählen wie echte, auch
+  für Muster und Zeit-Abzeichen, dürfen aber nicht in der Zukunft liegen. Vermeiden-Habits haben
+  keinen Wert: Für sie schaltet ein Tag der letzten 7 Tage den Rückfall um, nach einer Rückfrage. Bei einem Wochenziel gilt der Wert für diesen einen Tag.
 
 - **Mein Level:** Die Statistik rechnet aus dem Hauptbuch, „+X XP“ passt also zur Level-Karte.
   - Verglichen wird gleich lang: Diese Woche bis heute gegen dieselben Tage der Vorwoche.
@@ -187,6 +192,10 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Jahresansicht:** Sie zeigt 6 oder 12 ganze Monate bis zum laufenden Monat statt des
   Kalenderjahrs, Vorgabe sind 6. Monate vor dem Start bleiben als Stummel stehen, damit ein neues
   Habit nicht nur wenige Balken hat. Die Länge liegt pro Gerät im Cookie `year_span`.
+- **Icons in der Seite:** Der Icon-Satz steckt in jeder Seite statt in einer eigenen Datei. Das kostet
+  rund 30 KB pro Seite, dafür blinken die Icons beim Neuladen nicht mehr.
+- **Tage vor dem Anlegen:** Ein nachgetragener Tag vor dem Anlegen zählt in der Statistik des Habits
+  mit, „seit“ rückt auf diesen Tag. Quests und Abzeichen rechnen weiter ab dem Anlegen.
 - **Ziehen zum Aktualisieren:** Die Geste des Browsers bleibt aus, weil ihr Überziehen die Menüleiste
   anhebt und auf Seiten mit Menüleiste das Fenster gar nicht mehr scrollt. Die App bringt eine eigene
   Geste mit: Ganz oben nach unten ziehen lädt die Seite neu, im Browser wie in der installierten App.

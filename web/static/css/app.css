@@ -758,6 +758,7 @@ form:has(input[name="mode"][value="streak"]:checked) .only-coins { display: none
 .auth { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 24px var(--gutter); text-align: center; }
 .auth form { width: 100%; text-align: left; margin-top: 8px; }
 .auth-mark { color: var(--orange); margin-bottom: 8px; }
+.auth-logo { width: 72px; height: 72px; margin-bottom: 8px; border-radius: 18px; }
 
 /* Celebration */
 .celebrate { position: relative; display: flex; flex-direction: column; align-items: center; overflow: hidden; text-align: center; padding-top: calc(136px + env(safe-area-inset-top)); }
@@ -1551,6 +1552,10 @@ html:has(dialog.sheet[open]) { overflow: hidden; }
 .sheet-grip { display: block; width: 44px; height: 16px; margin: 0 auto 4px; }
 .sheet-grip::before { content: ""; display: block; width: 36px; height: 4px; margin: 0 auto; border-radius: 2px; background: var(--track); }
 .sheet h2 { margin-bottom: 8px; font-size: 17px; font-weight: 700; }
+.sheet.day-sheet { height: fit-content; }
+.day-sheet .sheet-body { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.day-sheet h2 { margin-bottom: 2px; }
+.day-hint { margin-top: 6px; font-size: 12.5px; }
 .streak-hero { padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--orange) 34%, var(--border)); border-radius: 14px; background: linear-gradient(120deg, color-mix(in srgb, var(--orange) 20%, var(--surface)), var(--surface) 70%); }
 .streak-top { display: flex; align-items: center; gap: 10px; }
 .streak-flame { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--orange) 26%, transparent); color: var(--orange); }

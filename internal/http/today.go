@@ -186,7 +186,7 @@ func dayState(h *game.HabitData, d, today model.Day, total float64) string {
 	switch {
 	case h.Joker[d]:
 		return "joker"
-	case d > today || d < h.Start:
+	case d > today || d < h.Since():
 		return "future"
 	case h.Kind == model.KindAvoid:
 		if slices.Contains(h.Relapses, d) {

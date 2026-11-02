@@ -54,8 +54,13 @@ func New(files fs.FS) (*Renderer, error) {
 	if err != nil {
 		return nil, err
 	}
+	sprite, err := fs.ReadFile(files, "static/icons/sprite.svg")
+	if err != nil {
+		return nil, fmt.Errorf("read icons: %w", err)
+	}
 	funcs := template.FuncMap{
-		"icon": func(name string, size int) template.HTML { return iconHTML(version, name, size) },
+		"icon":   iconHTML,
+		"sprite": func() template.HTML { return template.HTML(sprite) },
 		"figure": func(key string, stage int) string {
 			return fmt.Sprintf("/static/figures/%s-%d.svg?v=%s", key, stage, version)
 		},
@@ -115,9 +120,11 @@ func hashStatic(files fs.FS) (string, error) {
 	return hex.EncodeToString(h.Sum(nil))[:12], nil
 }
 
-func iconHTML(version, name string, size int) template.HTML {
-	return template.HTML(fmt.Sprintf(`<svg class="i" width="%d" height="%d" aria-hidden="true"><use href="/static/icons/sprite.svg?v=%s#%s"/></svg>`,
-		size, size, version, template.HTMLEscapeString(name)))
+// iconHTML points at the icons in the page itself. A file of their own would load
+// after the first paint on every reload, so all icons would blink.
+func iconHTML(name string, size int) template.HTML {
+	return template.HTML(fmt.Sprintf(`<svg class="i" width="%d" height="%d" aria-hidden="true"><use href="#%s"/></svg>`,
+		size, size, template.HTMLEscapeString(name)))
 }
 
 // Render writes a full page. Pages render into a buffer first, so a template

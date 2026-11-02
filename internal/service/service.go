@@ -46,6 +46,7 @@ const (
 var (
 	ErrNotAllowed   = errors.New("not allowed")
 	ErrOutOfRange   = errors.New("day out of range")
+	ErrFuture       = errors.New("time in the future")
 	ErrInsufficient = errors.New("not enough coins")
 	ErrLocked       = errors.New("reward locked")
 	ErrJokerLimit   = errors.New("joker limit reached")
@@ -300,6 +301,100 @@ func (s *Service) fillDay(q *db.Q, h *game.HabitData, d model.Day) error {
 		return q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: missing, CreatedAt: s.atDay(d)})
 	}
 	return nil
+}
+
+// DayEdit says how a day of a habit should look after it was edited by hand.
+type DayEdit struct {
+	Done   bool      // reached, for habits without an amount
+	Amount float64   // the sum of the day, for counters and quantities
+	At     time.Time // when it was reached, the zero time keeps what is stored
+}
+
+// DayEditable reports whether a day can be opened in the calendar: every day
+// since the start of the habit, and the usual days of backfill before it.
+func DayEditable(h *game.HabitData, d, today model.Day) bool {
+	return h.Kind == model.KindBuild && !h.Archived && d <= today && (d >= h.Since() || d >= today-game.BackfillDays)
+}
+
+// DayTime is a time of a day entered by hand. The second tells it from noon, which
+// stands for a day filled in without a time.
+func (s *Service) DayTime(d model.Day, hour, minute int) time.Time {
+	return time.Date(d.Year(), d.Month(), d.Dom(), hour, minute, 1, 0, s.Loc)
+}
+
+// EditDay sets the state of a day, its amount and its time. XP, Taler, streaks and
+// badges follow as they do for a click on that day.
+func (s *Service) EditDay(ctx context.Context, habitID int64, d model.Day, edit DayEdit) error {
+	if edit.At.Truncate(time.Minute).After(s.Now()) {
+		return ErrFuture
+	}
+	return s.Store.Tx(ctx, func(q *db.Q) error {
+		w, err := s.World(q)
+		if err != nil {
+			return err
+		}
+		h := Find(w, habitID)
+		if h == nil {
+			return db.ErrNotFound
+		}
+		if !DayEditable(h, d, w.Today) {
+			return ErrNotAllowed
+		}
+		var trigger *Trigger
+		switch {
+		case h.Measured():
+			trigger, err = s.editAmount(q, w, h, d, edit)
+		case edit.Done && !hasCheckin(h, d):
+			trigger, err = s.addCheckin(q, w, h, d)
+		case !edit.Done && hasCheckin(h, d):
+			err = s.removeCheckin(q, h, d)
+		}
+		if err != nil {
+			return err
+		}
+		if !edit.At.IsZero() && hasCheckin(h, d) {
+			if err := q.Checkin(model.Checkin{HabitID: h.ID, Date: d, CreatedAt: edit.At}); err != nil {
+				return err
+			}
+			h.Done[d] = edit.At
+		}
+		if err := s.updateQuest(q, w); err != nil {
+			return err
+		}
+		return s.evaluate(q, trigger, false)
+	})
+}
+
+func hasCheckin(h *game.HabitData, d model.Day) bool {
+	_, done := h.Done[d]
+	return done
+}
+
+// editAmount replaces the entries of a day by their new sum. An unchanged sum keeps
+// its clicks, only the last one moves to the new time.
+func (s *Service) editAmount(q *db.Q, w *game.World, h *game.HabitData, d model.Day, edit DayEdit) (*Trigger, error) {
+	amount := model.RoundAmount(edit.Amount)
+	if amount == h.Entries[d] {
+		if amount == 0 || edit.At.IsZero() {
+			return nil, nil
+		}
+		return nil, q.MoveLastEntry(h.ID, d, edit.At)
+	}
+	if err := q.DeleteDayEntries(h.ID, d); err != nil {
+		return nil, err
+	}
+	h.Entries[d] = amount
+	if amount > 0 {
+		at := edit.At
+		if at.IsZero() {
+			at = s.atDay(d)
+		}
+		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: amount, CreatedAt: at}); err != nil {
+			return nil, err
+		}
+	}
+	trigger, _, err := s.syncGoal(q, w, h, d)
+	return trigger, err
 }
 
 // measured finds a counter or quantity habit that can take entries today.
