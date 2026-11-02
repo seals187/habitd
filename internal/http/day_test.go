@@ -234,6 +234,21 @@ func TestDayTag(t *testing.T) {
 	}
 }
 
+func TestFigureIsPartOfTheCard(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	c.habit("Lesen", "build")
+	for _, cookie := range []string{"level_folded=0", "level_folded=1"} {
+		_, html := c.do("GET", "/", nil, map[string]string{"Cookie": cookie})
+		if !strings.Contains(html, "level-figure") {
+			t.Fatalf("%s: no figure on the card", cookie)
+		}
+		if strings.Contains(html, "<img") {
+			t.Fatalf("%s: an image shows its text until it loads", cookie)
+		}
+	}
+}
+
 func TestIconsAreOnThePage(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()
