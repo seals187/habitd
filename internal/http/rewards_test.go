@@ -226,14 +226,14 @@ func TestTodayShowsLevelQuestAndTreats(t *testing.T) {
 	if !strings.Contains(html, "Kleiner Luxus") || strings.Contains(html, "Zu teuer") || strings.Contains(html, "Nicht gewollt") {
 		t.Fatal("rewards on Today")
 	}
-	for _, want := range []string{"level-tile", "bis Level 2", "+0 XP", "Alle Habits des Tages abhaken", "&#43;50 Taler"} {
+	for _, want := range []string{"level-tile", "bis Level 2", "&#43;0 XP", "Alle Habits des Tages abhaken", "&#43;50 Taler"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("missing %q", want)
 		}
 	}
 	c.post(fmt.Sprintf("/habits/%d/check", habit), false)
 	_, html = c.get("/")
-	if strings.Contains(html, "+0 XP") {
+	if strings.Contains(html, "&#43;0 XP") {
 		t.Fatal("xp of today")
 	}
 	if strings.Count(html, `<i class="on"></i>`) < 1 {

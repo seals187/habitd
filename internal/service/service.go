@@ -581,16 +581,21 @@ func (s *Service) streakJoker(q *db.Q, w *game.World, habitID int64, d model.Day
 	return q.AddLedger(s.Now(), model.LedgerJoker, 1, "streak", ref)
 }
 
-// reverse books counter entries for everything booked under a ref. The ledger
-// is append-only, so the history of the undo stays visible.
+// reverse books counter entries for everything booked under a ref. The ledger is
+// append-only, so the undo stays visible. It lands on the day of what it takes
+// back, or a past day taken back today would make today read negative.
 func (s *Service) reverse(q *db.Q, ref string) error {
 	sums, err := q.LedgerSum(ref)
 	if err != nil {
 		return err
 	}
+	at, err := q.LedgerFirst(ref)
+	if err != nil {
+		return err
+	}
 	for _, kind := range []string{model.LedgerXP, model.LedgerCoins} {
 		if sums[kind] != 0 {
-			if err := q.AddLedger(s.Now(), kind, -sums[kind], "undo", ref); err != nil {
+			if err := q.AddLedger(at, kind, -sums[kind], "undo", ref); err != nil {
 				return err
 			}
 		}

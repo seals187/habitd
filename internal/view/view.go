@@ -61,13 +61,21 @@ func New(files fs.FS) (*Renderer, error) {
 	funcs := template.FuncMap{
 		"icon":   iconHTML,
 		"sprite": func() template.HTML { return template.HTML(sprite) },
+		// The figure on a page is part of it: an image would show its text until it loads.
+		"figureArt": func(key string, stage int) template.HTML {
+			art, err := fs.ReadFile(files, fmt.Sprintf("static/figures/%s-%d.svg", key, stage))
+			if err != nil {
+				return ""
+			}
+			return template.HTML(art)
+		},
 		"figure": func(key string, stage int) string {
 			return fmt.Sprintf("/static/figures/%s-%d.svg?v=%s", key, stage, version)
 		},
 		"num":        Number,
 		"add":        func(a, b int) int { return a + b },
 		"sub":        func(a, b int) int { return a - b },
-		"signed":     func(n int) string { return fmt.Sprintf("%+d", n) },
+		"signed":     Signed,
 		"dash":       dash,
 		"quarter":    func(r float64) string { return fmt.Sprintf("%.2f", 2*math.Pi*r/4) },
 		"streak":     StreakLabel,
@@ -118,6 +126,14 @@ func hashStatic(files fs.FS) (string, error) {
 		return "", fmt.Errorf("hash assets: %w", err)
 	}
 	return hex.EncodeToString(h.Sum(nil))[:12], nil
+}
+
+// Signed writes a gain or a loss, never both signs at once.
+func Signed(n int) string {
+	if n < 0 {
+		return Number(n)
+	}
+	return "+" + Number(n)
 }
 
 // iconHTML points at the icons in the page itself. A file of their own would load

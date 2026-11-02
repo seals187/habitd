@@ -192,8 +192,15 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
 - **Jahresansicht:** Sie zeigt 6 oder 12 ganze Monate bis zum laufenden Monat statt des
   Kalenderjahrs, Vorgabe sind 6. Monate vor dem Start bleiben als Stummel stehen, damit ein neues
   Habit nicht nur wenige Balken hat. Die Länge liegt pro Gerät im Cookie `year_span`.
+- **Rückbuchungen:** Sie landen auf dem Tag der Buchung, die sie zurücknehmen, nicht auf dem Tag des
+  Klicks. Sonst läse „heute“ negativ, obwohl nur ein alter Tag korrigiert wurde. Migration 013
+  verschiebt ältere Rückbuchungen ebenso, die Summen bleiben gleich.
+- **Tage im Kalender:** Eine Zelle zeigt Tag, Wert mit Einheit (`2,8l`, `20min`) und Uhrzeit. Die
+  Uhrzeit ist die des Erreichens, sonst die des letzten Eintrags. Ein Tag ohne bekannte Uhrzeit
+  bleibt ohne, gerechnet wird mit Dezimalkomma wie im Rest der App.
 - **Icons in der Seite:** Der Icon-Satz steckt in jeder Seite statt in einer eigenen Datei. Das kostet
-  rund 30 KB pro Seite, dafür blinken die Icons beim Neuladen nicht mehr.
+  rund 30 KB pro Seite, dafür blinken die Icons beim Neuladen nicht mehr. Das gilt auch für die Figur
+  auf der Level-Karte und im Levelweg, als Bild zeigte sie bis zum Laden ihren Ersatztext.
 - **Tage vor dem Anlegen:** Ein nachgetragener Tag vor dem Anlegen zählt in der Statistik des Habits
   mit, „seit“ rückt auf diesen Tag. Quests und Abzeichen rechnen weiter ab dem Anlegen.
 - **Ziehen zum Aktualisieren:** Die Geste des Browsers bleibt aus, weil ihr Überziehen die Menüleiste

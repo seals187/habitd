@@ -43,7 +43,7 @@
 
 {{define "level-path"}}<section class="card level-card path-hero">
 <div class="level-top"><span class="level-tile">{{.Level}}</span><div class="level-text"><strong>{{.Title}}</strong><small>{{num .XP}} XP gesamt{{if .Rate}} · Ø {{num .Rate}} XP pro Tag{{end}}</small></div>
-{{if .Stage}}<img class="path-figure" src="{{figure .Figure.Key .Stage}}" width="56" height="56" alt="{{.Figure.Name}}, Stufe {{.Stage}} von 8">{{end}}</div>
+{{if .Stage}}<span class="path-figure" role="img" aria-label="{{.Figure.Name}}, Stufe {{.Stage}} von 8">{{figureArt .Figure.Key .Stage}}</span>{{end}}</div>
 </section>
 <ol class="level-way">{{range .Steps}}<li class="way-step {{.State}}">
 <span class="way-tile">{{.Level}}</span>

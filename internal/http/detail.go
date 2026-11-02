@@ -31,6 +31,7 @@ type dayCell struct {
 	State    string // done, part, joker, missed, open or none
 	Fill     int    // filled height of a partly reached day, in percent
 	Value    string // amount of the day, for habits with a unit
+	Time     string // when it was reached, as far as it is known
 	Today    bool
 	Editable bool
 	Sheet    bool // a tap opens the sheet of the day
@@ -436,7 +437,13 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 		if !h.Measured() {
 			buildStrip(d, h, w.Today.WeekStart(), w.Today, totals)
 		}
-		if err := buildMonth(d, h, w.Today, r.FormValue("m"), totals); err != nil {
+		var clicks []model.Entry
+		if h.Measured() {
+			if clicks, err = q.HabitEntries(h.ID, h.Start); err != nil {
+				return nil, err
+			}
+		}
+		if err := buildMonth(d, h, w.Today, r.FormValue("m"), totals, lastClicks(clicks)); err != nil {
 			return nil, err
 		}
 	}
@@ -581,7 +588,7 @@ func buildWeek(d *detailData, h *game.HabitData, start, today model.Day, totals 
 			bar.Height, bar.Reached = max(int(v*100/top), 3), v >= goal || (h.GoalWeek && v > 0)
 			switch {
 			case h.Measured() && v > 0:
-				bar.Label = unit.bare(v)
+				bar.Label = unit.tag(v)
 			case !h.Measured() && v > 0:
 				bar.Label = "✓"
 			}
@@ -663,7 +670,20 @@ func bestWeekday(h *game.HabitData, from, today model.Day) string {
 	return best
 }
 
-func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string, totals map[model.Day]float64) error {
+// reachedAt is the time of a day for the calendar, as far as it is known: when its
+// goal was reached, else its last click. That covers days below the goal, and the
+// days of a goal of the week, which have no reached day of their own.
+func reachedAt(h *game.HabitData, x model.Day, clicks map[model.Day]time.Time) string {
+	if at, done := h.Done[x]; done && !h.GoalWeek && realMoment(at, x) {
+		return at.Format("15:04")
+	}
+	if at, clicked := clicks[x]; clicked && realMoment(at, x) {
+		return at.Format("15:04")
+	}
+	return ""
+}
+
+func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string, totals map[model.Day]float64, clicks map[model.Day]time.Time) error {
 	unit := amountUnitOf(h.Unit)
 	year, month := today.Year(), today.Month()
 	if param != "" {
@@ -686,8 +706,9 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 	for x := first; x <= last; x++ {
 		cell := cellFor(h, x, today, totals)
 		cell.Sheet = service.DayEditable(h, x, today)
+		cell.Time = reachedAt(h, x, clicks)
 		if v := valueOn(h, x, today, totals); h.Measured() && v > 0 {
-			cell.Value = unit.bare(v)
+			cell.Value = unit.tag(v)
 		}
 		week = append(week, cell)
 		if len(week) == 7 {

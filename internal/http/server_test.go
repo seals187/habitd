@@ -880,11 +880,11 @@ func TestFigureGrowsWithTheDay(t *testing.T) {
 	c.signIn()
 	done := c.meterHabit("Lesen", "count", "2", "1", "Seiten")
 	c.meterHabit("Wasser", "count", "2", "1", "Gläser")
-	if _, html := c.get("/"); !strings.Contains(html, `/static/figures/pflanze-1.svg`) || !strings.Contains(html, "Pflanze, Stufe 1 von 8") {
+	if _, html := c.get("/"); !strings.Contains(html, `data-figure="pflanze-1"`) || !strings.Contains(html, "Pflanze, Stufe 1 von 8") {
 		t.Fatalf("start of the day: %s", html)
 	}
 	c.post(fmt.Sprintf("/habits/%d/add", done), true)
-	if _, html := c.get("/"); !strings.Contains(html, `/static/figures/pflanze-2.svg`) {
+	if _, html := c.get("/"); !strings.Contains(html, `data-figure="pflanze-2"`) {
 		t.Fatalf("a click counts: %s", html)
 	}
 	save := func(key string) *http.Response {
@@ -897,7 +897,7 @@ func TestFigureGrowsWithTheDay(t *testing.T) {
 	if resp := save("roboter"); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("save: %s", resp.Status)
 	}
-	if _, html := c.get("/"); !strings.Contains(html, "figures/roboter-2.svg") {
+	if _, html := c.get("/"); !strings.Contains(html, `data-figure="roboter-2"`) {
 		t.Fatalf("chosen figure: %s", html)
 	}
 	if resp := save("drache"); resp.StatusCode != http.StatusBadRequest {
@@ -1403,7 +1403,7 @@ func TestDetailChartsFollowTheEntries(t *testing.T) {
 	add := fmt.Sprintf("/habits/%d/add", id)
 	c.post(add, true)
 	_, html := c.get(fmt.Sprintf("/habits/%d?view=week", id))
-	for _, want := range []string{"goal-line", "Minuten pro Tag", "<b class=\"\">5′</b>", "5 Min.", "Ø pro Tag", "Ziel erreicht", "läuft"} {
+	for _, want := range []string{"goal-line", "Minuten pro Tag", "<b class=\"\">5min</b>", "5 Min.", "Ø pro Tag", "Ziel erreicht", "läuft"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("week: missing %q", want)
 		}

@@ -512,6 +512,8 @@ form:has(input[name="goal_period"][value="week"]:checked):not(:has(input[name="m
 .cal-letters { color: var(--muted); font-size: 12px; font-weight: 600; text-align: center; }
 .day { position: relative; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: var(--track); color: var(--muted); font-size: 13.5px; font-weight: 700; }
 .day span { position: relative; }
+.day:has(small) { display: flex; flex-direction: column; justify-content: center; gap: 1px; line-height: 1.1; }
+.day small { position: relative; font-size: 10px; font-weight: 600; letter-spacing: -.02em; opacity: .8; white-space: nowrap; }
 .day.blank { visibility: hidden; }
 .day.none { background: none; color: #5f625d; }
 .day.done { background: var(--c); color: var(--bg); }
@@ -1009,7 +1011,7 @@ main:has(.row-menu[open]) { padding-bottom: 250px; }
 .level-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .level-top:has(.level-figure) { gap: 8px; }
 .level-figure { flex: none; display: block; width: 46px; height: 46px; margin: -6px 0; }
-.level-figure img { display: block; width: 100%; height: 100%; }
+.level-figure svg, .path-figure svg { display: block; width: 100%; height: 100%; }
 .figure-stages { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-top: 12px; padding: 10px 8px; }
 .figure-stages div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .figure-stages img { width: 100%; max-width: 36px; height: auto; }
@@ -1375,7 +1377,7 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
 
   .cal-head { margin-bottom: 4px; }
   .cal-grid { gap: 4px; margin-bottom: 4px; }
-  .day { height: clamp(26px, calc((100svh - 388px) / 6), 62px); aspect-ratio: auto; border-radius: 8px; font-size: 12.5px; }
+  .day { height: clamp(36px, calc((100svh - 388px) / 6), 62px); aspect-ratio: auto; border-radius: 8px; font-size: 12.5px; }
 
   .amount-hero { margin-top: 8px; gap: 12px; padding: 8px 12px; }
   .amount-ring { width: 68px; height: 68px; }
@@ -1386,7 +1388,8 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
   .amount-main small { margin-top: 3px; font-size: 11.5px; }
   .amount-side b { font-size: 13px; }
   .amount-side small { font-size: 11px; }
-  .amounts .day { height: clamp(26px, calc((100svh - 404px) / 6), 62px); min-height: 0; }
+  .amounts .day { height: clamp(46px, calc((100svh - 404px) / 6), 62px); min-height: 0; }
+  .day small { font-size: 9.5px; }
   .amounts .day span { font-size: 9.5px; }
   .amounts .day b { font-size: 12px; }
   .view-year .chart.amount-chart { flex: 1; display: flex; flex-direction: column; max-height: 360px; }
@@ -1407,6 +1410,7 @@ form:has(select[name="scope"] option[value="habit_tag"]:checked) .scope-tag, for
   .amount-main p b { font-size: 24px; }
   .amount-main p span { font-size: 13px; }
   .amount-side small { font-size: 10px; }
+  .amounts .day b { font-size: 10.5px; }
   .stats-3 .stat { padding: 7px 8px; }
   .stats-3 .stat b { font-size: 14px; }
   .stats-3 .stat span { font-size: 10.5px; }

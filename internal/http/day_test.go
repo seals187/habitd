@@ -150,6 +150,90 @@ func TestDayBeforeTheStartCounts(t *testing.T) {
 	}
 }
 
+func TestTakingBackAPastDayLeavesTodayAlone(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	id := c.habit("Lesen", "build")
+	today := c.today(t)
+	day := today - 2
+
+	c.editDay(id, day, url.Values{"done": {"on"}})
+	c.dropCelebrations()
+	earned, err := c.q().XPByDay(day, day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if earned[day.String()] <= 0 {
+		t.Fatal("the day earns its XP")
+	}
+	c.editDay(id, day, url.Values{})
+	got, err := c.q().XPByDay(day, today)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[day.String()] != 0 || got[today.String()] != 0 {
+		t.Fatalf("the undo belongs to its day: %v", got)
+	}
+	if html := c.page("/"); strings.Contains(html, "+-") {
+		t.Fatal("a sum has one sign")
+	}
+}
+
+func TestCalendarShowsAmountAndTime(t *testing.T) {
+	c := newApp(t, Config{})
+	c.signIn()
+	water := c.meterHabit("Wasser", model.MeasureAmount, "3", "1", "l")
+	read := c.meterHabit("Lesen", model.MeasureAmount, "20", "5", "Min.")
+	tick := c.habit("Sport", "build")
+	day := c.today(t) - 1
+	month := day.String()[:7]
+	c.editDay(water, day, url.Values{"amount": {"2,8"}, "time": {"07:15"}})
+	c.editDay(read, day, url.Values{"amount": {"20"}, "time": {"21:40"}})
+	c.editDay(tick, day, url.Values{"done": {"on"}, "time": {"06:45"}})
+	c.dropCelebrations()
+
+	cases := []struct {
+		id   int64
+		want string
+	}{
+		{water, "<b>2,8l</b><small>07:15</small>"},
+		{read, "<b>20min</b><small>21:40</small>"},
+		{tick, "</span><small>06:45</small>"},
+	}
+	for _, tc := range cases {
+		if html := c.page(fmt.Sprintf("/habits/%d?view=month&m=%s", tc.id, month)); !strings.Contains(html, tc.want) {
+			t.Fatalf("month misses %q", tc.want)
+		}
+	}
+	week := c.page(fmt.Sprintf("/habits/%d?view=week&w=%s", water, day.WeekStart()))
+	if !strings.Contains(week, ">2,8l</b>") {
+		t.Fatal("the week shows the amount with its unit")
+	}
+}
+
+func TestDayTag(t *testing.T) {
+	cases := []struct {
+		unit string
+		v    float64
+		want string
+	}{
+		{"l", 3, "3,0l"},
+		{"L", 2.8, "2,8l"},
+		{"Min.", 20, "20min"},
+		{"Min.", 90, "1,5h"},
+		{"km", 5.2, "5,2km"},
+		{"Schritte", 6400, "6,4k"},
+		{"x", 4, "4x"},
+		{"Seiten", 12, "12"},
+		{"", 2, "2"},
+	}
+	for _, tc := range cases {
+		if got := amountUnitOf(tc.unit).tag(tc.v); got != tc.want {
+			t.Fatalf("%q %v: got %q, want %q", tc.unit, tc.v, got, tc.want)
+		}
+	}
+}
+
 func TestIconsAreOnThePage(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()

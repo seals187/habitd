@@ -11,6 +11,19 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.1.8] - 2026-11-02
+
+### Changed
+
+- The week and the month view show amounts with their unit, such as `2,8l` or `20min`.
+- A day in the month view shows the date, the amount and below it the time it was reached. Days below the goal show the time of their last entry.
+
+### Fixed
+
+- Taking back a past day no longer makes today read negative. The undo now lands on the day it belongs to, and older ones move there on the update. Totals stay the same.
+- XP of a day no longer show as `+-30` on the level card.
+- The figure on the level card no longer shows its text while the page reloads.
+
 ## [0.1.7] - 2026-11-02
 
 ### Added
@@ -250,6 +263,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.1.8]: https://github.com/seals187/habitd/releases/tag/v0.1.8
 [0.1.7]: https://github.com/seals187/habitd/releases/tag/v0.1.7
 [0.1.6]: https://github.com/seals187/habitd/releases/tag/v0.1.6
 [0.1.5]: https://github.com/seals187/habitd/releases/tag/v0.1.5

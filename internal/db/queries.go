@@ -650,6 +650,16 @@ func (q *Q) AddLedger(at time.Time, kind string, amount int, reason, ref string)
 		q.uid, formatTime(at), kind, amount, reason, ref)
 }
 
+// LedgerFirst finds the time of the first entry of a ref.
+func (q *Q) LedgerFirst(ref string) (time.Time, error) {
+	var at string
+	err := q.r.QueryRowContext(q.ctx, `SELECT coalesce(min(at), '') FROM ledger WHERE ref = ? AND user_id = ?`, ref, q.uid).Scan(&at)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("first ledger entry: %w", err)
+	}
+	return parseTime(at), nil
+}
+
 // LedgerSum sums the entries of a ref per kind.
 func (q *Q) LedgerSum(ref string) (map[string]int, error) {
 	rows, err := q.r.QueryContext(q.ctx, `SELECT kind, sum(amount) FROM ledger WHERE ref = ? AND user_id = ? GROUP BY kind`, ref, q.uid)

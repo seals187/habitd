@@ -125,6 +125,25 @@ func (u amountUnit) bare(v float64) string {
 	return compact(v)
 }
 
+// maxTagUnit is the longest unit of its own that still fits beside a number on a day.
+const maxTagUnit = 3
+
+// tag is the amount of a single day in the week and the month, with its unit
+// written on: 2,8l or 20min. A long unit of its own leaves the bare number.
+func (u amountUnit) tag(v float64) string {
+	switch {
+	case u.kind == unitTime && v < minutesPerHour:
+		return view.Number(int(math.Round(v))) + "min"
+	case u.kind == unitVolume:
+		return u.bare(v) + "l"
+	case u.kind == unitDistance:
+		return u.bare(v) + "km"
+	case u.kind == unitPlain && u.short != "" && len([]rune(u.short)) <= maxTagUnit:
+		return u.bare(v) + u.short
+	}
+	return u.bare(v)
+}
+
 // heading names the amounts of a chart.
 func (u amountUnit) heading(per string) string {
 	switch {
