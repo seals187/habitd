@@ -3,7 +3,6 @@ package server
 import (
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -46,28 +45,6 @@ type habitCard struct {
 // maxBars keeps a goal of many small steps readable on one line.
 const maxBars = 30
 
-// goalUnits splits the goal into the units a card shows at its bottom: a click of
-// a counter or an amount, a check-in of a weekly or monthly rhythm, else one bar.
-func goalUnits(h *game.HabitData, today model.Day, reached int, met bool) (total, units int) {
-	total = 1
-	switch {
-	case h.Measured() && h.Step > 0:
-		value := h.GoalTotal(today)
-		if met { // ticked in the calendar or met for the period
-			value = max(value, h.Target)
-		}
-		total = max(int(math.Ceil(h.Target/h.Step-1e-9)), 1)
-		units = int(math.Floor(value/h.Step + 1e-9))
-	case h.Frequency == model.FreqWeekly:
-		total, units = h.WeekTarget(), reached
-	case h.Frequency == model.FreqMonthly:
-		total, units = h.WeekTarget(), h.MonthCount(today)
-	case met:
-		units = 1
-	}
-	return total, units
-}
-
 // goalBars turns the units into bars. What goes beyond the goal gets gold bars
 // and a gold lap of the ring, its length in percent of the goal.
 func goalBars(total, units int) ([]string, int) {
@@ -94,35 +71,19 @@ func goalBars(total, units int) ([]string, int) {
 	return bars, gold
 }
 
-// overLabel shows a goal that was passed in a short form: 3,5/3 l or 40/20 min.
-func overLabel(h *game.HabitData, value, goal float64) string {
-	u := amountUnitOf(h.Unit)
-	switch u.kind {
-	case unitTime:
-		return compact(value) + "/" + compact(goal) + " min"
-	case unitVolume:
-		return compact(value) + "/" + compact(goal) + " l"
-	case unitSteps:
-		return u.bare(value) + "/" + u.bare(goal) + " Schr."
-	}
-	return strings.TrimSpace(compact(value) + "/" + compact(goal) + " " + u.short)
-}
-
 // meter is the state of a counter or quantity habit on its card.
 type meter struct {
 	RingLabel string
 	AddLabel  string
-	Percent   int
 	CanUndo   bool
 }
 
-func newMeter(h model.Habit, total float64, done bool) *meter {
-	value := total
-	if done { // e.g. ticked before the habit became a counter
+func newMeter(h model.Habit, g game.TodayGoal) *meter {
+	value := g.Value
+	if g.Reached { // e.g. ticked before the habit became a counter
 		value = max(value, h.Target)
 	}
-	m := &meter{AddLabel: "+" + view.Decimal(h.Step), RingLabel: view.Decimal(value), CanUndo: total > 0,
-		Percent: min(int(value*100/h.Target), 100)}
+	m := &meter{AddLabel: "+" + view.Decimal(h.Step), RingLabel: view.Decimal(value), CanUndo: g.Undoable}
 	switch {
 	case view.IsMinutes(h.Unit):
 		m.AddLabel += "′"
@@ -141,66 +102,30 @@ type weekDay struct {
 	Today  bool
 }
 
-var weekNames = [7]string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
-
-// dayTotals holds the entry sums of the days of a week.
-type dayTotals map[model.Day]map[int64]float64
-
-func (s *Server) weekTotals(q *db.Q, today model.Day) (dayTotals, error) {
-	out := dayTotals{}
-	for d := today.WeekStart(); d <= today; d++ {
-		totals, err := q.DayTotals(d)
-		if err != nil {
-			return nil, err
-		}
-		out[d] = totals
-	}
-	return out, nil
+// stripStates are the CSS classes of the days in the week strip of a card.
+var stripStates = map[game.DayStatus]string{
+	game.DayFree: "rest", game.DayBefore: "future", game.DayFuture: "future", game.DayOpen: "open",
+	game.DayDone: "done", game.DayPart: "part", game.DayJoker: "joker", game.DayMissed: "missed",
 }
 
-// weekStrip shows the week of today for a habit and counts the reached days.
-func weekStrip(h *game.HabitData, today model.Day, totals dayTotals) ([]weekDay, int) {
-	days := make([]weekDay, 0, len(weekNames))
+// weekStrip shows the week of today for a habit and counts the reached days. Like
+// the ring of its card, a clean day of an avoid habit counts while it runs.
+func weekStrip(h *game.HabitData, today model.Day) ([]weekDay, int) {
+	h = h.ForStatistics()
+	days := make([]weekDay, 0, len(view.Weekdays))
 	reached := 0
-	for i, name := range weekNames {
+	for i, name := range view.Weekdays {
 		d := today.WeekStart() + model.Day(i)
-		day := weekDay{Letter: name, Today: d == today, State: dayState(h, d, today, totals[d][h.ID])}
-		switch day.State {
-		case "done":
-			day.Fill = 100
-			reached++
-		case "joker":
-			day.Fill = 100
-		case "part":
-			day.Fill = min(int(totals[d][h.ID]*100/h.Target), 99)
+		m := h.Mark(d, today)
+		if h.Kind == model.KindAvoid && m.Status == game.DayOpen {
+			m.Status, m.Fill = game.DayDone, 100
 		}
-		days = append(days, day)
+		if m.Status == game.DayDone {
+			reached++
+		}
+		days = append(days, weekDay{Letter: name, Today: d == today, State: stripStates[m.Status], Fill: m.Fill})
 	}
 	return days, reached
-}
-
-func dayState(h *game.HabitData, d, today model.Day, total float64) string {
-	if _, done := h.Done[d]; done && !h.GoalWeek {
-		return "done"
-	}
-	switch {
-	case h.Joker[d]:
-		return "joker"
-	case d > today || d < h.Since():
-		return "future"
-	case h.Kind == model.KindAvoid:
-		if slices.Contains(h.Relapses, d) {
-			return "missed"
-		}
-		return "done"
-	case h.Measured() && total > 0:
-		return "part"
-	case d == today:
-		return "open"
-	case h.Scheduled(d):
-		return "missed"
-	}
-	return "rest"
 }
 
 // weekGoal is the number of days a habit is planned for in a week.
@@ -218,20 +143,10 @@ func weekGoal(h *game.HabitData) int {
 func nextPlanned(h *game.HabitData, today model.Day) string {
 	for d := today + 1; d < today+7; d++ {
 		if h.Scheduled(d) {
-			return "wieder am " + weekNames[d.WeekdayIndex()]
+			return "wieder am " + view.Weekdays[d.WeekdayIndex()]
 		}
 	}
 	return "nächste Woche"
-}
-
-func streakLabel(s game.Streak) string {
-	switch {
-	case s.Monthly:
-		return fmt.Sprintf("%d Mo", s.Current)
-	case s.Weekly:
-		return fmt.Sprintf("%d Wo", s.Current)
-	}
-	return view.Number(s.Current)
 }
 
 type bridgeOffer struct {
@@ -319,7 +234,7 @@ func bestStreaks(cards []habitCard) []streakPart {
 		}
 	}
 	var out []streakPart
-	for _, p := range []streakPart{{days, "T"}, {weeks, "Wo"}, {months, "Mo"}} {
+	for _, p := range []streakPart{{days, view.StreakDays}, {weeks, view.StreakWeeks}, {months, view.StreakMonths}} {
 		if p.Value > 0 {
 			out = append(out, p)
 		}
@@ -469,71 +384,55 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 	if err != nil {
 		return nil, err
 	}
-	totals, err := s.weekTotals(q, w.Today)
-	if err != nil {
-		return nil, err
-	}
 	byID := areaMap(areas)
 	_, kw := w.Today.Time().ISOWeek()
 	d := &todayData{Date: fmt.Sprintf("%s · KW %d", view.LongDate(w.Today), kw), Bal: w.Balances, Zoom: zoomOf(r, "habit_zoom"), LevelFolded: levelFolded(r)}
 	folded, opened := cardFolds(r, w.Today)
+	var goals []game.TodayGoal
 	for _, h := range w.Habits {
 		if h.Archived || w.Today < h.Start {
 			continue
 		}
-		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], Streak: h.StreakAt(w.Today), Goal: weekGoal(h), Collapsed: folded[h.ID], Day: w.Today.String()}
-		card.StreakLabel, card.XP = streakLabel(card.Streak), game.BaseXP(h.Habit)
-		card.Week, card.Reached = weekStrip(h, w.Today, totals)
+		g := h.TodayGoal(w.Today)
+		goals = append(goals, g)
+		card := habitCard{ID: h.ID, Name: h.Name, Area: byID[h.AreaID], Streak: h.StreakAt(w.Today), Goal: weekGoal(h), Collapsed: folded[h.ID], Day: w.Today.String(),
+			Done: g.Done, Auto: g.Met, Relapsed: g.Relapsed, Ring: g.Fill}
+		card.StreakLabel, card.XP = view.StreakTag(card.Streak), game.BaseXP(h.Habit)
+		card.Week, card.Reached = weekStrip(h, w.Today)
 		card.Count = strconv.Itoa(card.Reached)
 		if card.Goal > 0 {
 			card.Of = strconv.Itoa(card.Goal)
 		}
 		if h.GoalWeek {
-			card.Count, card.Of = view.Decimal(h.GoalTotal(w.Today)), view.Decimal(h.Target)
+			card.Count, card.Of = view.Decimal(g.Value), view.Decimal(h.Target)
 		}
-		if h.Kind == model.KindAvoid {
-			for _, relapse := range h.Relapses {
-				card.Relapsed = card.Relapsed || relapse == w.Today
-			}
-			if card.Relapsed {
-				card.Ring = 0
-			} else {
-				card.Ring, card.RingLabel = 100, view.Number(card.Streak.Days)
+		if g.Group == game.GroupAvoid {
+			if !g.Relapsed {
+				card.RingLabel = view.Number(card.Streak.Days)
 			}
 			d.Avoid = append(d.Avoid, card)
 			continue
 		}
-		_, card.Done = h.Done[w.Today]
 		if h.Measured() {
-			_, reached := h.GoalCheckin(w.Today)
-			card.Meter = newMeter(h.Habit, h.GoalTotal(w.Today), reached)
-			card.Meter.CanUndo = h.Entries[w.Today] > 0 || h.GoalWeek && h.GoalTotal(w.Today) > 0
-			card.Ring, card.RingLabel = card.Meter.Percent, card.Meter.RingLabel
-		} else if card.Done {
-			card.Ring = 100
+			card.Meter = newMeter(h.Habit, g)
+			card.RingLabel = card.Meter.RingLabel
 		}
-		periodMet := (h.Frequency == model.FreqWeekly || h.Frequency == model.FreqMonthly) && !h.DueOn(w.Today)
-		if periodMet {
-			card.Ring = 100
-		}
-		card.Auto = card.Done || periodMet
 		if card.Auto {
 			card.Collapsed = !opened[h.ID]
 		}
-		if h.Frequency == model.FreqCustom && !h.Scheduled(w.Today) && !card.Done {
+		if g.Group == game.GroupOff {
 			card.Rest, card.Collapsed = nextPlanned(h, w.Today), true
 			d.Rest = append(d.Rest, card)
 			continue
 		}
-		total, units := goalUnits(h, w.Today, card.Reached, card.Auto)
-		card.Bars, card.Gold = goalBars(total, units)
+		card.Bars, card.Gold = goalBars(g.Total, g.Units)
 		switch {
-		case units > total && h.Measured():
-			card.Over = overLabel(h, h.GoalTotal(w.Today), h.Target)
-		case units > total:
-			card.Over = overLabel(h, float64(units), float64(total))
+		case g.Units > g.Total && h.Measured():
+			card.Over = view.UnitOf(h.Unit).Over(g.Value, h.Target)
+		case g.Units > g.Total:
+			card.Over = view.UnitOf(h.Unit).Over(float64(g.Units), float64(g.Total))
 		}
-		if card.Auto {
+		if g.Group == game.GroupReached {
 			d.Reached = append(d.Reached, card)
 			continue
 		}
@@ -549,7 +448,7 @@ func (s *Server) todayData(r *http.Request) (*todayData, error) {
 		return nil, err
 	}
 	if on {
-		d.Figure, d.Stage = fig, figureStage(dayProgress(d.Build, d.Reached))
+		d.Figure, d.Stage = fig, figureStage(game.DayFill(goals))
 	}
 	if err := s.fillToday(q, d, w); err != nil {
 		return nil, err

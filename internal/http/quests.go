@@ -12,6 +12,7 @@ import (
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
+	"github.com/seals187/habitd/internal/view"
 )
 
 // questCard is a quest of the day.
@@ -115,7 +116,7 @@ func (s *Server) questDetail(w http.ResponseWriter, r *http.Request) error {
 	today := s.svc.QuestDay()
 	d := questPage{Quests: cards, Streak: service.QuestStreakAt(days, today), Bonus: s.svc.Rules().QuestConfig.StreakBonus}
 	d.ToNext = service.QuestJokerStreak - d.Streak%service.QuestJokerStreak
-	for i, name := range dayNames {
+	for i, name := range view.Weekdays {
 		x := today.WeekStart() + model.Day(i)
 		done, drawn := days[x]
 		day := streakDay{Name: name, State: "none"}
@@ -237,7 +238,7 @@ func whenLabel(q game.QuestDef) string {
 		return "Sa–So"
 	}
 	var names []string
-	for i, name := range dayNames {
+	for i, name := range view.Weekdays {
 		if q.Days&(1<<i) != 0 {
 			names = append(names, name)
 		}
@@ -282,10 +283,7 @@ func (s *Server) adminQuestsSettings(w http.ResponseWriter, r *http.Request) err
 	c.NoRepeat = r.FormValue("no_repeat") == "on"
 	c.Matching = r.FormValue("matching") == "on"
 	c.StreakBonus = r.FormValue("streak_bonus") == "on"
-	if err := s.svc.Store.Q(r.Context()).SaveQuestConfig(c); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SaveQuestConfig(c) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/quests")
@@ -296,10 +294,7 @@ func (s *Server) adminQuestActive(w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return err
 	}
-	if err := s.svc.Store.Q(r.Context()).SetQuestActive(id, r.FormValue("active") == "on"); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SetQuestActive(id, r.FormValue("active") == "on") }); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -344,7 +339,7 @@ func (s *Server) questForm(w http.ResponseWriter, r *http.Request, q game.QuestD
 	}
 	st := stats[q.ID]
 	d := questFormData{Quest: q, New: isNew, Kinds: questKinds, Icons: questIcons, Colors: badgeColors, Areas: areas, Drawn: st.Drawn, Quote: percent(st.Done, st.Drawn), Error: message}
-	for i, name := range dayNames {
+	for i, name := range view.Weekdays {
 		d.Days = append(d.Days, questDay{Bit: i, Name: name, On: q.Days&(1<<i) != 0})
 	}
 	config := fmt.Sprintf(`{"name":%q,"text":%q,"icon":%q,"color":%q,"kind":%q,"count":"%d","until":%q,"percent":"%d","rewardKind":%q,"reward":"%d","sprite":%q}`,
@@ -461,10 +456,7 @@ func (s *Server) adminQuestSave(w http.ResponseWriter, r *http.Request) error {
 	if message := parseQuest(r, &q); message != "" {
 		return s.questForm(w, r, q, isNew, http.StatusUnprocessableEntity, message)
 	}
-	if _, err := s.svc.Store.Q(r.Context()).SaveQuest(q); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(tx *db.Q) error { _, err := tx.SaveQuest(q); return err }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/quests")
@@ -475,10 +467,7 @@ func (s *Server) adminQuestDelete(w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return err
 	}
-	if err := s.svc.Store.Q(r.Context()).DeleteQuest(id); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.DeleteQuest(id) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/quests")
@@ -527,7 +516,7 @@ func (s *Server) adminQuestPlan(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	q := s.svc.Store.Q(r.Context())
-	for i, name := range dayNames {
+	for i, name := range view.Weekdays {
 		x := monday + model.Day(i)
 		ids, err := q.PlannedQuests(x)
 		if err != nil {
@@ -597,10 +586,7 @@ func (s *Server) adminPlanRules(w http.ResponseWriter, r *http.Request) error {
 	c := s.svc.Rules().QuestConfig
 	c.WeekendRule = r.FormValue("weekend_rule") == "on"
 	c.FirstRule = r.FormValue("first_rule") == "on"
-	if err := s.svc.Store.Q(r.Context()).SaveQuestConfig(c); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SaveQuestConfig(c) }); err != nil {
 		return err
 	}
 	return redirect(w, r, planURL(r))

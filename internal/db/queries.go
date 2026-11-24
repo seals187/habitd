@@ -344,29 +344,6 @@ func (q *Q) DayTotals(d model.Day) (map[int64]float64, error) {
 	return out, rows.Err()
 }
 
-// HabitDays sums the entries of a habit per day.
-func (q *Q) HabitDays(habitID int64) (map[model.Day]float64, error) {
-	rows, err := q.r.QueryContext(q.ctx, `SELECT date, sum(amount) FROM habit_entries WHERE habit_id = ? AND user_id = ? GROUP BY date`, habitID, q.uid)
-	if err != nil {
-		return nil, fmt.Errorf("habit days: %w", err)
-	}
-	defer rows.Close()
-	out := map[model.Day]float64{}
-	for rows.Next() {
-		var date string
-		var total float64
-		if err := rows.Scan(&date, &total); err != nil {
-			return nil, fmt.Errorf("scan habit day: %w", err)
-		}
-		d, err := model.ParseDay(date)
-		if err != nil {
-			return nil, err
-		}
-		out[d] = model.RoundAmount(total)
-	}
-	return out, rows.Err()
-}
-
 // AddRelapse records a relapse.
 func (q *Q) AddRelapse(habitID int64, d model.Day) error {
 	return q.exec(`INSERT OR IGNORE INTO relapses (user_id, habit_id, date) VALUES (?, ?, ?)`, q.uid, habitID, d.String())

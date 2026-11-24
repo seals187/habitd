@@ -23,10 +23,7 @@ func (s *Server) adminBadgesFeature(w http.ResponseWriter, r *http.Request) erro
 	if r.FormValue("enabled") == "on" {
 		value = ""
 	}
-	if err := s.svc.Store.Q(r.Context()).SetGlobalSetting(db.BadgesOffKey, value); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SetGlobalSetting(db.BadgesOffKey, value) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/badges")
@@ -333,20 +330,14 @@ func (s *Server) adminBadgeSave(w http.ResponseWriter, r *http.Request) error {
 	if key == "" {
 		b.Key = uniqueKey(b.Name, func(k string) bool { _, ok := rules.BadgeByKey(k); return ok })
 	}
-	if err := s.svc.Store.Q(r.Context()).SaveBadge(b); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SaveBadge(b) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/badges")
 }
 
 func (s *Server) adminBadgeActive(w http.ResponseWriter, r *http.Request) error {
-	if err := s.svc.Store.Q(r.Context()).SetBadgeActive(r.PathValue("key"), r.FormValue("active") == "on"); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SetBadgeActive(r.PathValue("key"), r.FormValue("active") == "on") }); err != nil {
 		return err
 	}
 	if isHTMX(r) {
@@ -357,10 +348,7 @@ func (s *Server) adminBadgeActive(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *Server) adminBadgeDelete(w http.ResponseWriter, r *http.Request) error {
-	if err := s.svc.Store.Tx(r.Context(), func(q *db.Q) error { return q.DeleteBadge(r.PathValue("key")) }); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.DeleteBadge(r.PathValue("key")) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/badges")
@@ -400,24 +388,18 @@ func (s *Server) adminCategorySave(w http.ResponseWriter, r *http.Request) error
 		}), "eigen-")
 		c.Sort = len(rules.Categories) + 1
 	}
-	if err := s.svc.Store.Q(r.Context()).SaveCategory(c); err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.SaveCategory(c) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/badges/categories")
 }
 
 func (s *Server) adminCategoryDelete(w http.ResponseWriter, r *http.Request) error {
-	err := s.svc.Store.Q(r.Context()).DeleteCategory(r.PathValue("key"))
+	err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return q.DeleteCategory(r.PathValue("key")) })
 	if errors.Is(err, db.ErrCategoryInUse) {
 		return redirect(w, r, "/admin/badges/categories?error=Die+Kategorie+enth%C3%A4lt+noch+Abzeichen")
 	}
 	if err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
 		return err
 	}
 	return redirect(w, r, "/admin/badges/categories")
@@ -522,11 +504,8 @@ func (s *Server) adminBadgesImport(w http.ResponseWriter, r *http.Request) error
 		return redirect(w, r, transferError+"Datei+nicht+lesbar")
 	}
 	rules := s.svc.Rules()
-	if err := s.svc.Store.Tx(r.Context(), func(q *db.Q) error { return importBadges(q, &f, rules) }); err != nil {
+	if err := s.svc.ChangeRules(r.Context(), func(q *db.Q) error { return importBadges(q, &f, rules) }); err != nil {
 		return redirect(w, r, transferError+"Import+fehlgeschlagen")
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
-		return err
 	}
 	return redirect(w, r, "/admin/badges")
 }

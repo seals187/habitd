@@ -66,8 +66,8 @@ func (s *Server) newDaySheet(q *db.Q, h *game.HabitData, d, today model.Day) (*d
 	if !h.Measured() {
 		return sheet, nil
 	}
-	unit := amountUnitOf(h.Unit)
-	sheet.Label, sheet.Goal = unit.name, goalWord(h)+" "+unit.label(h.Target)
+	unit := view.UnitOf(h.Unit)
+	sheet.Label, sheet.Goal = unit.Name, goalWord(h)+" "+unit.Label(h.Target)
 	if sheet.Label == "" {
 		sheet.Label = "Anzahl"
 	}

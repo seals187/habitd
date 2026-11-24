@@ -258,7 +258,7 @@ func weekBars(byDay map[string]int, today model.Day) []xpBar {
 	for i := range bars {
 		d := today.WeekStart() + model.Day(i)
 		values[i] = max(byDay[d.String()], 0)
-		bars[i] = xpBar{Name: weekNames[i], Current: d == today, Future: d > today}
+		bars[i] = xpBar{Name: view.Weekdays[i], Current: d == today, Future: d > today}
 		if !bars[i].Future {
 			bars[i].Label = view.Number(values[i])
 		}
@@ -511,7 +511,7 @@ func clockOn(at time.Time, d model.Day, loc *time.Location) (string, time.Time) 
 // goalLine says what a check-in reached.
 func goalLine(h *game.HabitData, d model.Day) string {
 	if h.Measured() {
-		return "Ziel erreicht · " + amountUnitOf(h.Unit).label(h.GoalTotal(d))
+		return "Ziel erreicht · " + view.UnitOf(h.Unit).Label(h.GoalTotal(d))
 	}
 	if h.Frequency == model.FreqWeekly || h.Frequency == model.FreqMonthly {
 		n := 0
@@ -548,10 +548,10 @@ func entryEvents(entries []model.Entry, byID map[int64]*game.HabitData, areas ma
 		if done && before < h.Target && sums[h.ID] >= h.Target {
 			continue
 		}
-		u := amountUnitOf(h.Unit)
+		u := view.UnitOf(h.Unit)
 		clock, at := clockOn(e.CreatedAt, d, loc)
 		out = append(out, historyEvent{Time: clock, at: at, Title: h.Name, Tag: areas[h.AreaID].Name, Color: areas[h.AreaID].Color, Open: true,
-			Detail: fmt.Sprintf("+%s · %s / %s", u.step(e.Amount), u.value(sums[h.ID]), u.step(h.Target))})
+			Detail: fmt.Sprintf("+%s · %s / %s", u.Step(e.Amount), u.Value(sums[h.ID]), u.Step(h.Target))})
 	}
 	return out
 }
@@ -640,7 +640,7 @@ func (s *Server) levelHistory(q *db.Q, w *game.World, param string) (*levelHisto
 	h := &levelHistory{Date: view.FullDate(day), IsToday: day == w.Today}
 	for d := w.Today - 6; d <= w.Today; d++ {
 		done, planned := quotaOf(w, d, d)
-		h.Days = append(h.Days, historyDay{Date: d.String(), Name: weekNames[d.WeekdayIndex()], Dom: d.Dom(), State: stripState(done, planned), Current: d == day})
+		h.Days = append(h.Days, historyDay{Date: d.String(), Name: view.Weekdays[d.WeekdayIndex()], Dom: d.Dom(), State: stripState(done, planned), Current: d == day})
 	}
 	byDay, err := q.XPByDay(day, day)
 	if err != nil {

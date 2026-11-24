@@ -9,6 +9,7 @@ import (
 
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
+	"github.com/seals187/habitd/internal/view"
 )
 
 // Tones of the icons, they are CSS classes.
@@ -49,8 +50,6 @@ const (
 	favoriteMin   = 5
 	favoriteCount = 2
 )
-
-var weekdays = [7]string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 
 // cleanMarks are the streaks of an avoid habit worth running towards.
 var cleanMarks = []int{14, 30, 60, 90, 180, 365, 500, 1000}
@@ -141,7 +140,7 @@ func typicalTime(in Input) (Tip, bool) {
 		tip.Detail = fmt.Sprintf("%d-mal in den letzten 7 Tagen", reached)
 	}
 	if first != nil {
-		tip.Detail += fmt.Sprintf(", am frühesten %s %s", weekdays[first.Day.WeekdayIndex()], clock(first.minutes()))
+		tip.Detail += fmt.Sprintf(", am frühesten %s %s", view.Weekdays[first.Day.WeekdayIndex()], clock(first.minutes()))
 	}
 	return tip, true
 }
@@ -195,7 +194,7 @@ func bestWeekday(in Input) (Tip, bool) {
 	if best.share()-average < weekdayGap {
 		return Tip{}, false
 	}
-	name := weekdays[best.Day]
+	name := view.Weekdays[best.Day]
 	return Tip{Icon: "star", Tone: toneGold, Title: name + " ist dein stärkster Tag",
 		Detail: fmt.Sprintf("an %d von %d %s geschafft", best.Done, best.Plan, name), Score: 40}, true
 }
@@ -213,7 +212,7 @@ func weakWeekday(in Input) (Tip, bool) {
 	if average-weak.share() < weakGap {
 		return Tip{}, false
 	}
-	name := weekdays[weak.Day]
+	name := view.Weekdays[weak.Day]
 	return Tip{Icon: "calendar", Tone: toneGold, Title: "Am " + name + " ist am meisten drin",
 		Detail: fmt.Sprintf("bisher %d von %d – eine feste Uhrzeit hilft", weak.Done, weak.Plan), Score: 50}, true
 }
@@ -316,7 +315,7 @@ func morningShare(in Input) (Tip, bool) {
 		return Tip{}, false
 	}
 	share := int(math.Round(morning * 100 / total))
-	if in.Drink {
+	if in.drink() {
 		return Tip{Icon: "sun", Tone: toneGold, Title: "Morgens trinkst du wenig",
 			Detail: fmt.Sprintf("nur %d %% bis 12 Uhr – ein Glas zum Frühstück hilft", share), Score: 55}, true
 	}
@@ -434,10 +433,10 @@ func avoidRiskyDay(in Input) (Tip, bool) {
 	if total < relapseMin || counts[top] < relapseSame || float64(counts[top])/float64(total) < relapseShare {
 		return Tip{}, false
 	}
-	tip := Tip{Icon: "calendar", Tone: toneOrange, Title: "Am " + weekdays[top] + " lohnt sich ein Plan",
+	tip := Tip{Icon: "calendar", Tone: toneOrange, Title: "Am " + view.Weekdays[top] + " lohnt sich ein Plan",
 		Detail: fmt.Sprintf("%d von %d Rückfällen – gönn dir dann etwas Schönes", counts[top], total), Score: 60}
 	if in.Today.WeekdayIndex() == top {
-		tip.Title = "Heute ist " + weekdays[top] + " – plan dir etwas Schönes"
+		tip.Title = "Heute ist " + view.Weekdays[top] + " – plan dir etwas Schönes"
 		tip.Score += relapseToday
 	}
 	return tip, true
@@ -500,7 +499,7 @@ func weekFavorites(in Input) (Tip, bool) {
 	var names []string
 	for _, day := range order[:favoriteCount] {
 		if counts[day] > 0 {
-			names = append(names, weekdays[day])
+			names = append(names, view.Weekdays[day])
 		}
 	}
 	return Tip{Icon: "calendar", Tone: toneGold, Title: "Deine Tage: " + strings.Join(names, " und "), Detail: "dort klappt es am häufigsten", Score: 30}, true

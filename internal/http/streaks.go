@@ -3,11 +3,11 @@ package server
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
+	"github.com/seals187/habitd/internal/view"
 )
 
 // The groups of the streak sheet.
@@ -115,11 +115,11 @@ func plainGoals(badges []game.Badge) []int {
 func streakUnitOf(s game.Streak) (short string, goals []int, rank int) {
 	switch {
 	case s.Monthly:
-		return "Mo", monthGoals, 2
+		return view.StreakMonths, monthGoals, 2
 	case s.Weekly:
-		return "Wo", weekGoals, 1
+		return view.StreakWeeks, weekGoals, 1
 	}
-	return "T", nil, 0
+	return view.StreakDays, nil, 0
 }
 
 // recordPart names the record of a streak, or marks a running record with a star.
@@ -180,8 +180,8 @@ func openLine(h *game.HabitData, today model.Day) string {
 	if !h.Measured() {
 		return "heute noch offen"
 	}
-	u := amountUnitOf(h.Unit)
-	return "noch " + u.label(model.RoundAmount(h.Target-h.GoalTotal(today))) + " bis zum Ziel"
+	u := view.UnitOf(h.Unit)
+	return "noch " + u.Label(model.RoundAmount(h.Target-h.GoalTotal(today))) + " bis zum Ziel"
 }
 
 // dayRow fills the row of a streak counted in days.
@@ -191,11 +191,11 @@ func dayRow(row *streakRow, h *game.HabitData, s game.Streak, today model.Day, h
 	goal := ""
 	if target > 0 {
 		goal = fmt.Sprintf("nächstes Ziel %d T", target)
-		row.goalLeft, row.goalName = target-s.Current, spanWord(target)
+		row.goalLeft, row.goalName = target-s.Current, view.Span(target, view.StreakDays)
 		if h.Kind == model.KindBuild {
 			if i := slices.IndexFunc(badges, func(b game.Badge) bool { return b.Target == target }); i >= 0 && badges[i].Name != "" {
 				row.goalName = badges[i].Name
-				goal = fmt.Sprintf("noch %s bis „%s“", spanWord(row.goalLeft), row.goalName)
+				goal = fmt.Sprintf("noch %s bis „%s“", view.Span(row.goalLeft, view.StreakDays), row.goalName)
 			}
 		}
 	}
@@ -207,13 +207,6 @@ func dayRow(row *streakRow, h *game.HabitData, s game.Streak, today model.Day, h
 	record := recordPart(row, s)
 	row.Detail = slices.DeleteFunc([]string{goal, record}, func(p string) bool { return p == "" })
 	return streakSafe
-}
-
-func spanWord(n int) string {
-	if n == 1 {
-		return "1 Tag"
-	}
-	return strconv.Itoa(n) + " Tage"
 }
 
 // periodRow fills the row of a streak counted in weeks or months.
@@ -230,7 +223,7 @@ func periodRow(row *streakRow, h *game.HabitData, s game.Streak, today model.Day
 		row.Detail = slices.DeleteFunc([]string{record, span + " schon erreicht"}, func(p string) bool { return p == "" })
 		return streakSafe
 	case missing >= h.DaysLeft(today):
-		row.Detail = []string{periodLine(h, today), fmt.Sprintf("noch %s", spanWord(h.DaysLeft(today)))}
+		row.Detail = []string{periodLine(h, today), fmt.Sprintf("noch %s", view.Span(h.DaysLeft(today), view.StreakDays))}
 		return streakRisk
 	}
 	row.Detail = slices.DeleteFunc([]string{record, periodLine(h, today)}, func(p string) bool { return p == "" })
@@ -253,15 +246,6 @@ func newStreakRow(h *game.HabitData, today model.Day, hours int, badges []game.B
 	return row, dayRow(&row, h, s, today, hours, badges)
 }
 
-// longUnit writes a streak out: 12 Tage, 1 Woche.
-func longUnit(value int, unit string) string {
-	names := map[string][2]string{"T": {"Tag", "Tage"}, "Wo": {"Woche", "Wochen"}, "Mo": {"Monat", "Monate"}}[unit]
-	if value == 1 {
-		return "1 " + names[0]
-	}
-	return fmt.Sprintf("%d %s", value, names[1])
-}
-
 func (s *Server) streakSheet(w *game.World) *streakSheet {
 	badges := dayGoals(s.svc.Rules())
 	hours := 24 - s.svc.Now().In(s.svc.Loc).Hour()
@@ -282,20 +266,20 @@ func (s *Server) streakSheet(w *game.World) *streakSheet {
 		sheet.Total++
 		if b := best[row.Unit]; row.Value > 0 && (b == nil || row.Value > b.Value) {
 			st := h.StreakAt(w.Today)
-			best[row.Unit] = &bestRun{Value: row.Value, Unit: row.Unit, Long: longUnit(row.Value, row.Unit), Habit: h.Name, Record: st.Current > 1 && st.Current >= st.Longest}
-			if row.Unit == "T" {
+			best[row.Unit] = &bestRun{Value: row.Value, Unit: row.Unit, Long: view.Span(row.Value, row.Unit), Habit: h.Name, Record: st.Current > 1 && st.Current >= st.Longest}
+			if row.Unit == view.StreakDays {
 				bestDay = row
 			}
 		}
 	}
-	for _, unit := range []string{"T", "Wo", "Mo"} {
+	for _, unit := range []string{view.StreakDays, view.StreakWeeks, view.StreakMonths} {
 		if b := best[unit]; b != nil {
 			sheet.Best = append(sheet.Best, *b)
 		}
 	}
-	sheet.Day = best["T"]
-	if sheet.Other = best["Wo"]; sheet.Other == nil {
-		sheet.Other = best["Mo"]
+	sheet.Day = best[view.StreakDays]
+	if sheet.Other = best[view.StreakWeeks]; sheet.Other == nil {
+		sheet.Other = best[view.StreakMonths]
 	}
 	if bestDay.goalName != "" {
 		sheet.Goal = &streakGoal{Left: bestDay.goalLeft, Name: bestDay.goalName, Percent: bestDay.Ring}

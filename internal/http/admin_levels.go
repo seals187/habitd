@@ -191,19 +191,12 @@ func validateLevels(levels []game.Level) string {
 
 // storeLevels saves the table and moves every user to the matching level.
 func (s *Server) storeLevels(r *http.Request, levels []game.Level, st game.LevelSettings) error {
-	err := s.svc.Store.Tx(r.Context(), func(q *db.Q) error {
+	return s.svc.ChangeLevels(r.Context(), func(q *db.Q) error {
 		if err := q.SaveLevels(levels); err != nil {
 			return err
 		}
 		return q.SaveLevelSettings(st)
 	})
-	if err != nil {
-		return err
-	}
-	if err := s.svc.LoadRules(r.Context()); err != nil {
-		return err
-	}
-	return s.svc.RecalculateLevels(r.Context())
 }
 
 func levelsURL(r *http.Request) string {

@@ -64,7 +64,7 @@ func (s *Server) habitForm(w http.ResponseWriter, r *http.Request, h model.Habit
 	}
 	d := habitFormData{Habit: h, New: h.ID == 0, Areas: areas, Icons: habitIcons, Error: message, Freqs: freqOptions(h), Popular: popularRows(areas), Total: len(templates.All())}
 	d.Expanded = !d.New || status != http.StatusOK || h.Name != ""
-	for i, l := range []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"} {
+	for i, l := range view.Weekdays {
 		d.Days = append(d.Days, dayOption{Bit: i, Label: l, Checked: h.DaysMask&(1<<i) != 0})
 	}
 	target, step := "8", "1"
@@ -227,11 +227,13 @@ func (s *Server) habitSave(w http.ResponseWriter, r *http.Request) error {
 	if _, ok := areaMap(areas)[h.AreaID]; !ok {
 		return s.habitForm(w, r, h, http.StatusUnprocessableEntity, "Bitte wähle einen Bereich")
 	}
-	id, err := q.SaveHabit(h)
-	if err != nil {
+	var id int64
+	err = s.svc.ChangeHabits(r.Context(), func(q *db.Q) error {
+		var err error
+		id, err = q.SaveHabit(h)
 		return err
-	}
-	if err := s.svc.HabitSaved(r.Context()); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	if h.ID != 0 {
@@ -282,10 +284,7 @@ func (s *Server) setArchived(w http.ResponseWriter, r *http.Request, archived bo
 	if err != nil {
 		return err
 	}
-	if err := s.svc.Store.Q(r.Context()).SetHabitArchived(id, archived); err != nil {
-		return err
-	}
-	if err := s.svc.HabitSaved(r.Context()); err != nil {
+	if err := s.svc.ChangeHabits(r.Context(), func(q *db.Q) error { return q.SetHabitArchived(id, archived) }); err != nil {
 		return err
 	}
 	return redirect(w, r, "/habits")

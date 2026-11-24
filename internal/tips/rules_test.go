@@ -1,7 +1,6 @@
 package tips
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +33,7 @@ func weekly(m *model.Habit) { m.Frequency, m.WeeklyTarget = model.FreqWeekly, 3 
 func avoid(m *model.Habit) { m.Kind = model.KindAvoid }
 
 func input(h *game.HabitData) Input {
-	return Input{Habit: h, Today: today, Now: at(today, 10, 0), Format: func(v float64) string { return fmt.Sprintf("%.1f L", v) }}
+	return Input{Habit: h, Today: today, Now: at(today, 10, 0)}
 }
 
 // tick marks the days as done and returns them as stamps.
@@ -110,11 +109,11 @@ func TestTrend(t *testing.T) {
 	for _, d := range span(7, 1) {
 		h.Entries[d] = 2.4
 	}
-	wants(t, trend, input(h), "+0.4 L pro Tag mehr")
+	wants(t, trend, input(h), "+0,4 L pro Tag mehr")
 	for _, d := range span(7, 1) {
 		h.Entries[d] = 1.5
 	}
-	wants(t, trend, input(h), "0.5 L pro Tag mehr")
+	wants(t, trend, input(h), "0,5 L pro Tag mehr")
 	for _, d := range span(7, 1) {
 		h.Entries[d] = 2
 	}
@@ -146,7 +145,7 @@ func TestStreakAtRisk(t *testing.T) {
 	water.Entries[today] = 1
 	in = input(water)
 	in.Streak, in.Now = game.Streak{Current: 5}, at(today, 21, 0)
-	wants(t, streakAtRisk, in, "noch 2.0 L bis zum Ziel")
+	wants(t, streakAtRisk, in, "noch 2 L bis zum Ziel")
 }
 
 func TestRecordInReach(t *testing.T) {
@@ -163,7 +162,6 @@ func TestRecordInReach(t *testing.T) {
 
 func TestMorningShare(t *testing.T) {
 	in := input(habit(10, measured))
-	in.Drink = true
 	in.Stamps = []Stamp{{At: at(today, 9, 0), Amount: 0.5}}
 	silent(t, morningShare, in)
 	for range 5 {
@@ -171,7 +169,7 @@ func TestMorningShare(t *testing.T) {
 	}
 	wants(t, morningShare, in, "Morgens trinkst du wenig")
 	wants(t, morningShare, in, "nur 17 % bis 12 Uhr")
-	in.Drink = false
+	in.Habit.Unit = "Gläser"
 	wants(t, morningShare, in, "Morgens ist noch Luft")
 	in.Stamps = append(in.Stamps, Stamp{At: at(today, 8, 0), Amount: 3})
 	silent(t, morningShare, in)
@@ -190,7 +188,7 @@ func TestAboveGoal(t *testing.T) {
 	for _, d := range span(7, 1) {
 		h.Entries[d] = 3.5
 	}
-	wants(t, aboveGoal, input(h), "im Schnitt 3.5 L")
+	wants(t, aboveGoal, input(h), "im Schnitt 3,5 L")
 	h.Entries[today-1], h.Entries[today-2] = 0, 0
 	silent(t, aboveGoal, input(h))
 }
@@ -248,7 +246,7 @@ func TestWeekPace(t *testing.T) {
 	goal.Entries[friday-1] = 4
 	in = input(goal)
 	in.Today = friday
-	wants(t, weekPace, in, "Noch 6.0 L bis zum Wochenziel")
+	wants(t, weekPace, in, "Noch 6 L bis zum Wochenziel")
 	silent(t, weekPace, input(habit(30, nil)))
 }
 
@@ -268,7 +266,6 @@ func TestForSortsAndLimits(t *testing.T) {
 	in := input(h)
 	in.Streak = game.Streak{Current: 12, Longest: 14}
 	in.Now = at(today, 21, 0)
-	in.Drink = true
 	for _, d := range span(14, 1) {
 		h.Entries[d] = 2.9
 		in.Stamps = append(in.Stamps, Stamp{Day: d, At: at(d, 15, 0), Amount: 2.9})

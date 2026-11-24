@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/seals187/habitd/internal/db"
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 )
@@ -160,7 +161,7 @@ func TestStricterRuleKeepsHolders(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.loadRules()
-	if err := e.s.HabitSaved(e.ctx); err != nil {
+	if err := e.s.ChangeHabits(e.ctx, nil); err != nil {
 		t.Fatal(err)
 	}
 	if !e.unlocked("erster-schritt") {
@@ -175,7 +176,7 @@ func TestChangedThresholdsDoNotLowerLevels(t *testing.T) {
 	if err := q.AddLedger(e.now, model.LedgerXP, 1000, "test", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.s.HabitSaved(e.ctx); err != nil {
+	if err := e.s.ChangeHabits(e.ctx, nil); err != nil {
 		t.Fatal(err)
 	}
 	level, _ := q.SettingInt(KeyLevel, 0)
@@ -189,11 +190,7 @@ func TestChangedThresholdsDoNotLowerLevels(t *testing.T) {
 		l.XP *= 100
 		raised[i] = l
 	}
-	if err := q.SaveLevels(raised); err != nil {
-		t.Fatal(err)
-	}
-	e.loadRules()
-	if err := e.s.RecalculateLevels(context.Background()); err != nil {
+	if err := e.s.ChangeLevels(context.Background(), func(q *db.Q) error { return q.SaveLevels(raised) }); err != nil {
 		t.Fatal(err)
 	}
 	if now, _ := q.SettingInt(KeyLevel, 0); now != level {
@@ -206,11 +203,7 @@ func TestChangedThresholdsDoNotLowerLevels(t *testing.T) {
 
 	s := e.s.Rules().Settings
 	s.NoDrop = false
-	if err := q.SaveLevelSettings(s); err != nil {
-		t.Fatal(err)
-	}
-	e.loadRules()
-	if err := e.s.RecalculateLevels(context.Background()); err != nil {
+	if err := e.s.ChangeLevels(context.Background(), func(q *db.Q) error { return q.SaveLevelSettings(s) }); err != nil {
 		t.Fatal(err)
 	}
 	if now, _ := q.SettingInt(KeyLevel, 0); now != 1 {
@@ -230,7 +223,7 @@ func TestLevelRewardsComeFromTheTable(t *testing.T) {
 	if err := e.q().AddLedger(e.now, model.LedgerXP, levels[1].XP, "test", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.s.HabitSaved(e.ctx); err != nil {
+	if err := e.s.ChangeHabits(e.ctx, nil); err != nil {
 		t.Fatal(err)
 	}
 	if b := e.bal(); b.Coins != 7 || b.Jokers != 0 {

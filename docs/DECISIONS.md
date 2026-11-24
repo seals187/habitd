@@ -259,6 +259,20 @@ Grundregel: Eine explizite Regel im Text gewinnt, ein „z. B.“ weicht den Bil
   `foreign_key_check` die Daten.
 - **`internal/service`** ergänzt die vorgeschlagene Struktur: Dort laufen die Transaktionen,
   `internal/game` bleibt pur und ohne Datenbank.
+- **Wo Regeln leben:** Wie ein Tag gelaufen ist, was er wert ist und wie weit das Ziel von heute
+  ist, rechnet `internal/game` an einer Stelle. Die Seiten übersetzen das nur in Klassen und Text,
+  Mengen und Serien schreibt `view` für alle gleich. Änderungen an Regeln und Habits rechnen Cache,
+  Quest und Abzeichen in derselben Transaktion nach. Begriffe stehen in `GLOSSARY.md`.
+- **Statistik ab dem ersten Tag, Belohnungen ab dem Anlegen:** Die Habit-Seite rechnet mit einer
+  Kopie, die am ersten nachgetragenen Tag beginnt. Der Fortschritt einer Serien-Belohnung auf der
+  Habit-Seite folgt deshalb wie überall sonst dem Anlegen. Die Wochenleiste auf „Heute“ zeigt einen
+  geplanten, leeren Tag zwischen Nachtrag und Anlegen wie die Habit-Seite als verpasst.
+- **Eine Erfüllungsquote:** Die Habit-Seite rechnet „Quote 30 T.“ und die Monatsbalken jetzt wie
+  Mein Level. Vorher erwartete sie bei Wochenzielen einen Anteil der Tage, auch von der laufenden
+  Woche, zählte Joker nicht und mehr als das Ziel mit („5/3“). Wer jede Woche schafft, sieht so
+  100 %. Eine Woche über ein Monatsende gehört zum Monat ihres Sonntags, sonst zählte sie in beiden
+  Balken. „Ziel erreicht“ in der Wochenansicht ist der Fortschritt der ganzen Woche („2/3“, täglich
+  „3/7“), auch für Habits mit Menge und für Vermeiden.
 - **Demo-Daten:** Die Salden stimmen exakt mit den Bildern überein. Der Seed zeigt mehr
   freigeschaltete Abzeichen (24 statt 18), weil die Regeln auf den Bild-Daten mehr
   auslösen, etwa Jongleur bei 5 Habits. Die Daten sind nicht geschönt, sonst käme beim ersten

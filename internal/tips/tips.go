@@ -12,6 +12,7 @@ import (
 
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
+	"github.com/seals187/habitd/internal/view"
 )
 
 const (
@@ -56,22 +57,19 @@ type Input struct {
 	Streak game.Streak
 	Today  model.Day
 	Now    time.Time
-	Stamps []Stamp                // every click or check-in
-	Done   []Stamp                // the moments a goal was reached
-	Format func(v float64) string // amount with its unit, such as 0,4 L
-	Drink  bool                   // the habit is about drinking
+	Stamps []Stamp // every click or check-in
+	Done   []Stamp // the moments a goal was reached
 }
 
 func (in Input) enoughDays() bool {
 	return int(in.Today-in.Habit.Start)+1 >= MinDays
 }
 
-func (in Input) amount(v float64) string {
-	if in.Format == nil {
-		return ""
-	}
-	return in.Format(v)
-}
+// amount is an amount with the unit of the habit, such as 0,4 L.
+func (in Input) amount(v float64) string { return view.UnitOf(in.Habit.Unit).Label(v) }
+
+// drink reports a habit that is about drinking.
+func (in Input) drink() bool { return view.UnitOf(in.Habit.Unit).Kind == view.UnitVolume }
 
 func (in Input) avoid() bool { return in.Habit.Kind == model.KindAvoid }
 

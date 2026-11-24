@@ -63,21 +63,6 @@ func figureStage(percent int) int {
 	return 1 + min(max(percent, 0), 100)*(figureStages-1)/100
 }
 
-// dayProgress is the mean fill of the goals of today, so every click counts.
-func dayProgress(cards ...[]habitCard) int {
-	sum, n := 0, 0
-	for _, list := range cards {
-		for _, c := range list {
-			sum += min(c.Ring, 100)
-			n++
-		}
-	}
-	if n == 0 {
-		return 0
-	}
-	return sum / n
-}
-
 func (s *Server) figures(w http.ResponseWriter, r *http.Request) error {
 	q := s.svc.Store.Q(r.Context())
 	fig, on, err := userFigure(q)

@@ -174,7 +174,7 @@ func (s *Server) templateSuggest(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) addTemplates(ctx context.Context, ids []string) error {
-	err := s.svc.Store.Tx(ctx, func(q *db.Q) error {
+	return s.svc.ChangeHabits(ctx, func(q *db.Q) error {
 		areas, err := q.Areas()
 		if err != nil {
 			return err
@@ -203,10 +203,6 @@ func (s *Server) addTemplates(ctx context.Context, ids []string) error {
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return s.svc.HabitSaved(ctx)
 }
 
 type onboardTile struct {

@@ -21,6 +21,7 @@ import (
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
 	"github.com/seals187/habitd/internal/service"
+	"github.com/seals187/habitd/internal/view"
 	"github.com/seals187/habitd/web"
 )
 
@@ -932,22 +933,26 @@ func TestGoalBars(t *testing.T) {
 		}
 		return n
 	}
+	units := func(h *game.HabitData) (int, int) {
+		g := h.TodayGoal(today)
+		return g.Total, g.Units
+	}
 	h := game.NewHabitData(model.Habit{Measure: model.MeasureAmount, Frequency: model.FreqDaily, Target: 3, Step: 0.5}, today-5)
 	h.Entries[today] = 1.5
-	if b, gold := goalBars(goalUnits(h, today, 0, false)); len(b) != 6 || count(b, "on") != 3 || gold != 0 {
+	if b, gold := goalBars(units(h)); len(b) != 6 || count(b, "on") != 3 || gold != 0 {
 		t.Fatalf("3 l in steps of 0,5: %v", b)
 	}
 	h.Entries[today] = 3.5
-	if b, gold := goalBars(goalUnits(h, today, 0, true)); len(b) != 7 || count(b, "on") != 6 || count(b, "gold") != 1 || gold != 16 {
+	if b, gold := goalBars(units(h)); len(b) != 7 || count(b, "on") != 6 || count(b, "gold") != 1 || gold != 16 {
 		t.Fatalf("one step beyond the goal: %v %d", b, gold)
 	}
 	tenths := game.NewHabitData(model.Habit{Measure: model.MeasureAmount, Frequency: model.FreqDaily, Target: 0.6, Step: 0.2}, today-5)
-	if b, _ := goalBars(goalUnits(tenths, today, 0, false)); len(b) != 3 {
+	if b, _ := goalBars(units(tenths)); len(b) != 3 {
 		t.Fatalf("decimal noise: %v", b)
 	}
 	many := game.NewHabitData(model.Habit{Measure: model.MeasureCount, Frequency: model.FreqDaily, Target: 1000, Step: 1}, today-5)
 	many.Entries[today] = 500
-	if b, _ := goalBars(goalUnits(many, today, 0, false)); len(b) != maxBars || count(b, "on") != maxBars/2 {
+	if b, _ := goalBars(units(many)); len(b) != maxBars || count(b, "on") != maxBars/2 {
 		t.Fatalf("many steps: %v", b)
 	}
 	if b, gold := goalBars(20, 40); len(b) != maxBars || count(b, "on") != 15 || count(b, "gold") != 15 || gold != 100 {
@@ -957,14 +962,17 @@ func TestGoalBars(t *testing.T) {
 		t.Fatalf("a small excess stays visible: %v", b)
 	}
 	week := game.NewHabitData(model.Habit{Frequency: model.FreqWeekly, WeeklyTarget: 3}, today-5)
-	if b, _ := goalBars(goalUnits(week, today, 2, false)); len(b) != 3 || count(b, "on") != 2 {
+	week.Done[today.WeekStart()], week.Done[today.WeekStart()+1] = time.Time{}, time.Time{}
+	if b, _ := goalBars(units(week)); len(b) != 3 || count(b, "on") != 2 {
 		t.Fatalf("weekly rhythm: %v", b)
 	}
-	if b, _ := goalBars(goalUnits(week, today, 4, false)); len(b) != 4 || count(b, "gold") != 1 {
+	week.Done[today.WeekStart()+2], week.Done[today.WeekStart()+3] = time.Time{}, time.Time{}
+	if b, _ := goalBars(units(week)); len(b) != 4 || count(b, "gold") != 1 {
 		t.Fatalf("a fourth check-in: %v", b)
 	}
 	daily := game.NewHabitData(model.Habit{Frequency: model.FreqDaily}, today-5)
-	if b, _ := goalBars(goalUnits(daily, today, 0, true)); len(b) != 1 || count(b, "on") != 1 {
+	daily.Done[today] = time.Time{}
+	if b, _ := goalBars(units(daily)); len(b) != 1 || count(b, "on") != 1 {
 		t.Fatalf("plain habit: %v", b)
 	}
 }
@@ -985,7 +993,7 @@ func TestOverLabel(t *testing.T) {
 		{habit(model.MeasureCount, "Gläser"), 9, 8, "9/8 Gläser"},
 		{habit("", ""), 4, 3, "4/3"},
 	} {
-		if got := overLabel(c.h, c.value, c.goal); got != c.want {
+		if got := view.UnitOf(c.h.Unit).Over(c.value, c.goal); got != c.want {
 			t.Fatalf("%s: got %s", c.want, got)
 		}
 	}
@@ -1168,7 +1176,7 @@ func TestHabitOffTodayStaysVisible(t *testing.T) {
 		t.Fatalf("create: %s %s", resp.Status, body)
 	}
 	_, html := c.get("/")
-	for _, want := range []string{"Heute frei", "Bewerbung", "wieder am " + weekNames[tomorrow], "hcard collapsed"} {
+	for _, want := range []string{"Heute frei", "Bewerbung", "wieder am " + view.Weekdays[tomorrow], "hcard collapsed"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("missing %q: %s", want, html)
 		}
@@ -1353,8 +1361,9 @@ func TestMonthCountsAFinishedToday(t *testing.T) {
 	avoid := c.habit("Kein Zucker", "avoid")
 	c.post(fmt.Sprintf("/habits/%d/relapse", avoid), true)
 	_, html := c.get(fmt.Sprintf("/habits/%d?view=week", avoid))
-	if !strings.Contains(html, "0/1</b>") {
-		t.Fatal("a relapse today counts as a missed day")
+	// The week asks for every day from the start on, the relapse of today is not met.
+	if m := regexp.MustCompile(`(\d+)/(\d+)</b><span>Ziel erreicht`).FindStringSubmatch(html); m == nil || m[1] != "0" || m[2] == "0" {
+		t.Fatalf("a relapse today counts as a missed day: %v", m)
 	}
 }
 

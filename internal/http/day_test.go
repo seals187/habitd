@@ -211,29 +211,6 @@ func TestCalendarShowsAmountAndTime(t *testing.T) {
 	}
 }
 
-func TestDayTag(t *testing.T) {
-	cases := []struct {
-		unit string
-		v    float64
-		want string
-	}{
-		{"l", 3, "3,0l"},
-		{"L", 2.8, "2,8l"},
-		{"Min.", 20, "20min"},
-		{"Min.", 90, "1,5h"},
-		{"km", 5.2, "5,2km"},
-		{"Schritte", 6400, "6,4k"},
-		{"x", 4, "4x"},
-		{"Seiten", 12, "12"},
-		{"", 2, "2"},
-	}
-	for _, tc := range cases {
-		if got := amountUnitOf(tc.unit).tag(tc.v); got != tc.want {
-			t.Fatalf("%q %v: got %q, want %q", tc.unit, tc.v, got, tc.want)
-		}
-	}
-}
-
 func TestMonthHintSitsBesideTheLastDay(t *testing.T) {
 	c := newApp(t, Config{})
 	c.signIn()

@@ -38,8 +38,6 @@ type Renderer struct {
 	Version string
 }
 
-var weekdaysShort = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
-
 var weekdays = []string{"Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"}
 
 // ShortMonths are the abbreviated German month names.
@@ -218,24 +216,7 @@ func dash(radius float64, percent int) string {
 }
 
 // StreakLabel formats a streak: "27 Tage" or "5 Wochen".
-func StreakLabel(s game.Streak) string {
-	if s.Monthly {
-		if s.Current == 1 {
-			return "1 Monat"
-		}
-		return fmt.Sprintf("%d Monate", s.Current)
-	}
-	if s.Weekly {
-		if s.Current == 1 {
-			return "1 Woche"
-		}
-		return fmt.Sprintf("%d Wochen", s.Current)
-	}
-	if s.Current == 1 {
-		return "1 Tag"
-	}
-	return fmt.Sprintf("%d Tage", s.Current)
-}
+func StreakLabel(s game.Streak) string { return Span(s.Current, StreakShort(s)) }
 
 // StreakUnit names the unit of a streak.
 func StreakUnit(s game.Streak) string {
@@ -255,7 +236,7 @@ func MultiplierLabel(m float64) string {
 
 // LongDate formats "Fr, 30. Oktober".
 func LongDate(d model.Day) string {
-	return fmt.Sprintf("%s, %d. %s", weekdaysShort[d.WeekdayIndex()], d.Dom(), Months[d.Month()-1])
+	return fmt.Sprintf("%s, %d. %s", Weekdays[d.WeekdayIndex()], d.Dom(), Months[d.Month()-1])
 }
 
 // FullDate formats "Sonntag, 1. November".
@@ -265,7 +246,7 @@ func FullDate(d model.Day) string {
 
 // LongDateShort formats "Sa, 24. Okt."
 func LongDateShort(d model.Day) string {
-	return fmt.Sprintf("%s, %d. %s", weekdaysShort[d.WeekdayIndex()], d.Dom(), ShortMonths[d.Month()-1])
+	return fmt.Sprintf("%s, %d. %s", Weekdays[d.WeekdayIndex()], d.Dom(), ShortMonths[d.Month()-1])
 }
 
 // ShortDate formats "30.10.2026".
@@ -274,7 +255,7 @@ func ShortDate(t time.Time) string { return t.Format("02.01.2006") }
 // FrequencyLabel describes the rhythm of a habit.
 func FrequencyLabel(h model.Habit) string {
 	if h.GoalWeek {
-		return strings.TrimSpace(Decimal(h.Target)+" "+h.Unit) + " pro Woche"
+		return UnitOf(h.Unit).Label(h.Target) + " pro Woche"
 	}
 	switch h.Frequency {
 	case model.FreqWeekly:
@@ -282,9 +263,8 @@ func FrequencyLabel(h model.Habit) string {
 	case model.FreqMonthly:
 		return fmt.Sprintf("%d× pro Monat", h.WeeklyTarget)
 	case model.FreqCustom:
-		letters := []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 		var picked []string
-		for i, l := range letters {
+		for i, l := range Weekdays {
 			if h.DaysMask&(1<<i) != 0 {
 				picked = append(picked, l)
 			}

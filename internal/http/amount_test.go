@@ -4,69 +4,17 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/seals187/habitd/internal/game"
 	"github.com/seals187/habitd/internal/model"
+	"github.com/seals187/habitd/internal/view"
 )
-
-func TestAmountFormats(t *testing.T) {
-	cases := []struct {
-		unit         string
-		v            float64
-		label, bare  string
-		number, word string
-	}{
-		{"L", 2.53, "2,5 L", "2,5", "2,5", "Liter"},
-		{"Liter", 3, "3 L", "3,0", "3", "Liter"},
-		{"l", 389.4, "389 L", "389", "389", "Liter"},
-		{"Min.", 45, "45 Min.", "45′", "45", "Minuten"},
-		{"Min.", 60, "1 Std.", "1h", "1", "Stunde"},
-		{"Minuten", 150, "2,5 Std.", "2,5h", "2,5", "Stunden"},
-		{"Schritte", 800, "800", "800", "800", "Schritte"},
-		{"Schritte", 6400, "6,4k", "6,4k", "6,4k", "Schritte"},
-		{"Schritte", 186000, "186k", "186k", "186k", "Schritte"},
-		{"Schritte", 1257000, "1,3 Mio.", "1,3 Mio.", "1,3 Mio.", "Schritte"},
-		{"Min.", 25.2, "25 Min.", "25′", "25", "Minuten"},
-		{"km", 12.34, "12,3 km", "12,3", "12,3", "Kilometer"},
-		{"Gläser", 8, "8 Gläser", "8", "8", "Gläser"},
-		{"", 0.25, "0,3", "0,3", "0,3", ""},
-	}
-	for _, c := range cases {
-		u := amountUnitOf(c.unit)
-		number, word := u.parts(c.v)
-		if got := u.label(c.v); got != c.label {
-			t.Errorf("label %v %s: %q", c.v, c.unit, got)
-		}
-		if got := u.bare(c.v); got != c.bare {
-			t.Errorf("bare %v %s: %q", c.v, c.unit, got)
-		}
-		if number != c.number || word != c.word {
-			t.Errorf("parts %v %s: %q %q", c.v, c.unit, number, word)
-		}
-	}
-}
-
-func TestAmountDifference(t *testing.T) {
-	u := amountUnitOf("L")
-	for _, c := range []struct {
-		diff        float64
-		text, class string
-	}{{1.8, "+1,8 L", "green"}, {-1.8, "−1,8 L", "orange"}, {0.01, "±0 L", ""}, {0, "±0 L", ""}} {
-		if text, class := u.signed(c.diff); text != c.text || class != c.class {
-			t.Errorf("%v: %q %q", c.diff, text, class)
-		}
-	}
-	if text, _ := amountUnitOf("Schritte").signed(0); text != "±0" {
-		t.Errorf("steps: %q", text)
-	}
-}
 
 func TestAmountNotes(t *testing.T) {
 	text := func(unit, tag string, total float64) string {
 		h := &game.HabitData{Habit: model.Habit{Name: "3 Liter Wasser trinken", Tag: tag}}
 		var b strings.Builder
-		for _, s := range amountNote(h, amountUnitOf(unit), total) {
+		for _, s := range amountNote(h, view.UnitOf(unit), total) {
 			b.WriteString(s.Text)
 		}
 		return b.String()
@@ -88,21 +36,6 @@ func TestAmountNotes(t *testing.T) {
 		if got := text(c.unit, c.tag, c.total); got != c.want {
 			t.Errorf("%s %v: %q", c.unit, c.total, got)
 		}
-	}
-}
-
-func TestAmountSumCountsOnlyWhatHappened(t *testing.T) {
-	today := model.NewDay(2026, time.October, 31)
-	start := today - 3
-	h := &game.HabitData{Habit: model.Habit{Measure: model.MeasureAmount, Target: 3, Frequency: model.FreqDaily}, Start: start,
-		Done: map[model.Day]time.Time{start: {}}}
-	totals := map[model.Day]float64{start - 1: 99, start: 3.5, start + 1: 1, today: 2, today + 1: 50}
-	sum := sumAmounts(h, start-5, today+5, today, totals)
-	if sum.Total != 6.5 || sum.Days != 4 || sum.Reached != 1 || sum.Best != 3.5 || sum.BestDay != start {
-		t.Fatalf("%+v", sum)
-	}
-	if got := periodGoal(h, today.WeekStart(), today.WeekStart()+6); got != float64(int(today.WeekStart()+6-start)+1)*3 {
-		t.Fatalf("goal counts from the start: %v", got)
 	}
 }
 

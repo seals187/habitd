@@ -73,11 +73,20 @@ func New(store *db.Store, loc *time.Location) *Service {
 // Rules returns the cached global rules.
 func (s *Service) Rules() *game.Rules { return s.rules.Load() }
 
-// LoadRules stores missing start values and refreshes the cache. The admin area
-// calls it after every change.
-func (s *Service) LoadRules(ctx context.Context) error {
+// LoadRules stores missing start values and fills the cache, at the start.
+func (s *Service) LoadRules(ctx context.Context) error { return s.ChangeRules(ctx, nil) }
+
+// ChangeRules changes the rule tables of the instance: badges, categories, quests
+// and their settings. The cached rules follow in the same transaction, so nothing
+// runs on stale rules. A change of the level table goes through ChangeLevels.
+func (s *Service) ChangeRules(ctx context.Context, change func(q *db.Q) error) error {
 	var rules *game.Rules
 	err := s.Store.Tx(ctx, func(q *db.Q) error {
+		if change != nil {
+			if err := change(q); err != nil {
+				return err
+			}
+		}
 		if err := q.SeedRules(game.DefaultRules()); err != nil {
 			return err
 		}
@@ -201,278 +210,6 @@ func (s *Service) atDay(d model.Day) time.Time {
 func checkinRef(habitID int64, d model.Day) string { return fmt.Sprintf("checkin:%d:%s", habitID, d) }
 func avoidRef(habitID int64, d model.Day) string   { return fmt.Sprintf("avoid:%d:%s", habitID, d) }
 func questRef(d model.Day) string                  { return "quest:" + d.String() }
-
-// Check toggles a check-in of a build habit, including XP and Taler.
-func (s *Service) Check(ctx context.Context, habitID int64, d model.Day) error {
-	if err := s.inRange(d); err != nil {
-		return err
-	}
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		w, err := s.World(q)
-		if err != nil {
-			return err
-		}
-		h := Find(w, habitID)
-		if h == nil {
-			return db.ErrNotFound
-		}
-		if h.Kind != model.KindBuild || h.Archived {
-			return ErrNotAllowed
-		}
-		var trigger *Trigger
-		if h.GoalWeek {
-			if trigger, err = s.toggleWeekDay(q, w, h, d); err != nil {
-				return err
-			}
-		} else if _, done := h.Done[d]; done {
-			if err := s.removeCheckin(q, h, d); err != nil {
-				return err
-			}
-			if err := q.DeleteDayEntries(h.ID, d); err != nil {
-				return err
-			}
-		} else {
-			if err := s.fillDay(q, h, d); err != nil {
-				return err
-			}
-			if trigger, err = s.addCheckin(q, w, h, d); err != nil {
-				return err
-			}
-		}
-		if err := s.updateQuest(q, w); err != nil {
-			return err
-		}
-		return s.evaluate(q, trigger, false)
-	})
-}
-
-func (s *Service) removeCheckin(q *db.Q, h *game.HabitData, d model.Day) error {
-	if err := q.DeleteCheckin(h.ID, d); err != nil {
-		return err
-	}
-	delete(h.Done, d)
-	return s.reverse(q, checkinRef(h.ID, d))
-}
-
-// toggleWeekDay clears a day of a weekly goal, or books one click on it. Days are
-// only parts of the week here, so a tap never fills the whole goal.
-func (s *Service) toggleWeekDay(q *db.Q, w *game.World, h *game.HabitData, d model.Day) (*Trigger, error) {
-	if h.Entries[d] > 0 {
-		if err := q.DeleteDayEntries(h.ID, d); err != nil {
-			return nil, err
-		}
-		h.Entries[d] = 0
-	} else {
-		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: h.Step, CreatedAt: s.atDay(d)}); err != nil {
-			return nil, err
-		}
-		h.Entries[d] = h.Step
-	}
-	trigger, _, err := s.syncGoal(q, w, h, d)
-	return trigger, err
-}
-
-// syncGoal aligns the check-in with the entries: reaching the goal adds it,
-// falling below takes it back.
-func (s *Service) syncGoal(q *db.Q, w *game.World, h *game.HabitData, d model.Day) (*Trigger, bool, error) {
-	day, done := h.GoalCheckin(d)
-	met := h.GoalTotal(d) >= h.Target
-	switch {
-	case met && !done:
-		trigger, err := s.addCheckin(q, w, h, d)
-		return trigger, true, err
-	case done && !met:
-		return nil, true, s.removeCheckin(q, h, day)
-	}
-	return nil, false, nil
-}
-
-// fillDay tops a counter or quantity habit up to its goal, for days marked done
-// in the calendar instead of on the card.
-func (s *Service) fillDay(q *db.Q, h *game.HabitData, d model.Day) error {
-	if !h.Measured() {
-		return nil
-	}
-	totals, err := q.DayTotals(d)
-	if err != nil {
-		return err
-	}
-	if missing := model.RoundAmount(h.Target - totals[h.ID]); missing > 0 {
-		return q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: missing, CreatedAt: s.atDay(d)})
-	}
-	return nil
-}
-
-// DayEdit says how a day of a habit should look after it was edited by hand.
-type DayEdit struct {
-	Done   bool      // reached, for habits without an amount
-	Amount float64   // the sum of the day, for counters and quantities
-	At     time.Time // when it was reached, the zero time keeps what is stored
-}
-
-// DayEditable reports whether a day can be opened in the calendar: every day
-// since the start of the habit, and the usual days of backfill before it.
-func DayEditable(h *game.HabitData, d, today model.Day) bool {
-	return h.Kind == model.KindBuild && !h.Archived && d <= today && (d >= h.Since() || d >= today-game.BackfillDays)
-}
-
-// DayTime is a time of a day entered by hand. The second tells it from noon, which
-// stands for a day filled in without a time.
-func (s *Service) DayTime(d model.Day, hour, minute int) time.Time {
-	return time.Date(d.Year(), d.Month(), d.Dom(), hour, minute, 1, 0, s.Loc)
-}
-
-// EditDay sets the state of a day, its amount and its time. XP, Taler, streaks and
-// badges follow as they do for a click on that day.
-func (s *Service) EditDay(ctx context.Context, habitID int64, d model.Day, edit DayEdit) error {
-	if edit.At.Truncate(time.Minute).After(s.Now()) {
-		return ErrFuture
-	}
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		w, err := s.World(q)
-		if err != nil {
-			return err
-		}
-		h := Find(w, habitID)
-		if h == nil {
-			return db.ErrNotFound
-		}
-		if !DayEditable(h, d, w.Today) {
-			return ErrNotAllowed
-		}
-		var trigger *Trigger
-		switch {
-		case h.Measured():
-			trigger, err = s.editAmount(q, w, h, d, edit)
-		case edit.Done && !hasCheckin(h, d):
-			trigger, err = s.addCheckin(q, w, h, d)
-		case !edit.Done && hasCheckin(h, d):
-			err = s.removeCheckin(q, h, d)
-		}
-		if err != nil {
-			return err
-		}
-		if !edit.At.IsZero() && hasCheckin(h, d) {
-			if err := q.Checkin(model.Checkin{HabitID: h.ID, Date: d, CreatedAt: edit.At}); err != nil {
-				return err
-			}
-			h.Done[d] = edit.At
-		}
-		if err := s.updateQuest(q, w); err != nil {
-			return err
-		}
-		return s.evaluate(q, trigger, false)
-	})
-}
-
-func hasCheckin(h *game.HabitData, d model.Day) bool {
-	_, done := h.Done[d]
-	return done
-}
-
-// editAmount replaces the entries of a day by their new sum. An unchanged sum keeps
-// its clicks, only the last one moves to the new time.
-func (s *Service) editAmount(q *db.Q, w *game.World, h *game.HabitData, d model.Day, edit DayEdit) (*Trigger, error) {
-	amount := model.RoundAmount(edit.Amount)
-	if amount == h.Entries[d] {
-		if amount == 0 || edit.At.IsZero() {
-			return nil, nil
-		}
-		return nil, q.MoveLastEntry(h.ID, d, edit.At)
-	}
-	if err := q.DeleteDayEntries(h.ID, d); err != nil {
-		return nil, err
-	}
-	h.Entries[d] = amount
-	if amount > 0 {
-		at := edit.At
-		if at.IsZero() {
-			at = s.atDay(d)
-		}
-		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: amount, CreatedAt: at}); err != nil {
-			return nil, err
-		}
-	}
-	trigger, _, err := s.syncGoal(q, w, h, d)
-	return trigger, err
-}
-
-// measured finds a counter or quantity habit that can take entries today.
-func (s *Service) measured(q *db.Q, habitID int64) (*game.World, *game.HabitData, error) {
-	w, err := s.World(q)
-	if err != nil {
-		return nil, nil, err
-	}
-	h := Find(w, habitID)
-	if h == nil {
-		return nil, nil, db.ErrNotFound
-	}
-	if !h.Measured() || h.Kind != model.KindBuild || h.Archived {
-		return nil, nil, ErrNotAllowed
-	}
-	return w, h, nil
-}
-
-// AddEntry books one click. The check-in with XP, streak and badges follows
-// when the click reaches the daily goal.
-func (s *Service) AddEntry(ctx context.Context, habitID int64) error {
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		w, h, err := s.measured(q, habitID)
-		if err != nil {
-			return err
-		}
-		d := w.Today
-		if err := q.AddEntry(model.Entry{HabitID: h.ID, Date: d, Amount: h.Step, CreatedAt: s.Now()}); err != nil {
-			return err
-		}
-		h.Entries[d] = model.RoundAmount(h.Entries[d] + h.Step)
-		trigger, changed, err := s.syncGoal(q, w, h, d)
-		if err != nil {
-			return err
-		}
-		if !changed {
-			return s.evaluate(q, nil, false) // amount badges count every click
-		}
-		if err := s.updateQuest(q, w); err != nil {
-			return err
-		}
-		return s.evaluate(q, trigger, false)
-	})
-}
-
-// UndoEntry takes back the last click of today, for a weekly goal the last click
-// of the week. Falling below the goal also takes back the check-in.
-func (s *Service) UndoEntry(ctx context.Context, habitID int64) error {
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		w, h, err := s.measured(q, habitID)
-		if err != nil {
-			return err
-		}
-		d := w.Today
-		for h.GoalWeek && d > d.WeekStart() && h.Entries[d] == 0 {
-			d--
-		}
-		if err := q.DeleteLastEntry(h.ID, d); err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				return ErrNotAllowed
-			}
-			return err
-		}
-		totals, err := q.DayTotals(d)
-		if err != nil {
-			return err
-		}
-		h.Entries[d] = totals[h.ID]
-		_, changed, err := s.syncGoal(q, w, h, d)
-		if err != nil || !changed {
-			return err
-		}
-		if err := s.updateQuest(q, w); err != nil {
-			return err
-		}
-		return s.evaluate(q, nil, false)
-	})
-}
 
 // DeleteHabit removes a habit for good. Earned XP and Taler stay.
 func (s *Service) DeleteHabit(ctx context.Context, habitID int64) error {
@@ -601,69 +338,6 @@ func (s *Service) reverse(q *db.Q, ref string) error {
 		}
 	}
 	return nil
-}
-
-// Relapse toggles a relapse of an avoid habit. XP are never taken away.
-func (s *Service) Relapse(ctx context.Context, habitID int64, d model.Day) error {
-	if err := s.inRange(d); err != nil {
-		return err
-	}
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		w, err := s.World(q)
-		if err != nil {
-			return err
-		}
-		h := Find(w, habitID)
-		if h == nil {
-			return db.ErrNotFound
-		}
-		if h.Kind != model.KindAvoid || h.Archived {
-			return ErrNotAllowed
-		}
-		if i := slices.Index(h.Relapses, d); i >= 0 {
-			if err := q.DeleteRelapse(h.ID, d); err != nil {
-				return err
-			}
-			h.Relapses = slices.Delete(h.Relapses, i, i+1)
-		} else {
-			if err := q.AddRelapse(h.ID, d); err != nil {
-				return err
-			}
-			h.Relapses = append(h.Relapses, d)
-			slices.Sort(h.Relapses)
-		}
-		if err := s.updateQuest(q, w); err != nil {
-			return err
-		}
-		return s.evaluate(q, nil, false)
-	})
-}
-
-// UseJoker bridges a missed day by hand.
-func (s *Service) UseJoker(ctx context.Context, habitID int64, d model.Day) error {
-	if err := s.inRange(d); err != nil {
-		return err
-	}
-	return s.Store.Tx(ctx, func(q *db.Q) error {
-		w, err := s.World(q)
-		if err != nil {
-			return err
-		}
-		h := Find(w, habitID)
-		if h == nil {
-			return db.ErrNotFound
-		}
-		if w.Balances.Jokers <= 0 {
-			return ErrJokerLimit
-		}
-		if d >= w.Today {
-			return ErrNotAllowed
-		}
-		if _, done := h.Done[d]; done || h.Joker[d] || h.Kind != model.KindBuild {
-			return ErrNotAllowed
-		}
-		return s.bridge(q, h, d)
-	})
 }
 
 func (s *Service) bridge(q *db.Q, h *game.HabitData, d model.Day) error {
@@ -913,9 +587,17 @@ func (s *Service) unlock(q *db.Q, w *game.World, b game.Badge, silent bool) erro
 	return q.AddCelebration("badge", b.Key)
 }
 
-// RecalculateLevels applies changed thresholds to every user. Nobody gets the
-// rewards of levels that were only reached by lowering a threshold.
-func (s *Service) RecalculateLevels(ctx context.Context) error {
+// ChangeLevels changes the level table and its settings, then moves every user to
+// the matching level. Nobody gets the rewards of levels that were only reached by
+// lowering a threshold.
+func (s *Service) ChangeLevels(ctx context.Context, change func(q *db.Q) error) error {
+	if err := s.ChangeRules(ctx, change); err != nil {
+		return err
+	}
+	return s.recalculateLevels(ctx)
+}
+
+func (s *Service) recalculateLevels(ctx context.Context) error {
 	users, err := s.Store.Q(ctx).Users()
 	if err != nil {
 		return err
@@ -1080,9 +762,15 @@ func (s *Service) BuyJoker(ctx context.Context) error {
 	})
 }
 
-// HabitSaved updates quest and badges after habits changed.
-func (s *Service) HabitSaved(ctx context.Context) error {
+// ChangeHabits changes habits and settles what depends on them in the same
+// transaction: the quest of today and the badges. A nil change only settles.
+func (s *Service) ChangeHabits(ctx context.Context, change func(q *db.Q) error) error {
 	return s.Store.Tx(ctx, func(q *db.Q) error {
+		if change != nil {
+			if err := change(q); err != nil {
+				return err
+			}
+		}
 		w, err := s.World(q)
 		if err != nil {
 			return err

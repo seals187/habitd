@@ -152,8 +152,6 @@ func patternsOpen(r *http.Request) bool {
 	return err == nil && c.Value == "1"
 }
 
-var dayNames = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
-
 // streakMilestones are the marks the ring around the streak runs towards.
 var streakMilestones = []int{7, 30, 60, 100, 180, 365, 500, 1000}
 
@@ -241,92 +239,22 @@ func rangeLabel(from, to model.Day) string {
 	return dayMonth(from) + "–" + dayMonth(to)
 }
 
-// cellFor derives the display state of one day.
-func cellFor(h *game.HabitData, d, today model.Day, totals map[model.Day]float64) dayCell {
-	c := dayCell{Label: d.Dom(), Letter: dayNames[d.WeekdayIndex()], Date: d.String(), Today: d == today}
-	c.Editable = d <= today && d >= today-game.BackfillDays && !h.Archived
-	switch {
-	case h.Kind == model.KindAvoid:
-		switch {
-		case d < h.Start:
-			c.State, c.Editable = "none", false
-		case containsDay(h.Relapses, d):
-			c.State = "missed"
-		case d >= today:
-			c.State = "open"
-		default:
-			c.State = "done"
-		}
-	case hasDone(h, d) && !h.GoalWeek:
-		c.State = "done"
-	case h.Joker[d]:
-		c.State = "joker"
-	case h.Measured() && totals[d] > 0:
-		c.State = "part"
-		c.Fill = min(int(totals[d]*100/h.Target), 99)
-	case d >= today:
-		c.State = "open"
-	case h.Scheduled(d):
-		c.State = "missed"
-	default:
-		c.State = "none"
+// cellStates are the CSS classes of the days in the strip and the month.
+var cellStates = map[game.DayStatus]string{
+	game.DayFree: "none", game.DayBefore: "none", game.DayFuture: "open", game.DayOpen: "open",
+	game.DayDone: "done", game.DayPart: "part", game.DayJoker: "joker", game.DayMissed: "missed",
+}
+
+// cellFor shows one day of the strip or the month.
+func cellFor(h *game.HabitData, d, today model.Day) dayCell {
+	m := h.Mark(d, today)
+	c := dayCell{Label: d.Dom(), Letter: view.Weekdays[d.WeekdayIndex()], Date: d.String(), Today: d == today, State: cellStates[m.Status]}
+	if m.Status == game.DayPart {
+		c.Fill = m.Fill
 	}
+	// An avoid habit cannot have relapsed before it began.
+	c.Editable = d <= today && d >= today-game.BackfillDays && !h.Archived && !(h.Kind == model.KindAvoid && m.Status == game.DayBefore)
 	return c
-}
-
-func containsDay(days []model.Day, d model.Day) bool {
-	for _, x := range days {
-		if x == d {
-			return true
-		}
-	}
-	return false
-}
-
-func hasDone(h *game.HabitData, d model.Day) bool {
-	_, ok := h.Done[d]
-	return ok
-}
-
-// planned counts the expected and the achieved days in a range. Weekly rhythms
-// expect their share of the days.
-func planned(h *game.HabitData, from, to model.Day) (done, plan int) {
-	from = max(from, h.Start)
-	if h.Kind == model.KindAvoid {
-		for d := from; d <= to; d++ {
-			plan++
-			if !containsDay(h.Relapses, d) {
-				done++
-			}
-		}
-		return done, plan
-	}
-	days := 0
-	for d := from; d <= to; d++ {
-		days++
-		if h.Scheduled(d) {
-			plan++
-		}
-		if hasDone(h, d) {
-			done++
-		}
-	}
-	switch h.Frequency {
-	case model.FreqWeekly:
-		plan = (days*h.WeekTarget() + 6) / 7
-	case model.FreqMonthly:
-		plan = (days*h.WeekTarget() + 29) / 30
-	}
-	return done, plan
-}
-
-// lastSettledDay is the end of a statistic: today only counts once it is decided,
-// an open day is neither done nor missed yet.
-func lastSettledDay(h *game.HabitData, today model.Day) model.Day {
-	if hasDone(h, today) || containsDay(h.Relapses, today) {
-		return today
-	}
-	return today - 1
 }
 
 // rememberedView stores an explicitly chosen view of a habit and falls back to
@@ -353,43 +281,17 @@ func percent(part, whole int) int {
 	return min(int(float64(part)*100/float64(whole)+0.5), 100)
 }
 
-// goalOf is the value a day needs: the goal of a measured habit, else one tick.
-func goalOf(h *game.HabitData) float64 {
-	if h.Measured() {
-		return h.Target
-	}
-	return 1
-}
-
-// valueOn is what a day is worth in the charts.
-func valueOn(h *game.HabitData, d, today model.Day, totals map[model.Day]float64) float64 {
-	if h.Kind == model.KindAvoid {
-		if d < today && d >= h.Start && !containsDay(h.Relapses, d) {
-			return 1
-		}
-		return 0
-	}
-	v := 0.0
-	if h.Measured() {
-		v = totals[d]
-	}
-	if hasDone(h, d) && !h.GoalWeek {
-		v = max(v, goalOf(h))
-	}
-	return v
-}
-
 func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 	q := s.svc.Store.Q(r.Context())
 	w, err := s.svc.World(q)
 	if err != nil {
 		return nil, err
 	}
-	h := service.Find(w, id)
-	if h == nil {
+	found := service.Find(w, id)
+	if found == nil {
 		return nil, db.ErrNotFound
 	}
-	h.Start = h.Since() // a day filled in before the habit was created belongs to it
+	h := found.ForStatistics()
 	areas, err := q.Areas()
 	if err != nil {
 		return nil, err
@@ -398,24 +300,16 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 	if err != nil {
 		return nil, err
 	}
-	totals, err := q.HabitDays(id)
-	if err != nil {
-		return nil, err
-	}
 	streak := h.StreakAt(w.Today)
-	done, plan := planned(h, w.Today-29, lastSettledDay(h, w.Today))
+	done, plan := h.Quota(w.Today-29, w.Today, w.Today)
 	d := &detailData{
-		Habit: h.Habit, Area: areaMap(areas)[h.AreaID], Frequency: view.FrequencyLabel(h.Habit), Since: sinceLabel(h.Start, w.Today),
+		Habit: h.Habit, Area: areaMap(areas)[h.AreaID], Frequency: view.RhythmLabel(h.Habit), Since: sinceLabel(h.Start, w.Today),
 		Streak: streak, Avoid: h.Kind == model.KindAvoid, Ring: ringPercent(streak.Days), Quote: percent(done, plan), XPTotal: xp, CoinsTotal: coins,
 		Zoom: zoomOf(r, "detail_zoom"), PatternsOpen: patternsOpen(r),
 	}
-	unit := amountUnitOf(h.Unit)
+	unit := view.UnitOf(h.Unit)
 	if d.Avoid {
 		d.Frequency = "vermeiden"
-	} else if h.GoalWeek {
-		d.Frequency = unit.label(h.Target) + " pro Woche"
-	} else if h.Measured() {
-		d.Frequency += " " + unit.label(h.Target)
 	}
 	if d.View, err = rememberedView(q, id, r.FormValue("view")); err != nil {
 		return nil, err
@@ -427,7 +321,7 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 			return nil, err
 		}
 		if !h.Measured() {
-			buildStrip(d, h, start, w.Today, totals)
+			buildStrip(d, h, start, w.Today)
 		}
 		var clicks []model.Entry
 		if h.GoalWeek {
@@ -435,7 +329,7 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 				return nil, err
 			}
 		}
-		buildWeek(d, h, start, w.Today, totals, lastClicks(clicks))
+		buildWeek(d, h, start, w.Today, lastClicks(clicks))
 	case "year":
 		end, err := yearEnd(r.FormValue("y"), w.Today)
 		if err != nil {
@@ -444,14 +338,14 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 		first := setYearWindow(d, h.ID, end, yearSpan(r), w.Today)
 		last := model.NewDay(end.Year(), end.Month()+1, 1) - 1
 		if h.Measured() {
-			buildYearAmount(d, h, unit, first, last, w.Today, totals)
+			buildYearAmount(d, h, unit, first, last, w.Today)
 		} else {
-			buildYear(d, h, first, last, w.Today, totals)
+			buildYear(d, h, first, last, w.Today)
 		}
 	default:
 		d.View = "month"
 		if !h.Measured() {
-			buildStrip(d, h, w.Today.WeekStart(), w.Today, totals)
+			buildStrip(d, h, w.Today.WeekStart(), w.Today)
 		}
 		var clicks []model.Entry
 		if h.Measured() {
@@ -459,7 +353,7 @@ func (s *Server) detailData(r *http.Request, id int64) (*detailData, error) {
 				return nil, err
 			}
 		}
-		if err := buildMonth(d, h, w.Today, r.FormValue("m"), totals, lastClicks(clicks)); err != nil {
+		if err := buildMonth(d, h, w.Today, r.FormValue("m"), lastClicks(clicks)); err != nil {
 			return nil, err
 		}
 	}
@@ -488,9 +382,9 @@ func realMoment(at time.Time, d model.Day) bool {
 
 // patterns collects what really happened lately and asks the rules about it.
 func (s *Server) patterns(q *db.Q, h *game.HabitData, streak game.Streak, today model.Day) (*patternData, error) {
-	unit := amountUnitOf(h.Unit)
+	unit := view.UnitOf(h.Unit)
 	from := today - tips.Window
-	in := tips.Input{Habit: h, Streak: streak, Today: today, Now: s.svc.Now(), Format: unit.label, Drink: unit.kind == unitVolume}
+	in := tips.Input{Habit: h, Streak: streak, Today: today, Now: s.svc.Now()}
 	for day, at := range h.Done {
 		if day >= from && realMoment(at, day) {
 			in.Done = append(in.Done, tips.Stamp{Day: day, At: at, Amount: 1})
@@ -511,7 +405,7 @@ func (s *Server) patterns(q *db.Q, h *game.HabitData, streak game.Streak, today 
 		}
 	}
 	p := &patternData{Label: "wann du es erledigst", Hours: tips.Hours(in), Tips: tips.For(in)}
-	if in.Drink {
+	if unit.Kind == view.UnitVolume {
 		p.Label = "wann du trinkst"
 	}
 	if len(p.Tips) == 0 && p.Hours == nil {
@@ -563,33 +457,33 @@ func weekGoalStatus(h *game.HabitData, x, today model.Day, clicks map[model.Day]
 	return "", ""
 }
 
-func buildStrip(d *detailData, h *game.HabitData, start, today model.Day, totals map[model.Day]float64) {
+func buildStrip(d *detailData, h *game.HabitData, start, today model.Day) {
 	for x := start; x < start+7; x++ {
-		cell := cellFor(h, x, today, totals)
+		cell := cellFor(h, x, today)
 		cell.Sheet = service.DayEditable(h, x, today)
 		d.Strip = append(d.Strip, cell)
 	}
 }
 
-func buildWeek(d *detailData, h *game.HabitData, start, today model.Day, totals map[model.Day]float64, clicks map[model.Day]time.Time) {
+func buildWeek(d *detailData, h *game.HabitData, start, today model.Day, clicks map[model.Day]time.Time) {
 	d.WeekParam = start.String()
 	d.Prev = periodLink(h.ID, "week", "w", (start - 7).String())
 	if start < today.WeekStart() {
 		d.Next = periodLink(h.ID, "week", "w", (start + 7).String())
 	}
 	end := min(start+6, today)
-	goal := goalOf(h)
-	unit := amountUnitOf(h.Unit)
+	goal := h.GoalValue()
+	unit := view.UnitOf(h.Unit)
 	top := goal
 	if h.GoalWeek { // a single day says nothing about the goal of the week
 		top = h.Step
 	}
 	for x := start; x <= end; x++ {
-		top = max(top, valueOn(h, x, today, totals))
+		top = max(top, h.Value(x, today))
 	}
 	sum, days, best, bestValue := 0.0, 0, "–", 0.0
 	d.Chart.Timed = h.Kind != model.KindAvoid
-	for i, name := range dayNames {
+	for i, name := range view.Weekdays {
 		x := start + model.Day(i)
 		bar := barDay{Name: name, Label: "–", Today: x == today}
 		switch {
@@ -598,13 +492,13 @@ func buildWeek(d *detailData, h *game.HabitData, start, today model.Day, totals 
 		case x < h.Start:
 			bar.Empty = true
 		default:
-			v := valueOn(h, x, today, totals)
+			v := h.Value(x, today)
 			sum += v
 			days++
 			bar.Height, bar.Reached = max(int(v*100/top), 3), v >= goal || (h.GoalWeek && v > 0)
 			switch {
 			case h.Measured() && v > 0:
-				bar.Label = unit.tag(v)
+				bar.Label = unit.Tag(v)
 			case !h.Measured() && v > 0:
 				bar.Label = "✓"
 			}
@@ -633,26 +527,25 @@ func buildWeek(d *detailData, h *game.HabitData, start, today model.Day, totals 
 		if !h.GoalWeek {
 			d.Chart.GoalAt = int(goal * 100 / top)
 		}
-		buildWeekAmount(d, h, unit, start, today, totals)
+		buildWeekAmount(d, h, unit, start, today)
 		return
 	}
 	d.Chart.Summary = fmt.Sprintf("%d von %d Tagen", int(sum), days)
 	best = bestWeekday(h, today-364, today)
-	done, plan := planned(h, start, min(end, lastSettledDay(h, today)))
 	d.Stats = []statBox{
-		{Value: fmt.Sprintf("%d/%d", done, plan), Label: "Ziel erreicht", Class: "accent"},
-		versusLastWeek(h, start, today, totals),
+		{Value: goalsLabel(h, start, today), Label: "Ziel erreicht", Class: "accent"},
+		versusLastWeek(h, start, today),
 		{Value: best, Label: "stärkster Tag"},
 	}
 }
 
 // versusLastWeek compares with the same days of the week before.
-func versusLastWeek(h *game.HabitData, start, today model.Day, totals map[model.Day]float64) statBox {
+func versusLastWeek(h *game.HabitData, start, today model.Day) statBox {
 	box := statBox{Value: "–", Label: "vs. Vorwoche"}
 	now, before := 0.0, 0.0
 	for x := start; x <= min(start+6, today); x++ {
-		now += valueOn(h, x, today, totals)
-		before += valueOn(h, x-7, today, totals)
+		now += h.Value(x, today)
+		before += h.Value(x-7, today)
 	}
 	if before == 0 {
 		return box
@@ -666,24 +559,10 @@ func versusLastWeek(h *game.HabitData, start, today model.Day, totals map[model.
 }
 
 func bestWeekday(h *game.HabitData, from, today model.Day) string {
-	counts := make([]int, 7)
-	best := "–"
-	top := 0
-	for x := max(from, h.Start); x <= today; x++ {
-		done := hasDone(h, x)
-		if h.Kind == model.KindAvoid {
-			done = x != today && !containsDay(h.Relapses, x)
-		}
-		if !done {
-			continue
-		}
-		i := x.WeekdayIndex()
-		counts[i]++
-		if counts[i] > top {
-			top, best = counts[i], dayNames[i]
-		}
+	if i := h.BestWeekday(from, today); i >= 0 {
+		return view.Weekdays[i]
 	}
-	return best
+	return "–"
 }
 
 // reachedAt is the time of a day for the calendar, as far as it is known: when its
@@ -699,8 +578,8 @@ func reachedAt(h *game.HabitData, x model.Day, clicks map[model.Day]time.Time) s
 	return ""
 }
 
-func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string, totals map[model.Day]float64, clicks map[model.Day]time.Time) error {
-	unit := amountUnitOf(h.Unit)
+func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string, clicks map[model.Day]time.Time) error {
+	unit := view.UnitOf(h.Unit)
 	year, month := today.Year(), today.Month()
 	if param != "" {
 		t, err := time.Parse("2006-01", param)
@@ -720,11 +599,11 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 
 	week := make([]dayCell, first.WeekdayIndex())
 	for x := first; x <= last; x++ {
-		cell := cellFor(h, x, today, totals)
+		cell := cellFor(h, x, today)
 		cell.Sheet = service.DayEditable(h, x, today)
 		cell.Time = reachedAt(h, x, clicks)
-		if v := valueOn(h, x, today, totals); h.Measured() && v > 0 {
-			cell.Value = unit.tag(v)
+		if v := h.Value(x, today); h.Measured() && v > 0 {
+			cell.Value = unit.Tag(v)
 		}
 		week = append(week, cell)
 		if len(week) == 7 {
@@ -739,36 +618,23 @@ func buildMonth(d *detailData, h *game.HabitData, today model.Day, param string,
 		d.Weeks = append(d.Weeks, append(week, make([]dayCell, left)...))
 	}
 	if h.Measured() {
-		buildMonthAmount(d, h, unit, first, last, today, totals)
+		buildMonthAmount(d, h, unit, first, last, today)
 	}
 	return nil
 }
 
-func heatFor(h *game.HabitData, x, today model.Day, totals map[model.Day]float64) heatCell {
-	c := heatCell{Class: "miss", Title: x.String()}
-	switch {
-	case x > today:
-		c.Class = "future"
-	case h.Kind == model.KindAvoid:
-		switch {
-		case x < h.Start:
-			c.Class = "pre"
-		case containsDay(h.Relapses, x):
-		case x == today:
-			c.Class = "rest"
-		default:
-			c.Class = "done"
-		}
-	case hasDone(h, x):
+// heatClasses are the CSS classes of the days in the year view, which shows
+// nothing that is undecided yet.
+var heatClasses = map[game.DayStatus]string{
+	game.DayFree: "rest", game.DayBefore: "pre", game.DayFuture: "future", game.DayOpen: "rest",
+	game.DayDone: "done", game.DayPart: "part", game.DayJoker: "joker", game.DayMissed: "miss",
+}
+
+func heatFor(h *game.HabitData, x, today model.Day) heatCell {
+	m := h.Mark(x, today)
+	c := heatCell{Class: heatClasses[m.Status], Title: x.String()}
+	if m.Checkin && m.Status != game.DayFuture { // the day a weekly goal was reached
 		c.Class = "done"
-	case x < h.Start:
-		c.Class = "pre"
-	case h.Joker[x]:
-		c.Class = "joker"
-	case h.Measured() && totals[x] > 0:
-		c.Class = "part"
-	case x == today || !h.Scheduled(x):
-		c.Class = "rest"
 	}
 	return c
 }
@@ -792,8 +658,8 @@ func setYearWindow(d *detailData, id int64, end model.Day, span int, today model
 	return first
 }
 
-func buildYear(d *detailData, h *game.HabitData, first, last, today model.Day, totals map[model.Day]float64) {
-	d.YearDone, _ = planned(h, first, min(last, lastSettledDay(h, today)))
+func buildYear(d *detailData, h *game.HabitData, first, last, today model.Day) {
+	d.YearDone = h.Achieved(first, min(last, h.Settled(today)))
 	if h.Start > first {
 		d.StartHint = fmt.Sprintf("Grau = vor dem Start (%s) · zählt nicht zur Quote", dayMonth(h.Start))
 	}
@@ -806,7 +672,7 @@ func buildYear(d *detailData, h *game.HabitData, first, last, today model.Day, t
 		col := heatColumn{}
 		monday := start + model.Day(week*7)
 		for offset := model.Day(0); offset < 7; offset++ {
-			col.Cells = append(col.Cells, heatFor(h, monday+offset, today, totals))
+			col.Cells = append(col.Cells, heatFor(h, monday+offset, today))
 		}
 		if m := (monday + 6).Month(); m != month && week < weeks-3 {
 			if labels%every == 0 {
@@ -835,11 +701,10 @@ func monthName(m time.Month, bars int) string {
 }
 
 func buildMonthBars(d *detailData, h *game.HabitData, from, today model.Day) {
-	settled := lastSettledDay(h, today)
 	for i := range d.Span {
 		first := model.NewDay(from.Year(), from.Month()+time.Month(i), 1)
 		last := model.NewDay(first.Year(), first.Month()+1, 1) - 1
-		done, plan := planned(h, first, min(last, settled))
+		done, plan := h.MonthQuota(first, today)
 		bar := monthBar{Letter: monthName(first.Month(), d.Span), Current: first <= today && today <= last, Empty: plan == 0}
 		if !bar.Empty {
 			bar.Height = max(percent(done, plan), 3)
@@ -864,8 +729,7 @@ func totalStat(h *game.HabitData, today model.Day) statBox {
 	case h.Measured():
 		box.Value, box.Label = view.Decimal(h.Amount), h.Unit+" gesamt"
 	default:
-		done, _ := planned(h, h.Start, lastSettledDay(h, today))
-		box.Value, box.Label = view.Number(done), "Tage erledigt"
+		box.Value, box.Label = view.Number(h.Achieved(h.Start, h.Settled(today))), "Tage erledigt"
 	}
 	return box
 }
@@ -880,4 +744,13 @@ func (s *Server) habitDetail(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return s.view.Render(w, http.StatusOK, "habit", s.page(r, d.Habit.Name, "", d))
+}
+
+// goalsLabel is the progress of a week: the goals met so far of all its goals.
+func goalsLabel(h *game.HabitData, start, today model.Day) string {
+	met, planned := h.Goals(start, start+6, today)
+	if planned == 0 {
+		return "–"
+	}
+	return fmt.Sprintf("%d/%d", met, planned)
 }
