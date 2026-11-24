@@ -1,4 +1,4 @@
-.PHONY: dev test lint build docker seed
+.PHONY: dev test lint check docker-check build docker seed
 
 # Local development without HTTPS. The database lands in ./data.
 dev:
@@ -9,7 +9,15 @@ test:
 
 lint:
 	go vet ./...
-	go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+	go tool staticcheck ./...
+
+# Everything CI checks, after sorting imports and formatting.
+check:
+	sh tools/ci.sh --fix
+
+# The same without a local Go, in a container.
+docker-check:
+	sh tools/check.sh
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/habitd ./cmd/habitd

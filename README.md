@@ -114,6 +114,8 @@ Requires Go 1.27.
 make dev     # run locally on :8080, data in ./data
 make test    # run all tests
 make lint    # go vet and staticcheck
+make check   # everything CI checks, imports and format fixed first
+make docker-check  # the same in a Go container, without a local Go
 make build   # build bin/habitd
 make docker  # build the image
 make seed    # demo data for make dev
