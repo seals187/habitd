@@ -11,6 +11,25 @@ docker compose up -d
 
 Migrations run automatically on start and create a backup of the database next to it first (`*.bak-<timestamp>`).
 
+## [0.2.1] - 2026-11-24
+
+### Changed
+
+- The habit page computes its rate like Mein Level, so both show the same number. Jokers count as reached, an open day or a running week only counts once it is reached or over, and more than the goal no longer reads as `5/3`. Who reaches every week now sees 100 %.
+- In the year view a week across the end of a month counts in the month of its Sunday instead of in both bars.
+- „Ziel erreicht“ in the week view shows the progress of the whole week, such as `2/3` or, for a daily habit on Wednesday, `3/7`. Habits with an amount already worked this way.
+- The habit list writes weekly goals with their unit the way the habit page does, such as `1,5 Std. pro Woche`.
+
+### Fixed
+
+- The progress of a streak reward on the habit page counts from the creation of the habit, as everywhere else.
+- On Heute, a planned day without a check-in between a filled-in day and the creation of the habit shows as missed, as on the habit page.
+
+### Development
+
+- Day rules, wording and day writes each live in one place. `GLOSSARY.md` names them, `CODING_STANDARDS.md` holds the review rules.
+- Every push runs formatting, vet, staticcheck, structure rules and tests (`make check`, or `sh tools/check.sh` without a local Go). An image is only published when they pass.
+
 ## [0.2.0] - 2026-11-02
 
 ### Added
@@ -283,6 +302,7 @@ First release of habitd, a lightweight, self-hosted habit tracker with rewards t
 - The UI is in German.
 - Web Push needs HTTPS and has not yet been tested end to end against a real push service.
 
+[0.2.1]: https://github.com/seals187/habitd/releases/tag/v0.2.1
 [0.2.0]: https://github.com/seals187/habitd/releases/tag/v0.2.0
 [0.1.9]: https://github.com/seals187/habitd/releases/tag/v0.1.9
 [0.1.8]: https://github.com/seals187/habitd/releases/tag/v0.1.8
